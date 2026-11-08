@@ -1,4 +1,4 @@
-"""Streamlit-Oberfläche: Regler, drei Sichten, Szenariovergleich und Optimierung (Modul ui).
+"""Streamlit-Oberfläche als Dashboard: Karte, Kennzahlen, Einschätzung, Szenariovergleich (Modul ui).
 
 Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
@@ -7,214 +7,462 @@ Start:  streamlit run app/app.py
 
 from __future__ import annotations
 
+import json
 import math
 import sys
 from pathlib import Path
 
 import pandas as pd
 import streamlit as st
+import yaml
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
-from uhrensim.data import KonfigurationsFehler, lade_modell, szenario_dateien  # noqa: E402
-from uhrensim.experiment import fuehre_aus, vergleiche  # noqa: E402
+from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
+from uhrensim.experiment import vergleiche  # noqa: E402
 from uhrensim.optimization import rastersuche  # noqa: E402
 
-st.set_page_config(page_title="Simulationsmodell Uhren-Supply-Chain", layout="wide")
+st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
     """<style>
     .stApp {background-color: #F8F4EC;}
-    h1, h2, h3 {font-family: Cambria, Georgia, serif; color: #3E2C23;}
     [data-testid="stSidebar"] {background-color: #F1E9DD;}
+    h1, h2, h3, h4 {font-family: Cambria, Georgia, serif; color: #3E2C23;}
+    h1 {font-size: 2.0rem !important; margin-bottom: 0 !important;}
+    .block-container {padding-top: 2.2rem; max-width: 1500px;}
+    .untertitel {color: #6D594C; font-size: 0.98rem; margin-bottom: 0.6rem;}
+    .kasten {background: #FFFFFF; border: 1px solid #E3D7C7; border-radius: 10px; padding: 12px 14px;
+             margin: 4px 0 10px 0; font-size: 0.92rem; color: #3E2C23;}
+    .kasten b {color: #3E2C23;}
+    .hinweis {border-left: 4px solid #B0A69C; background: #FFFFFF; border-radius: 6px; padding: 9px 12px;
+              margin-bottom: 7px; color: #3E2C23; font-size: 0.95rem;}
+    .hinweis.gut {border-left-color: #5B7F3A;}
+    .hinweis.warn {border-left-color: #C08A55;}
+    .hinweis.schlecht {border-left-color: #9B3B2A;}
+    .hinweis .titel {font-weight: 600;}
+    [data-testid="stMetric"] {background: #FFFFFF; border: 1px solid #E3D7C7; border-radius: 10px;
+                              padding: 10px 14px 6px 14px;}
+    [data-testid="stMetricLabel"] p {font-size: 0.9rem; color: #6D594C;}
+    .erkl {color: #6D594C; font-size: 0.82rem; line-height: 1.25; margin: 4px 2px 0 2px;}
     </style>""",
     unsafe_allow_html=True,
 )
 
-st.title("Simulationsmodell")
-st.caption("Ereignisdiskrete Simulation einer resilienten Lieferkette für eine Automatikuhr aus Heilbronn")
 
-# --------------------------------------------------------------------------- Regler
+# --------------------------------------------------------------------------- Hilfen
+def de(x: float, nachkomma: int = 0) -> str:
+    """Zahl im deutschen Format."""
+    if x is None or (isinstance(x, float) and math.isnan(x)):
+        return "k. A."
+    return f"{x:,.{nachkomma}f}".replace(",", "X").replace(".", ",").replace("X", ".")
+
+
+def kurzname(knoten_name: str) -> str:
+    return knoten_name.split(" (")[0]
+
+
+@st.cache_data(show_spinner=False)
+def szenarien() -> dict[str, dict]:
+    ergebnis = {}
+    for p in szenario_dateien():
+        m = lade_modell(p)
+        with open(p, encoding="utf-8") as f:
+            roh = yaml.safe_load(f) or {}
+        ergebnis[m.szenario_id] = {"pfad": str(p), "name": m.szenario_name,
+                                   "kurz": str(roh.get("kurz", m.szenario_name)),
+                                   "beschreibung": str(roh.get("beschreibung", ""))}
+    return ergebnis
+
+
+@st.cache_resource(show_spinner=False, max_entries=6)
+def rechne(overrides_json: str, ids: tuple[str, ...], reps: int) -> dict:
+    sz = szenarien()
+    return vergleiche([sz[s]["pfad"] for s in ids], json.loads(overrides_json), reps)
+
+
+def hinweis(art: str, titel: str, text: str) -> None:
+    st.markdown(f'<div class="hinweis {art}"><span class="titel">{titel}</span> {text}</div>',
+                unsafe_allow_html=True)
+
+
+SZ = szenarien()
 basis = lade_modell()
-grenzen = basis.param["grenzen"]
+g, mo = basis.param["grenzen"], basis.param["montage"]
+PRO_MA = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
 
+# --------------------------------------------------------------------------- Seitenleiste
 with st.sidebar:
-    st.header("Parameter")
-    menge = st.slider("Uhren pro Jahr", int(grenzen["uhren_pro_jahr"][0]), int(grenzen["uhren_pro_jahr"][1]),
-                      int(basis.param["nachfrage"]["uhren_pro_jahr"]), step=250)
-    kap = st.slider("Montagen pro Tag", int(grenzen["kapazitaet_pro_tag"][0]), int(grenzen["kapazitaet_pro_tag"][1]),
-                    int(basis.param["montage"]["kapazitaet_pro_tag"]))
-    noetig = math.ceil(menge / (grenzen["arbeitstage_pro_jahr"] * basis.param["montage"]["gutquote"])) if menge else 0
-    st.caption(f"Nötig für diese Menge: mindestens {noetig} Montagen pro Tag")
-    pro_ma = float(basis.param["montage"].get("uhren_pro_mitarbeiter_tag", 7))
-    ma_eingestellt = math.ceil(kap / pro_ma)
-    ma_noetig = math.ceil(noetig / pro_ma) if noetig else 0
-    st.metric("Mitarbeiter Montage", ma_eingestellt,
-              help=f"{kap} Montagen/Tag bei {pro_ma:g} Uhren je Mitarbeiter und Tag")
-    st.caption(f"Für die gewählte Jahresmenge mindestens {ma_noetig} Mitarbeiter ({noetig} Montagen/Tag)")
+    st.markdown("## Einstellungen")
 
-    wbz = {}
-    with st.expander("Wiederbeschaffungszeit je Komponente"):
-        st.caption("Nicht kleiner als Fertigung + Transit + Zoll der Route")
-        for komp in basis.komponenten:
-            q = basis.primaerquelle(komp)
-            minimum = math.ceil(q.wbz_min_tage)
-            wert = st.number_input(f"{komp} ({q.lieferant}) [Tage]", min_value=minimum,
-                                   max_value=int(grenzen["wbz_max_tage"]), value=minimum, step=1, key=f"wbz_{komp}")
-            if wert > minimum:
-                wbz[komp] = float(wert)
+    st.markdown("#### Produktion")
+    menge = st.slider("Uhren pro Jahr", int(g["uhren_pro_jahr"][0]), int(g["uhren_pro_jahr"][1]),
+                      int(basis.param["nachfrage"]["uhren_pro_jahr"]), step=250,
+                      help="Geplante Jahresmenge. Montagekapazität und Mitarbeiterzahl werden daraus abgeleitet.")
+    mb = montage_bedarf(menge, g["arbeitstage_pro_jahr"], float(mo["gutquote"]), PRO_MA)
+    auslastung = mb["montagen_noetig"] / mb["kapazitaet_pro_tag"] if mb["kapazitaet_pro_tag"] else 0
+    st.markdown(
+        f'<div class="kasten">Nötig: <b>{de(mb["montagen_noetig"], 1)} Montagen pro Tag</b><br>'
+        f'Dafür: <b>{mb["mitarbeiter"]} Mitarbeiter</b> × {de(PRO_MA)} Uhren = '
+        f'<b>{de(mb["kapazitaet_pro_tag"])} Montagen/Tag</b><br>'
+        f'<span style="color:#6D594C">Auslastung {de(auslastung * 100)} % · {g["arbeitstage_pro_jahr"]} '
+        f'Arbeitstage · {de(float(mo["gutquote"]) * 100)} % Gutquote</span></div>',
+        unsafe_allow_html=True)
 
-    st.header("Maßnahmen")
-    puffer = st.select_slider("Zusätzlicher Uhrwerk-Puffer [Stück]", options=[0, 250, 500, 750, 1000, 1500, 2000])
-    dual = st.checkbox("Dual Sourcing Uhrwerk (Notfallwerk)")
-    luft = st.checkbox("Luftfracht bei drohendem Fehlteil")
+    st.markdown("#### Maßnahmen")
+    sellita = st.toggle(
+        "Uhrwerk von Sellita statt Miyota",
+        help="Sellita SW300-1 aus La Chaux-de-Fonds (Schweiz): flacher als das Miyota und doppelt so teuer "
+             "(140 statt 70 € je Werk). Kommt per Lkw in wenigen Tagen statt per Schiff aus Japan.")
+    puffer = st.select_slider(
+        "Zusätzlicher Uhrwerk-Puffer", options=[0, 250, 500, 750, 1000, 1500, 2000],
+        format_func=lambda v: f"{de(v)} Stück",
+        help="Extra-Sicherheitsbestand an Uhrwerken in Heilbronn. Überbrückt Lieferausfälle, bindet aber Kapital.")
+    luft = st.toggle(
+        "Luftfracht bei drohendem Fehlteil",
+        help="Reicht der Bestand einer Komponente nur noch wenige Tage, wird ein Eilauftrag per Flugzeug "
+             "ausgelöst. Schnell, aber teuer und mit viel CO2e.")
 
-    st.header("Experiment")
-    reps = st.slider("Replikationen", 1, 50, 10)
-    seed = st.number_input("Seed", value=int(basis.param["simulation"]["seed"]), step=1)
-    methode = st.selectbox("Bewertung", ["mindestwerte", "gewichtet", "lexikografisch"],
-                           format_func={"mindestwerte": "Mindestwerte, dann Kosten", "gewichtet": "Gewichtete Summe",
-                                        "lexikografisch": "Rangfolge"}.get)
+    st.markdown("#### Szenarien")
+    auswahl = st.pills("Welche Situationen sollen simuliert werden?", list(SZ), default=list(SZ),
+                       selection_mode="multi", format_func=lambda s: SZ[s]["kurz"],
+                       help="Die Basis wird immer mitgerechnet, sie ist der Vergleichsmaßstab.") or []
+
+    with st.expander("Erweiterte Einstellungen"):
+        reps = st.slider("Wiederholungen je Szenario", 3, 30, 10)
+        st.caption("Nachfrage, Zollzeiten und Ausschuss sind zufällig. Jedes Szenario wird deshalb mehrfach mit "
+                   "anderen Zufallszahlen durchgespielt (Replikationen), angezeigt wird der Mittelwert. Mehr "
+                   "Wiederholungen machen das Ergebnis genauer, die Rechnung dauert aber länger.")
+        seed = st.number_input("Seed", value=int(basis.param["simulation"]["seed"]), step=1)
+        st.caption("Startwert des Zufallsgenerators. Gleicher Seed ergibt beim nächsten Start exakt dieselben "
+                   "Zahlen, das macht Ergebnisse nachprüfbar. Alle Szenarien nutzen dieselben Zufallszahlen, "
+                   "damit Unterschiede nur von der Störung oder Maßnahme kommen.")
+
+    starten = st.button("Simulation starten", type="primary", width="stretch")
 
 overrides = {
     "nachfrage": {"uhren_pro_jahr": menge},
-    "montage": {"kapazitaet_pro_tag": kap},
+    "montage": {"kapazitaet_pro_tag": "auto"},
     "simulation": {"seed": int(seed)},
-    "massnahmen": {"puffer_extra": {"uhrwerk": puffer}, "dual_sourcing": dual, "luftfracht_notfall": luft},
-    "bewertung": {"methode": methode},
-    "wbz": wbz,
+    "massnahmen": {"uhrwerk_sellita": sellita, "puffer_extra": {"uhrwerk": puffer}, "luftfracht_notfall": luft},
 }
+ids = tuple(["S0", *[s for s in auswahl if s != "S0"]])
+schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
+
+# --------------------------------------------------------------------------- Kopf
+uhrwerk_txt = "Sellita (CH)" if sellita else "Miyota (JP)"
+st.title("Uhren-Supply-Chain Heilbronn")
+st.markdown(f'<div class="untertitel">Ereignisdiskrete Simulation · {de(menge)} Uhren pro Jahr · '
+            f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Uhrwerk von {uhrwerk_txt}</div>',
+            unsafe_allow_html=True)
+
+if menge == 0:
+    st.info("Bei 0 Uhren pro Jahr gibt es nichts zu simulieren. Links eine Jahresmenge einstellen.")
+    st.stop()
 
 try:
     pruefung = lade_modell(None, overrides)
 except KonfigurationsFehler as fehler:
-    st.error(f"Unplausible Eingabe: {fehler}")
+    st.error(f"Diese Einstellung ist nicht möglich: {fehler}")
     st.stop()
-for w in pruefung.warnungen:
-    st.warning(w)
 
-schluessel = repr(sorted((k, repr(v)) for k, v in overrides.items())) + f"|{reps}"
+if starten or "lauf" not in st.session_state:
+    st.session_state["lauf"] = schluessel
+lauf_ov, lauf_ids, lauf_reps = json.loads(st.session_state["lauf"])
+with st.spinner(f"Simuliere {len(lauf_ids)} Szenarien mit je {lauf_reps} Wiederholungen …"):
+    vgl = rechne(json.dumps(lauf_ov, sort_keys=True), tuple(lauf_ids), int(lauf_reps))
+if st.session_state["lauf"] != schluessel:
+    st.info("Die Einstellungen wurden geändert. Die Ergebnisse unten gehören noch zum letzten Lauf. "
+            "Links auf **Simulation starten** drücken, um neu zu rechnen.")
 
-# --------------------------------------------------------------------------- Ausführen
-dateien = szenario_dateien()
-namen = {}
-for p in dateien:
-    m = lade_modell(p)
-    namen[m.szenario_id] = (p, m.szenario_name)
+tab, erg_alle = vgl["tabelle"], vgl["ergebnisse"]
+ziel_beta = float(pruefung.param["bewertung"]["mindestwerte"].get("beta", 0.95))
+zusage = int(pruefung.param["distribution"]["lieferzusage_tage"])
 
-spalte1, spalte2 = st.columns([3, 1])
-with spalte1:
-    auswahl = st.multiselect("Szenarien", list(namen), default=list(namen),
-                             format_func=lambda s: f"{s}: {namen[s][1]}")
-with spalte2:
-    st.write("")
-    starten = st.button("Simulation starten", type="primary", width="stretch")
+# --------------------------------------------------------------------------- Szenario und Karte
+sid = st.segmented_control("Szenario anzeigen", list(erg_alle), default=list(erg_alle)[0], selection_mode="single",
+                           format_func=lambda s: SZ[s]["kurz"], key="szenario") or list(erg_alle)[0]
+e = erg_alle[sid]
+z = tab.loc[sid]
+erg = e["beispiellauf"]
+m = erg.modell
+st.markdown(f'<div class="untertitel"><b>{sid} · {SZ[sid]["name"]}:</b> {SZ[sid]["beschreibung"]}</div>',
+            unsafe_allow_html=True)
 
-if starten:
-    if "S0" not in auswahl:
-        auswahl = ["S0", *auswahl]
-    balken = st.progress(0.0, text="Simuliere ...")
-    fertig = []
+st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=600, titel=""), width="stretch",
+                config={"displayModeBar": False})
+st.caption("▶ Abspielen zeigt ein simuliertes Jahr: Punkte sind Sendungen (Farbe je Komponente, Raute = "
+           "Luftfracht), ein roter Kreis markiert eine aktive Störung.")
 
-    def melde(sid):
-        fertig.append(sid)
-        balken.progress(len(fertig) / len(auswahl), text=f"{sid} fertig")
+# --------------------------------------------------------------------------- Kennzahlen
+st.markdown("### Kennzahlen")
+ist_basis = sid == "S0"
 
-    st.session_state["vergleich"] = vergleiche([namen[s][0] for s in auswahl], overrides, reps, melde)
-    st.session_state["schluessel"] = schluessel
-    balken.empty()
 
-if "vergleich" not in st.session_state:
-    st.info("Parameter links einstellen und **Simulation starten** drücken.")
-    st.stop()
-if st.session_state.get("schluessel") != schluessel:
-    st.warning("Parameter wurden geändert. Die angezeigten Ergebnisse gehören noch zum letzten Lauf.")
+def delta(spalte: str, faktor: float = 1.0, einheit: str = "", nachkomma: int = 1) -> str | None:
+    if ist_basis or f"delta_{spalte}" not in z or pd.isna(z[f"delta_{spalte}"]):
+        return None
+    d = z[f"delta_{spalte}"] * faktor
+    return f"{'+' if d >= 0 else ''}{de(d, nachkomma)} {einheit} ggü. Basis"
 
-vgl = st.session_state["vergleich"]
-tabelle, ergebnisse = vgl["tabelle"], vgl["ergebnisse"]
 
-tab_karte, tab_diagramm, tab_zahlen, tab_opt, tab_modell = st.tabs(
-    ["Netzwerkkarte", "Diagramme", "Kennzahlen", "Optimierung", "Modell und Daten"])
+karten = [
+    ("Lieferfähigkeit", f"{de(z['beta'] * 100, 1)} %", delta("beta", 100, "Pp"), "normal",
+     f"Anteil der Bestellungen, die in höchstens {zusage} Werktagen ankommen. Ziel: mindestens "
+     f"{de(ziel_beta * 100)} %."),
+    ("Kosten je Uhr", f"{de(z['kosten_pro_uhr'], 2)} €", delta("kosten_pro_uhr", 1, "€", 2), "inverse",
+     "Einkauf, Montage, Transport, Lager und Verspätungen, geteilt durch die gelieferten Uhren."),
+    ("CO2e je Uhr", f"{de(z['co2e_pro_uhr_kg'] * 1000, 1)} g", delta("co2e_pro_uhr_kg", 1000, "g"), "inverse",
+     "Emissionen von Transport, Umschlag und Zustellung je Uhr nach GLEC."),
+    ("Lieferzeit (95 %)", f"{de(z['lieferzeit_p95'], 1)} Tage", delta("lieferzeit_p95", 1, "Tage"), "inverse",
+     "95 % der Kunden haben ihre Uhr spätestens nach so vielen Werktagen."),
+    ("Montagestillstand", f"{de(z['fehlteil_tage'], 1)} Tage", None, "inverse",
+     "Arbeitstage, an denen mindestens eine Komponente fehlte und nicht montiert werden konnte."),
+]
+for spalte, (titel, wert, d, farbe, erkl) in zip(st.columns(len(karten)), karten):
+    with spalte:
+        st.metric(titel, wert, d, delta_color=farbe)
+        st.markdown(f'<div class="erkl">{erkl}</div>', unsafe_allow_html=True)
 
-# --------------------------------------------------------------------------- Sichten
-with tab_karte:
-    sid = st.selectbox("Szenario für die Karte", list(ergebnisse),
-                       format_func=lambda s: f"{s}: {ergebnisse[s]['szenario_name']}", key="karte_sz")
-    st.plotly_chart(viz.netzkarte(ergebnisse[sid]["beispiellauf"], schritt_tage=3), width="stretch")
-    st.caption("Punkte = Sendungen (Farbe je Komponente, Raute = Luftfracht). Roter Kreis = aktive Störung. "
-               "Gezeigt wird Replikation 0.")
+with st.expander("Wie werden diese Zahlen berechnet?"):
+    st.markdown(f"""
+Alle Werte stammen aus dem **Ereignisprotokoll** der Simulation. Jede Bestellung, Fertigung, Abfahrt, Ankunft,
+Montage und Zustellung ist dort eine Zeile. Ausgewertet wird ein Jahr ({de(m.param['simulation']['auswertung_tage'])}
+Tage), davor läuft eine Einschwingphase von {de(m.einschwingen)} Tagen, damit die Lager realistisch gefüllt sind.
+Jedes Szenario wurde {lauf_reps}-mal mit anderen Zufallszahlen simuliert, angezeigt ist der Mittelwert.
 
-with tab_diagramm:
-    sid = st.selectbox("Szenario", list(ergebnisse), format_func=lambda s: f"{s}: {ergebnisse[s]['szenario_name']}",
-                       key="diag_sz")
-    erg = ergebnisse[sid]["beispiellauf"]
+**Lieferfähigkeit β** = pünktliche Bestellungen / alle Bestellungen. Pünktlich heißt: zugestellt nach höchstens
+{zusage} Werktagen (Zusage aus dem Poster). Wert hier: {de(z['beta'] * 100, 1)} % ± {de(z['beta_ki95'] * 100, 1)} Pp.
+
+**Kosten je Uhr** = (Einkauf + Montage {de(m.param['kosten']['montage_eur_uhr'])} €/Uhr + Paket + Transport je
+Tonnenkilometer und Sendung + Umschlag + Zoll + Kapitalbindung {de(m.param['kosten']['kapitalzins_pa'] * 100)} % p. a.
+auf den Lagerwert + Lagerplatz + {de(m.param['kosten']['verspaetung_eur_auftrag'])} € je verspäteter Bestellung)
+/ gelieferte Uhren.
+
+**CO2e je Uhr** = Σ (Sendungsgewicht × Distanz × GLEC-Faktor des Verkehrsträgers) + Umschlag + Zustellung,
+geteilt durch die gelieferten Uhren.
+
+**Lieferzeit (95 %)** = 95-%-Quantil der Werktage zwischen Bestellung und Zustellung.
+
+**Montagestillstand** = Anzahl Arbeitstage mit mindestens einem Fehlteil.
+
+**± Wert (95-%-Konfidenzintervall):** Mit 95 % Wahrscheinlichkeit liegt der wahre Mittelwert in diesem Bereich.
+Je mehr Wiederholungen, desto schmaler. Die Differenzen zur Basis sind gepaart berechnet: Basis und Szenario
+nutzen dieselben Zufallszahlen, deshalb zeigt die Differenz nur die Wirkung der Störung oder Maßnahme.
+""")
+
+# --------------------------------------------------------------------------- Einschätzung
+st.markdown("### Was bedeutet das?")
+
+
+def stoerung_name(text: str) -> str:
+    typ, _, ziel = text.partition(":")
+    if typ == "knoten_ausfall" and ziel in m.knoten:
+        return f"Ausfall {kurzname(m.knoten[ziel].name)}"
+    if typ == "kanten_sperre" and ziel in m.kanten:
+        k = m.kanten[ziel]
+        return (f"Sperrung {viz.MODUS_NAME.get(k.modus, k.modus)} {kurzname(m.knoten[k.von].name)} → "
+                f"{kurzname(m.knoten[k.nach].name)}")
+    return text
+
+
+links, rechts = st.columns([3, 2], gap="large")
+with links:
+    st.markdown(f"**Szenario {sid}: {SZ[sid]['name']}**")
+    jahr = float(z["auftraege"])
+    spaet = float(z["verspaetet"])
+    if z["beta"] >= ziel_beta:
+        hinweis("gut", "Lieferversprechen gehalten.",
+                f"{de(z['beta'] * 100, 1)} % der Bestellungen kommen pünktlich an (Ziel {de(ziel_beta * 100)} %).")
+    else:
+        hinweis("schlecht", "Lieferversprechen verfehlt.",
+                f"Nur {de(z['beta'] * 100, 1)} % pünktlich. Rund {de(spaet)} von {de(jahr)} Bestellungen im Jahr "
+                f"kommen zu spät.")
+
+    # Ursache
+    fehl = erg.log[erg.log.ereignis == "fehlteil"]
+    komps = sorted({k for x in fehl.komponente.astype(str) for k in x.split(";") if k and k != "nan"})
+    if z["fehlteil_tage"] >= 0.5:
+        namen = ", ".join(viz.komp_name(m, k) for k in komps) or "Komponenten"
+        hinweis("schlecht", "Ursache: Fehlteile.",
+                f"An durchschnittlich {de(z['fehlteil_tage'], 1)} Arbeitstagen fehlte {namen}, die Montage stand "
+                f"still.")
+    elif spaet >= 1:
+        kap = m.param["montage"]["kapazitaet_pro_tag"]
+        hinweis("warn", "Ursache: Montagekapazität.",
+                f"Alle Teile waren da, aber {de(kap)} Montagen/Tag ({m.param['montage']['mitarbeiter']} "
+                f"Mitarbeiter) reichen in Nachfragespitzen nicht. Ein weiterer Mitarbeiter brächte "
+                f"{de(PRO_MA)} Montagen/Tag Reserve.")
+
+    # Resilienz je Störung
+    res = e["resilienz"]
+    if not res.empty:
+        for name_roh, d in res.groupby("stoerung"):
+            name = stoerung_name(name_roh)
+            tts = d.tts.replace(math.inf, float("nan"))
+            ttr = float(d.ttr.mean())
+            if tts.isna().mean() > 0.5:
+                hinweis("gut", f"{name}: überbrückt.",
+                        f"Das Lager reicht bis die Versorgung wieder läuft ({de(ttr)} Tage), die Montage läuft durch.")
+            else:
+                tts_m = float(tts.mean())
+                luecke = max(ttr - tts_m, 0.0)
+                komp = str(d.komponenten.iloc[0]).split(", ")[0]
+                pol = erg.politik.get(komp)
+                stueck = luecke * pol.bedarf_tag if pol else float("nan")
+                hinweis("schlecht", f"{name}: Lager reicht nicht.",
+                        f"Der Bestand hält {de(tts_m)} Tage (TTS), bis wieder Ware ankommt, vergehen aber "
+                        f"{de(ttr)} Tage (TTR). Es fehlen rund {de(luecke)} Tage, also etwa {de(stueck, 0)} Stück "
+                        f"{viz.komp_name(m, komp)}. Ein Puffer in dieser Höhe oder ein zweiter Lieferant würde die "
+                        f"Lücke schließen.")
+
+    # Maßnahmen und Kosten
+    n_uhr = max(float(z["zugestellt"]), 1.0)
+    einkauf = float(z.get("kosten_einkauf", 0) or 0) / n_uhr
+    logistik = sum(float(z.get(f"kosten_{a}", 0) or 0) for a in
+                   ("transport", "umschlag", "zoll", "kapitalbindung", "lagerplatz")) / n_uhr
+    hinweis("", "Kostenstruktur:",
+            f"{de(z['kosten_pro_uhr'], 2)} € je Uhr, davon {de(einkauf, 2)} € "
+            f"({de(einkauf / z['kosten_pro_uhr'] * 100)} %) für die Komponenten. Transport, Umschlag und Lager "
+            f"machen zusammen nur {de(logistik, 2)} € aus.")
+    if not ist_basis and not pd.isna(z.get("delta_kosten_pro_uhr")):
+        dk, dc = z["delta_kosten_pro_uhr"], z["delta_co2e_pro_uhr_kg"] * 1000
+        hinweis("", "Gegenüber der Basis:",
+                f"Kosten {'+' if dk >= 0 else ''}{de(dk, 2)} € je Uhr, CO2e {'+' if dc >= 0 else ''}{de(dc, 1)} g "
+                f"je Uhr.")
+    if luft and z["luftfracht_sendungen"] >= 0.5:
+        hinweis("warn", "Luftfracht ausgelöst:",
+                f"im Mittel {de(z['luftfracht_sendungen'], 1)} Eilsendungen. Das hält die Montage am Laufen, "
+                f"treibt aber Kosten und CO2e.")
+    if sellita:
+        hinweis("", "Sellita-Uhrwerk:",
+                "unabhängig von Japan und den Seewegen, dafür doppelter Einkaufspreis je Werk.")
+
+with rechts:
+    st.markdown("**Hinweise zur Konfiguration**")
+    probleme = list(dict.fromkeys(pruefung.warnungen + list(e.get("warnungen", []))))
+    if auslastung > 0.95:
+        probleme.append(f"Die Montage ist zu {de(auslastung * 100)} % ausgelastet. Schwankungen und Saisonspitzen "
+                        f"führen dann schnell zu Verspätungen.")
+    if puffer and not any(s.typ == "knoten_ausfall" for s in m.stoerungen):
+        probleme.append(f"Der Uhrwerk-Puffer von {de(puffer)} Stück kostet in diesem Szenario nur Kapitalbindung, "
+                        f"weil kein Lieferant ausfällt.")
+    if sellita and puffer:
+        probleme.append("Puffer und Sellita zusammen sind doppelt abgesichert: Sellita kommt per Lkw in wenigen "
+                        "Tagen, ein großer Puffer ist dann kaum nötig.")
+    if probleme:
+        for p in probleme:
+            hinweis("warn", "", p)
+    else:
+        hinweis("gut", "Keine Auffälligkeiten.", "Die Einstellungen sind in sich stimmig.")
+
+# --------------------------------------------------------------------------- Szenariovergleich
+st.markdown("### Alle Szenarien im Vergleich")
+erfuellt = tab[tab.beta >= ziel_beta]
+schwach = tab[tab.beta < ziel_beta].sort_values("beta")
+satz = f"{len(erfuellt)} von {len(tab)} Szenarien halten das Lieferversprechen."
+if not schwach.empty:
+    satz += " Kritisch: " + ", ".join(f"{s} {SZ[s]['name']} ({de(r.beta * 100, 1)} %)" for s, r in schwach.iterrows()) + "."
+st.markdown(satz)
+vergleich = pd.DataFrame({
+    "Szenario": [f"{s} · {SZ[s]['name']}" for s in tab.index],
+    "Ziel erreicht": ["✅" if b >= ziel_beta else "❌" for b in tab.beta],
+    "Lieferfähigkeit [%]": tab.beta * 100,
+    "Kosten je Uhr [€]": tab.kosten_pro_uhr,
+    "CO2e je Uhr [g]": tab.co2e_pro_uhr_kg * 1000,
+    "Lieferzeit 95 % [Tage]": tab.lieferzeit_p95,
+    "Stillstand [Tage]": tab.fehlteil_tage,
+})
+st.dataframe(vergleich, hide_index=True, width="stretch", column_config={
+    "Lieferfähigkeit [%]": st.column_config.ProgressColumn(format="%.1f", min_value=0, max_value=100),
+    "Kosten je Uhr [€]": st.column_config.NumberColumn(format="%.2f"),
+    "CO2e je Uhr [g]": st.column_config.NumberColumn(format="%.1f"),
+    "Lieferzeit 95 % [Tage]": st.column_config.NumberColumn(format="%.1f"),
+    "Stillstand [Tage]": st.column_config.NumberColumn(format="%.1f"),
+})
+
+# --------------------------------------------------------------------------- Details
+st.markdown("### Details")
+with st.expander(f"Verlauf über das Jahr ({sid})"):
     st.plotly_chart(viz.serviceverlauf(erg), width="stretch")
     st.plotly_chart(viz.bestandsverlauf(erg), width="stretch")
-    komp = st.selectbox("Bestand im Detail", list(erg.politik))
+    komp = st.selectbox("Bestand einer Komponente im Detail", list(erg.politik),
+                        format_func=lambda k: viz.komp_name(m, k))
     st.plotly_chart(viz.bestand_einzeln(erg, komp), width="stretch")
-    kz = st.selectbox("Streuung über Replikationen", ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
+    st.caption("Rote Flächen markieren Störungen. Gezeigt ist eine der Wiederholungen.")
+
+with st.expander(f"Kosten im Detail ({sid})"):
+    st.plotly_chart(viz.kostenaufteilung(z), width="stretch")
+
+with st.expander("Wie sicher sind die Ergebnisse?"):
+    st.markdown("Jeder Punkt der Streuung ist eine Wiederholung mit anderen Zufallszahlen. Liegen die Kästen "
+                "verschiedener Szenarien weit auseinander, ist der Unterschied echt und kein Zufall.")
+    kz = st.selectbox("Kennzahl", ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
                       format_func=lambda k: viz.BESCHRIFTUNG[k][0])
-    st.plotly_chart(viz.boxplot_vergleich(ergebnisse, kz), width="stretch")
-    if len(tabelle) > 1:
-        st.plotly_chart(viz.delta_balken(tabelle), width="stretch")
+    st.plotly_chart(viz.boxplot_vergleich(erg_alle, kz), width="stretch")
+    st.dataframe(viz.kennzahlentabelle(tab), width="stretch", hide_index=True)
+    st.download_button("Kennzahlen als CSV", tab.to_csv().encode("utf-8"), "kennzahlen.csv", "text/csv")
 
-with tab_zahlen:
-    st.subheader("Kennzahlen je Szenario (Mittelwert ± 95-%-Konfidenzintervall)")
-    st.dataframe(viz.kennzahlentabelle(tabelle), width="stretch")
-    mind = pruefung.param["bewertung"]["mindestwerte"].get("beta", 0.95)
-    ampel = pd.DataFrame({
-        "Szenario": tabelle["name"],
-        "β erfüllt": ["✅" if b >= mind else "❌" for b in tabelle["beta"]],
-        "Δ β [Pp]": (tabelle["delta_beta"] * 100).round(1),
-        "Δ Kosten [€/Uhr]": tabelle["delta_kosten_pro_uhr"].round(2),
-        "Δ CO2e [g/Uhr]": (tabelle["delta_co2e_pro_uhr_kg"] * 1000).round(1),
-    })
-    st.dataframe(ampel, width="stretch")
-    res = pd.concat([e["resilienz"].assign(szenario=s) for s, e in ergebnisse.items() if not e["resilienz"].empty],
-                    ignore_index=True) if any(not e["resilienz"].empty for e in ergebnisse.values()) else pd.DataFrame()
-    if not res.empty:
-        st.subheader("Resilienz je Störung (TTS ≥ TTR?)")
-        agg = res.replace(math.inf, float("nan")).groupby(["szenario", "stoerung", "komponenten"]).agg(
-            TTS_mittel=("tts", "mean"), TTR=("ttr", "mean"), resilient_anteil=("resilient", "mean")).round(1)
-        st.dataframe(agg, width="stretch")
-        st.caption("TTS leer = kein Montagestillstand bis Jahresende.")
-    st.download_button("Kennzahlen als CSV", tabelle.to_csv().encode("utf-8"), "kennzahlen.csv", "text/csv")
-
-with tab_opt:
-    st.write("Rastersuche über Maßnahmen: Uhrwerk-Puffer, Dual Sourcing, Luftfracht. "
-             "Bewertet wird der Mittelwert über die ausgewählten Szenarien.")
-    opt_sz = st.multiselect("Szenarien für die Optimierung", list(namen), default=["S0", "S1", "S2"],
-                            format_func=lambda s: f"{s}: {namen[s][1]}")
-    opt_reps = st.slider("Replikationen je Kombination", 1, 20, 3)
+with st.expander("Maßnahmen automatisch vergleichen (Optimierung)"):
+    st.markdown("Probiert alle Kombinationen aus Sellita-Uhrwerk, Uhrwerk-Puffer (0, 500, 1.000 Stück) und "
+                "Luftfracht durch und bewertet sie über die gewählten Szenarien gemeinsam. So sieht man, welche "
+                "Maßnahme das Lieferversprechen am günstigsten hält.")
+    c1, c2, c3 = st.columns([3, 1, 2])
+    opt_sz = c1.multiselect("Szenarien", list(SZ), default=[s for s in ("S0", "S1", "S2") if s in SZ],
+                            format_func=lambda s: f"{s} · {SZ[s]['name']}")
+    opt_reps = c2.slider("Wiederholungen", 1, 10, 3)
+    methode = c3.selectbox("Bewertung", ["mindestwerte", "gewichtet", "lexikografisch"],
+                           format_func={"mindestwerte": "Lieferfähigkeit ≥ Ziel, dann günstigste",
+                                        "gewichtet": "Gewichtete Summe aus Kosten, CO2e, Lieferzeit",
+                                        "lexikografisch": "Rangfolge: Lieferfähigkeit, CO2e, Kosten"}.get)
     if st.button("Optimierung starten"):
         bal = st.progress(0.0)
         ov = {k: v for k, v in overrides.items() if k != "massnahmen"}
-        st.session_state["raster"] = rastersuche([namen[s][0] for s in opt_sz], overrides=ov,
-                                                 replikationen=opt_reps, bewertung=pruefung.param["bewertung"],
-                                                 fortschritt=lambda i, n: bal.progress(i / n, text=f"{i}/{n}"))
+        bewertung = pruefung.param["bewertung"] | {"methode": methode}
+        st.session_state["raster"] = rastersuche([SZ[s]["pfad"] for s in opt_sz], overrides=ov,
+                                                 replikationen=opt_reps, bewertung=bewertung,
+                                                 fortschritt=lambda i, n: bal.progress(i / n, text=f"{i} von {n}"))
         bal.empty()
     if "raster" in st.session_state:
-        r = st.session_state["raster"]
+        r = st.session_state["raster"].sort_values("rang")
+        beste = r.iloc[0]
+        teile = [f"Puffer {de(beste.puffer_uhrwerk)} Stück"]
+        if beste.uhrwerk_sellita:
+            teile.append("Sellita-Uhrwerk")
+        if beste.luftfracht_notfall:
+            teile.append("Luftfracht")
+        st.success(f"Beste Kombination: {', '.join(teile)}. Lieferfähigkeit im Mittel {de(beste.beta * 100, 1)} % "
+                   f"(schlechtestes Szenario {de(beste.beta_min * 100, 1)} %), {de(beste.kosten_pro_uhr, 2)} € "
+                   f"und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr.")
         st.plotly_chart(viz.pareto_diagramm(r), width="stretch")
-        zeige = r[["rang", "puffer_uhrwerk", "dual_sourcing", "luftfracht_notfall", "beta", "beta_min",
-                   "kosten_pro_uhr", "co2e_pro_uhr_kg", "zulaessig", "pareto"]].copy()
-        zeige["beta"] = (zeige.beta * 100).round(1)
-        zeige["beta_min"] = (zeige.beta_min * 100).round(1)
-        zeige["co2e_pro_uhr_kg"] = (zeige.co2e_pro_uhr_kg * 1000).round(1)
-        st.dataframe(zeige.rename(columns={"beta": "β Mittel [%]", "beta_min": "β schlechtestes Szenario [%]",
-                                           "co2e_pro_uhr_kg": "CO2e [g/Uhr]", "kosten_pro_uhr": "Kosten [€/Uhr]"}),
-                     width="stretch", hide_index=True)
+        zeige = pd.DataFrame({
+            "Rang": r.rang, "Puffer [Stück]": r.puffer_uhrwerk,
+            "Sellita": r.uhrwerk_sellita.map({True: "ja", False: "nein"}),
+            "Luftfracht": r.luftfracht_notfall.map({True: "ja", False: "nein"}),
+            "Lieferfähigkeit Mittel [%]": (r.beta * 100).round(1),
+            "Lieferfähigkeit schlechtestes Szenario [%]": (r.beta_min * 100).round(1),
+            "Kosten [€/Uhr]": r.kosten_pro_uhr.round(2), "CO2e [g/Uhr]": (r.co2e_pro_uhr_kg * 1000).round(1),
+            "Ziel erreicht": r.zulaessig.map({True: "✅", False: "❌"}),
+        })
+        st.dataframe(zeige, width="stretch", hide_index=True)
 
-with tab_modell:
-    st.subheader("Bestellpolitik (s, Q) je Komponente")
-    erg0 = ergebnisse["S0"]["beispiellauf"] if "S0" in ergebnisse else next(iter(ergebnisse.values()))["beispiellauf"]
-    st.dataframe(pd.DataFrame([vars(p) for p in erg0.politik.values()]).round(1), width="stretch",
-                 hide_index=True)
-    st.subheader("Bezugsquellen und Wiederbeschaffungszeit")
-    st.dataframe(pd.DataFrame([{**{k: v for k, v in vars(q).items() if k != "tier2"}, "tier2": ", ".join(q.tier2)}
-                               for l in pruefung.quellen.values() for q in l]).round(1),
-                 width="stretch", hide_index=True)
-    st.subheader("Ereignisprotokoll (Replikation 0, Basis)")
-    st.dataframe(erg0.log.head(2000), width="stretch", hide_index=True)
-    st.download_button("Ereignisprotokoll als CSV", erg0.log.to_csv(index=False).encode("utf-8"),
-                       "ereignisprotokoll.csv", "text/csv")
+with st.expander("Modell und Daten"):
+    st.markdown("**Nachschub je Komponente (Bestellpunktverfahren)**  \n"
+                "Die Wiederbeschaffungszeit (WBZ) wird automatisch berechnet: Fertigung beim Lieferanten + "
+                "Transport auf der aktuell besten Route + Umschlag + Zoll. Ändert ein Szenario die Route dauerhaft "
+                "(z. B. Suez wieder offen), wird die WBZ angepasst. Sinkt der Bestand inklusive offener "
+                "Bestellungen unter den Meldebestand, wird die Bestellmenge nachbestellt.")
+    zeilen = []
+    for k, pol in erg.politik.items():
+        q = m.primaerquelle(k)
+        zeilen.append({
+            "Komponente": viz.komp_name(m, k), "Lieferant": kurzname(m.knoten[q.lieferant].name),
+            "Preis [€]": q.preis_eur, "WBZ [Tage]": round(pol.wbz_tage, 1), "Bedarf [Stück/Tag]": round(pol.bedarf_tag, 1),
+            "Sicherheitsbestand": round(pol.sicherheitsbestand + pol.puffer_extra),
+            "Meldebestand": round(pol.meldebestand), "Bestellmenge": round(pol.losgroesse),
+        })
+    st.dataframe(pd.DataFrame(zeilen), width="stretch", hide_index=True)
+    st.markdown(f"**Ereignisprotokoll** ({sid}, eine Wiederholung, {de(len(erg.log))} Zeilen)")
+    st.dataframe(erg.log.head(1000), width="stretch", hide_index=True)
+    st.download_button("Ereignisprotokoll als CSV", erg.log.to_csv(index=False).encode("utf-8"),
+                       f"ereignisprotokoll_{sid}.csv", "text/csv")

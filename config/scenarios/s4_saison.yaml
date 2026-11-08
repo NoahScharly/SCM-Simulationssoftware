@@ -1,5 +1,6 @@
 id: S4
 name: Saisonspitze November und Dezember +30 %
+kurz: Saisonspitze
 beschreibung: Nachfrage im November und Dezember 30 % höher (Poster S4)
 stoerungen:
   - typ: nachfrage

@@ -1,5 +1,6 @@
 id: S1
 name: Ausfall Uhrwerk 60 Tage
+kurz: Uhrwerk-Ausfall
 beschreibung: Einziger Uhrwerk-Lieferant liefert ab Tag 120 für 60 Tage nicht (Poster S1)
 stoerungen:
   - typ: knoten_ausfall

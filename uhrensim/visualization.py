@@ -93,7 +93,7 @@ def _sendungspositionen(erg: Ergebnis, t: float, linien: dict[str, np.ndarray]) 
     return pos
 
 
-def netzkarte(erg: Ergebnis, schritt_tage: int = 2) -> go.Figure:
+def netzkarte(erg: Ergebnis, schritt_tage: int = 2, hoehe: int = 620, titel: str = "Animierte Netzwerksicht") -> go.Figure:
     """Animierte geografische Netzwerksicht: Kanten nach Verkehrsträger, Sendungen als Punkte."""
     m = erg.modell
     W, H = m.einschwingen, m.horizont
@@ -142,14 +142,16 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 2) -> go.Figure:
                     gestoert_lat.append(mitte[0]); gestoert_lon.append(mitte[1])
                 else:
                     continue
-                gestoert_txt.append(f"Störung: {s['ziel']}")
+                ziel = m.knoten[s["ziel"]].name if s["ziel"] in m.knoten else s["ziel"]
+                gestoert_txt.append(f"Störung: {ziel}")
         return [
             go.Scattergeo(lat=[x["lat"] for x in p], lon=[x["lon"] for x in p], mode="markers", name="Sendungen",
                           marker=dict(size=[8 if x["typ"] != "notfall" else 10 for x in p],
                                       color=[farbe[x["komponente"]] for x in p],
                                       symbol=["circle" if x["typ"] != "notfall" else "diamond" for x in p],
                                       line=dict(width=0.8, color="white")),
-                          text=[f"{x['komponente']}: {x['menge']:.0f} Stück ({x['typ']})" for x in p], hoverinfo="text"),
+                          text=[f"{komp_name(m, x['komponente'])}: {x['menge']:.0f} Stück"
+                                + (" (Luftfracht)" if x["typ"] == "notfall" else "") for x in p], hoverinfo="text"),
             go.Scattergeo(lat=gestoert_lat, lon=gestoert_lon, mode="markers", name="Störung aktiv",
                           marker=dict(size=18, color="rgba(155,59,42,0.35)", line=dict(width=2, color=ROT)),
                           text=gestoert_txt, hoverinfo="text"),
@@ -177,10 +179,19 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 2) -> go.Figure:
         sliders=[dict(steps=schritte, x=0.18, len=0.8, y=0.0, currentvalue=dict(prefix="Datum: "),
                       pad=dict(t=10))],
     )
-    return _layout(fig, "Animierte Netzwerksicht", hoehe=620)
+    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0))
+    fig = _layout(fig, titel, hoehe=hoehe)
+    fig.update_layout(margin=dict(l=0, r=0, t=40 if titel else 30, b=40))
+    return fig
 
 
 # --------------------------------------------------------------------------- Diagramme
+def komp_name(m, komponente: str) -> str:
+    """Lesbarer Name einer Komponente (Bezeichnung aus components.csv)."""
+    k = m.komponenten.get(komponente)
+    return k.bezeichnung if k else komponente
+
+
 def _stoerungsflaechen(fig: go.Figure, erg: Ergebnis, zeilen: int = 1) -> None:
     W, H = erg.modell.einschwingen, erg.modell.horizont
     for s in erg.stoerungsfenster:
@@ -199,9 +210,10 @@ def bestandsverlauf(erg: Ergebnis) -> go.Figure:
     for i, (k, pol) in enumerate(erg.politik.items()):
         if pol.bedarf_tag <= 0:
             continue
-        fig.add_trace(go.Scatter(x=t.tag - W, y=t[f"bestand_{k}"] / pol.bedarf_tag, mode="lines", name=k,
+        name = komp_name(m, k)
+        fig.add_trace(go.Scatter(x=t.tag - W, y=t[f"bestand_{k}"] / pol.bedarf_tag, mode="lines", name=name,
                                  line=dict(width=1.8, color=KOMP_FARBE[i % len(KOMP_FARBE)]),
-                                 hovertemplate=f"{k}: %{{y:.0f}} Tage<extra></extra>"))
+                                 hovertemplate=f"{name}: %{{y:.0f}} Tage<extra></extra>"))
     _stoerungsflaechen(fig, erg)
     fig.update_xaxes(title="Tag im Jahr")
     fig.update_yaxes(title="Reichweite [Tage Bedarf]")
@@ -223,7 +235,8 @@ def bestand_einzeln(erg: Ergebnis, komponente: str) -> go.Figure:
     _stoerungsflaechen(fig, erg)
     fig.update_xaxes(title="Tag im Jahr")
     fig.update_yaxes(title="Stück")
-    return _layout(fig, f"Bestand {komponente}: (s, Q) = ({pol.meldebestand:.0f}, {pol.losgroesse:.0f})")
+    return _layout(fig, f"{komp_name(m, komponente)}: Meldebestand s = {pol.meldebestand:.0f}, "
+                        f"Bestellmenge Q = {pol.losgroesse:.0f}")
 
 
 def serviceverlauf(erg: Ergebnis, fenster: int = 14) -> go.Figure:
@@ -262,11 +275,11 @@ def boxplot_vergleich(ergebnisse: dict[str, dict[str, Any]], kennzahl: str) -> g
     fig = go.Figure()
     for i, (sid, e) in enumerate(ergebnisse.items()):
         y = e["laeufe"][kennzahl].replace([np.inf, -np.inf], np.nan).dropna() * faktor
-        fig.add_trace(go.Box(y=y, name=sid, marker_color=BRAUN if i == 0 else KUPFER, boxmean=True,
+        fig.add_trace(go.Box(y=y, name=f"{sid}", marker_color=BRAUN if i == 0 else KUPFER, boxmean=True,
                              hovertext=e["szenario_name"]))
     fig.update_yaxes(title=f"{name} [{einheit}]")
     fig.update_layout(showlegend=False)
-    return _layout(fig, f"{name} je Szenario über alle Replikationen")
+    return _layout(fig, f"{name} je Szenario über alle Wiederholungen")
 
 
 def delta_balken(tabelle: pd.DataFrame) -> go.Figure:
@@ -289,7 +302,7 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     def label(r):
         teile = [f"Puffer {r.puffer_uhrwerk}"]
-        if r.dual_sourcing: teile.append("Dual")
+        if r.uhrwerk_sellita: teile.append("Sellita")
         if r.luftfracht_notfall: teile.append("Luft")
         return ", ".join(teile)
     for zul, farbe, name in ((False, "#B0A69C", "unzulässig (Mindestwert verfehlt)"), (True, KUPFER, "zulässig")):
@@ -305,6 +318,28 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     fig.update_xaxes(title="Kosten je Uhr [€]")
     fig.update_yaxes(title="CO2e je Uhr [g]")
     return _layout(fig, "Maßnahmen im Zielkonflikt", hoehe=480)
+
+
+KOSTENARTEN = {
+    "einkauf": "Einkauf Komponenten", "montage": "Montage", "paket": "Paketversand", "transport": "Transport",
+    "umschlag": "Umschlag", "zoll": "Zoll", "kapitalbindung": "Kapitalbindung", "lagerplatz": "Lagerplatz",
+    "verspaetung": "Verspätungen", "letzte_meile": "Letzte Meile",
+}
+
+
+def kostenaufteilung(zeile: pd.Series) -> go.Figure:
+    """Kosten je Uhr nach Kostenart für ein Szenario (Mittelwert über die Wiederholungen)."""
+    n = max(float(zeile.get("zugestellt", 0) or 0), 1.0)
+    werte = {name: float(zeile.get(f"kosten_{art}", 0) or 0) / n for art, name in KOSTENARTEN.items()}
+    werte = {k: v for k, v in sorted(werte.items(), key=lambda x: x[1]) if v > 0.005}
+    fig = go.Figure(go.Bar(x=list(werte.values()), y=list(werte.keys()), orientation="h", marker_color=KUPFER,
+                           text=[f"{v:,.2f} €".replace(",", "X").replace(".", ",").replace("X", ".") for v in werte.values()],
+                           textposition="outside", cliponaxis=False,
+                           hovertemplate="%{y}: %{x:.2f} €/Uhr<extra></extra>"))
+    fig.update_xaxes(title="€ je Uhr")
+    fig = _layout(fig, "Woraus sich die Kosten je Uhr zusammensetzen", hoehe=340)
+    fig.update_layout(margin=dict(l=10, r=60, t=50, b=40))
+    return fig
 
 
 # --------------------------------------------------------------------------- Tabellen

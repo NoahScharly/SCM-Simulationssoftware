@@ -9,9 +9,13 @@ Konfiguration, kein neuer Code.
 
 ## Schnellstart
 
+Am besten in einer eigenen virtuellen Umgebung (Windows PowerShell; Mac/Linux: `source .venv/bin/activate`):
+
 ```bash
+python -m venv .venv
+.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-streamlit run app/app.py          # Oberfläche mit Reglern, Karte, Diagrammen, Kennzahlen
+streamlit run app/app.py          # Dashboard: Karte, Kennzahlen, Einschätzung, Szenariovergleich
 python -m uhrensim -r 20          # Szenariovergleich in der Konsole, CSV in ergebnisse/
 python -m uhrensim --optimierung -s S0 S1 S2
 pytest -q                         # Verifikationstests
@@ -26,10 +30,10 @@ Python 3.11 oder neuer.
 | Netz | Gerichteter Graph: 7 Tier-1-Lieferanten, 4 Tier-2, Häfen, Flughafen, Werk Heilbronn, Kunden |
 | Transport | Seeschiff, Bahn, Binnenschiff, Lkw, Luftfracht (Notfall); Fahrplan je Kante, Umschlag, Zoll an der EU-Grenze |
 | Nachschub | Bestellpunktverfahren (s, Q) je Komponente, Sicherheitsbestand aus Nachfrage- und Lieferzeitstreuung, Losgröße nach EOQ |
-| Montage | Kapazität je Arbeitstag, Gutquote, Fertigwarenlager mit Zielreichweite |
+| Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 7 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
-| Maßnahmen | Zusätzlicher Puffer, Dual Sourcing (Notfallwerk), Luftfracht bei drohendem Fehlteil |
+| Maßnahmen | Uhrwerk von Sellita (SW300-1, CH) statt Miyota, zusätzlicher Uhrwerk-Puffer, Luftfracht bei drohendem Fehlteil |
 | Kennzahlen | Kosten je Uhr, Lieferfähigkeit β, Lieferzeit (Mittel, 95-%-Quantil), CO2e je Uhr, TTS/TTR, Bestandsreichweite |
 | Zufall | Getrennte Zufallsströme je Quelle (SeedSequence), gleiche Ströme in allen Szenarien (Common Random Numbers) |
 
@@ -38,8 +42,8 @@ Python 3.11 oder neuer.
 | Parameter | Bereich | Regel |
 |---|---|---|
 | Uhren pro Jahr | 0 bis 25.000 | Nachfragerate = Menge ÷ 365 |
-| Montagen pro Tag | 1 bis 150 | Warnung, wenn Kapazität × 250 AT × Gutquote < Jahresmenge |
-| Wiederbeschaffungszeit | ab Minimum bis 180 Tage | Nie unter Fertigung + Transit + Zoll der Route (Fehler) |
+| Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Mitarbeiter = aufgerundet nötig ÷ 7; Kapazität = Mitarbeiter × 7 |
+| Wiederbeschaffungszeit | automatisch | Fertigung + Transit + Umschlag + Zoll der besten Route; dauerhafte Routenänderungen eines Szenarios (z. B. C1 Suez) werden übernommen |
 
 ## Ordnerstruktur
 
@@ -101,7 +105,8 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 ## Wichtige Modellannahmen und Grenzen
 
 - Werte mit `[A]` in den Konfigurationsdateien sind Annahmen und in der Sensitivitätsanalyse zu prüfen.
-- Basis-Montagekapazität 25 Uhren/Tag (eigene Schätzung), per Regler frei einstellbar; bei 5.000 Uhren/Jahr sind mindestens 21/Tag nötig (20 × 250 × 0,99 = 4.950 < 5.000).
+- Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 3 Mitarbeiter × 7 = 21 Montagen/Tag.
+- Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.
 - Ausfälle sind unabhängig; keine Retouren, kein Bullwhip-Effekt bis Tier 2, Kapitalbindung nur auf Lagerbestand.

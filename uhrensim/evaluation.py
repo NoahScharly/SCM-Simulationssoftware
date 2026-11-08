@@ -83,7 +83,7 @@ def resilienz(erg: Ergebnis) -> list[dict[str, Any]]:
 
     TTR (Eingabe aus dem Szenario): Zeit, bis die betroffene Versorgung wieder bereitsteht.
          Knoten- oder Kantenausfall: Störungsdauer. Bei einem Lieferanten kommt die Transitzeit
-         der ersten neuen Sendung hinzu. Mit Dual Sourcing zählt die kürzere WBZ der Alternative.
+         der ersten neuen Sendung hinzu.
     TTS (Ergebnis der Simulation): Zeit vom Störungsbeginn bis zum ersten Montagestillstand wegen
          einer betroffenen Komponente. Kein Stillstand bis Simulationsende: TTS = unendlich.
     Resilient, wenn TTS >= TTR.
@@ -92,7 +92,6 @@ def resilienz(erg: Ergebnis) -> list[dict[str, Any]]:
     if log.empty:
         return []
     fehlteile = log[log.ereignis == "fehlteil"]
-    dual = bool(m.param["massnahmen"].get("dual_sourcing"))
     ergebnis = []
     for s in erg.stoerungsfenster:
         if s["typ"] not in ("knoten_ausfall", "kanten_sperre"):
@@ -106,9 +105,6 @@ def resilienz(erg: Ergebnis) -> list[dict[str, Any]]:
             q = m.primaerquelle(komp)
             if s["typ"] == "knoten_ausfall" and s["ziel"] in (q.lieferant, *q.tier2):
                 kandidat = dauer + (q.wbz_min_tage - q.fertigung_tage)  # plus Transit der ersten neuen Sendung
-                alt = m.alternativquelle(komp)
-                if dual and alt is not None:
-                    kandidat = min(kandidat, alt.wbz_min_tage)
                 lieferanten_ttr.append(kandidat)
         ttr = max(lieferanten_ttr) if lieferanten_ttr else dauer
         betrifft = fehlteile.komponente.astype(str).apply(lambda x: any(k in x.split(";") for k in komps))
@@ -150,6 +146,15 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
     lf = log[(log.zeit >= W) & (log.zeit < H)] if not log.empty else log
     kosten = lf.groupby("kostenart").kosten_eur.sum().to_dict() if not lf.empty else {}
     kosten.pop("", None)
+    # Einkauf als Wareneinsatz: verbaute Komponenten × mittlerer Einkaufspreis je Komponente.
+    # Bestellungen nach Bestelldatum zu buchen würde Störungsjahre scheinbar billiger machen,
+    # weil Einkauf nur ins Folgejahr verschoben wird.
+    best = log[(log.ereignis == "bestellung") & (log.kostenart == "einkauf")] if not log.empty else log
+    if not best.empty and not lf.empty:
+        summe = best.groupby("komponente").agg(eur=("kosten_eur", "sum"), stk=("menge", "sum"))
+        preis_satz = float((summe.eur / summe.stk).sum())
+        verbaut = float(lf.loc[lf.ereignis == "montage_start", "menge"].sum())
+        kosten["einkauf"] = preis_satz * verbaut
     t = erg.tage
     tf = t[(t.tag >= W) & (t.tag < H)] if not t.empty else t
     k = p["kosten"]

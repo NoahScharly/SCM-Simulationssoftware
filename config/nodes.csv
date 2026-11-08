@@ -1,6 +1,6 @@
 id,name,typ,stufe,land,lat,lon,zollgrenze,quelle
 miyota_nagano,MIYOTA Nagano (Uhrwerk),lieferant,tier1,JP,36.65,138.18,0,Poster [6] [25]
-sellita_lcf,Sellita La Chaux-de-Fonds (Notfallwerk SW300-1),lieferant,tier1,CH,47.10,6.83,0,Poster Alternative [A]
+sellita_lcf,Sellita La Chaux-de-Fonds (Uhrwerk SW300-1),lieferant,tier1,CH,47.10,6.83,0,Maßnahme Lieferantenwechsel
 rochester_glas,Rochester (Saphirglas),lieferant,tier1,US,43.16,-77.61,0,Poster [4]
 estancia_leder,Estancia Velha (Lederarmband),lieferant,tier1,BR,-29.65,-51.17,0,Poster [4] [14]
 portlouis_zeiger,Port Louis (Zeiger),lieferant,tier1,MU,-20.16,57.50,0,Poster [4]

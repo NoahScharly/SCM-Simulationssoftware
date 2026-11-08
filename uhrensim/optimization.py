@@ -21,7 +21,7 @@ from .data import lade_modell
 
 STANDARD_RASTER: dict[str, list[Any]] = {
     "puffer_uhrwerk": [0, 500, 1000],
-    "dual_sourcing": [False, True],
+    "uhrwerk_sellita": [False, True],
     "luftfracht_notfall": [False, True],
 }
 
@@ -29,7 +29,7 @@ STANDARD_RASTER: dict[str, list[Any]] = {
 def _massnahmen(kombination: dict[str, Any]) -> dict[str, Any]:
     return {"massnahmen": {
         "puffer_extra": {"uhrwerk": kombination["puffer_uhrwerk"]},
-        "dual_sourcing": kombination["dual_sourcing"],
+        "uhrwerk_sellita": kombination["uhrwerk_sellita"],
         "luftfracht_notfall": kombination["luftfracht_notfall"],
     }}
 

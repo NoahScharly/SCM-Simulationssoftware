@@ -370,26 +370,6 @@ class Simulation:
         b["status"] = "transport"
         yield from self._transport(b, q)
 
-    def _umschalten(self, stoerung) -> None:
-        """Dual Sourcing: offene Bestellungen beim ausgefallenen Lieferanten neu beim Alternativlieferanten."""
-        for komp in self.m.komponenten:
-            prim = self.m.primaerquelle(komp)
-            if stoerung.ziel not in (prim.lieferant, *prim.tier2):
-                continue
-            alt = self.m.alternativquelle(komp)
-            if alt is None:
-                continue
-            self.aktive_quelle[komp] = alt
-            for b in list(self.offen[komp]):
-                if b["lieferant"] == prim.lieferant and b["status"] in ("fertigung", "wartet"):
-                    b["storniert"] = True
-                    self.pipeline[komp] -= b["menge"]
-                    self.offen[komp].remove(b)
-                    self._log("storno", b["id"], "bestellung", prim.lieferant, b["menge"], komponente=komp,
-                              alt=b["status"], neu="storniert", kosten=-b["menge"] * self.preis(prim, self.env.now),
-                              kategorie="einkauf")
-                    self.bestelle(komp, b["menge"], alt, typ="umschaltung")
-
     # ================================================================ Transport
     def _routen(self, lieferant: str, notfall: bool) -> list[Route]:
         typen = ("notfall",) if notfall else ("regulaer", "ausweich")
@@ -497,14 +477,9 @@ class Simulation:
     def _stoerung(self, s):
         yield self.env.timeout(max(0.0, s.start - self.env.now))
         self._log("stoerung_beginn", s.ziel or s.typ, "stoerung", s.ziel, neu=s.typ)
-        if s.typ == "knoten_ausfall" and self.p["massnahmen"].get("dual_sourcing"):
-            self._umschalten(s)
         if math.isfinite(s.ende) and s.ende < self.H:
             yield self.env.timeout(s.ende - self.env.now)
             self._log("stoerung_ende", s.ziel or s.typ, "stoerung", s.ziel, alt=s.typ)
-            if s.typ == "knoten_ausfall":
-                for komp in self.m.komponenten:
-                    self.aktive_quelle[komp] = self.m.primaerquelle(komp)
 
     def _tagesabschluss(self):
         yield self.env.timeout(0.999)

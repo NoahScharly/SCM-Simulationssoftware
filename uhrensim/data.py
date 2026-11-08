@@ -143,10 +143,26 @@ def erwartete_transitzeit(modell: Modell, route: Route, lieferant_land: str) -> 
     return tage
 
 
+def planungs_kanten(modell: Modell) -> set[str]:
+    """Kanten, mit denen die Planung rechnet: Basisnetz plus dauerhafte Korridoränderungen des Szenarios.
+
+    Eine Korridoränderung ab Tag 0 ohne Ende (z. B. C1 Suez wieder offen) gilt für die ganze Laufzeit,
+    deshalb plant die Bestellpolitik mit der neuen Route. Zeitlich begrenzte Störungen ändern die Planung
+    nicht, sie wirken nur in der Simulation.
+    """
+    aktiv = {k.id for k in modell.kanten.values() if k.aktiv}
+    for s in modell.stoerungen:
+        if s.typ == "korridor" and s.start <= modell.einschwingen and not math.isfinite(s.ende):
+            aktiv |= set(s.aktivieren)
+            aktiv -= set(s.deaktivieren)
+    return aktiv
+
+
 def beste_regulaere_route(modell: Modell, lieferant: str) -> Route:
-    """Erste reguläre Route nach Priorität, deren Kanten im Basisfall aktiv sind."""
+    """Erste reguläre Route nach Priorität, deren Kanten in der Planung aktiv sind."""
+    aktiv = planungs_kanten(modell)
     for r in modell.routen.get(lieferant, []):
-        if r.typ == "regulaer" and all(modell.kanten[k].aktiv for k in r.kanten):
+        if r.typ == "regulaer" and all(k in aktiv for k in r.kanten):
             return r
     raise KonfigurationsFehler(f"Lieferant {lieferant}: keine aktive reguläre Route")
 
@@ -192,10 +208,37 @@ def _pruefe_referenzen(m: Modell) -> None:
                 raise KonfigurationsFehler(f"Störung: unbekannte Kante '{kid}'")
 
 
+def montage_bedarf(menge: float, arbeitstage: float, gutquote: float, uhren_pro_mitarbeiter: float) -> dict:
+    """Montagen pro Tag und Mitarbeiter, die eine Jahresmenge mindestens braucht.
+
+    Nötige Montagen/Tag = Jahresmenge / (Arbeitstage × Gutquote). Mitarbeiter werden ganz eingestellt,
+    die tatsächliche Kapazität ist deshalb Mitarbeiter × Uhren je Mitarbeiter und Tag.
+    """
+    noetig = menge / (arbeitstage * gutquote) if menge > 0 else 0.0
+    mitarbeiter = max(1, math.ceil(noetig / uhren_pro_mitarbeiter - 1e-9)) if menge > 0 else 1
+    return {"montagen_noetig": noetig, "mitarbeiter": mitarbeiter,
+            "kapazitaet_pro_tag": mitarbeiter * uhren_pro_mitarbeiter}
+
+
+def _montage_auslegen(m: Modell) -> None:
+    """kapazitaet_pro_tag: auto -> aus Jahresmenge abgeleitet; Zahl -> fest vorgegeben."""
+    mo, g = m.param["montage"], m.param["grenzen"]
+    pro_ma = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
+    if str(mo.get("kapazitaet_pro_tag", "auto")).lower() == "auto":
+        bedarf = montage_bedarf(float(m.param["nachfrage"]["uhren_pro_jahr"]), g["arbeitstage_pro_jahr"],
+                                float(mo["gutquote"]), pro_ma)
+        mo["kapazitaet_pro_tag"] = float(bedarf["kapazitaet_pro_tag"])
+        mo["mitarbeiter"] = bedarf["mitarbeiter"]
+    else:
+        mo["kapazitaet_pro_tag"] = float(mo["kapazitaet_pro_tag"])
+        mo["mitarbeiter"] = math.ceil(mo["kapazitaet_pro_tag"] / pro_ma)
+
+
 def _pruefe_plausibilitaet(m: Modell) -> None:
     """Plausibilitätsregeln aus Folie 2: harte Grenzen werfen Fehler, weiche erzeugen Warnungen."""
     g = m.param["grenzen"]
     menge = float(m.param["nachfrage"]["uhren_pro_jahr"])
+    _montage_auslegen(m)
     kap = float(m.param["montage"]["kapazitaet_pro_tag"])
     lo, hi = g["uhren_pro_jahr"]
     if not lo <= menge <= hi:
@@ -234,6 +277,15 @@ def _pruefe_plausibilitaet(m: Modell) -> None:
             f"Einschwingphase {m.einschwingen:.0f} Tage ist kürzer als die längste WBZ ({laengste:.0f} Tage)")
 
 
+def _setze_primaer(quellen: dict[str, list[Bezugsquelle]], komponente: str, lieferant: str) -> None:
+    """Maßnahme Lieferantenwechsel: gewählter Lieferant wird primär, der bisherige alternativ."""
+    if not any(q.lieferant == lieferant for q in quellen.get(komponente, [])):
+        raise KonfigurationsFehler(f"Lieferantenwechsel: {lieferant} liefert kein {komponente}")
+    for q in quellen[komponente]:
+        q.rolle = "primaer" if q.lieferant == lieferant else "alternativ"
+    quellen[komponente].sort(key=lambda q: 0 if q.rolle == "primaer" else 1)
+
+
 # --------------------------------------------------------------------------- Hauptfunktion
 def lade_modell(
     szenario: str | Path | dict | None = None,
@@ -262,6 +314,9 @@ def lade_modell(
         for q in quellen[komp]:
             if q.rolle == "primaer":
                 q.wbz_tage = None if tage is None else float(tage)
+
+    if param.get("massnahmen", {}).get("uhrwerk_sellita"):
+        _setze_primaer(quellen, "uhrwerk", "sellita_lcf")
 
     einschwingen = float(param["simulation"]["einschwingen_tage"])
     modell = Modell(

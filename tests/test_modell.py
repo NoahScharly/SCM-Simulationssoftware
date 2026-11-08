@@ -128,11 +128,25 @@ def test_niedrigwasser_leitet_auf_bahn_um():
     assert not ((binnen.zeit >= s.start) & (binnen.zeit < s.ende)).any()
 
 
-def test_dual_sourcing_verbessert_uhrwerk_ausfall():
+def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
     ohne = kennzahlen(simuliere(lade_modell(szenario_pfad("S1")), 0))
-    mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": {"dual_sourcing": True}}), 0))
+    mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": {"uhrwerk_sellita": True}}), 0))
     assert mit["beta"] > ohne["beta"]
     assert mit["fehlteil_tage"] <= ohne["fehlteil_tage"]
+    assert mit["kosten_pro_uhr"] > ohne["kosten_pro_uhr"] - 50  # teureres Werk, aber keine Fehlmengenkosten
+
+
+def test_montage_wird_aus_jahresmenge_ausgelegt():
+    m = lade_modell(overrides={"nachfrage": {"uhren_pro_jahr": 5000}})
+    assert m.param["montage"]["mitarbeiter"] == 3          # 5000 / (250 × 0,99) = 20,2 Montagen -> 3 × 7
+    assert m.param["montage"]["kapazitaet_pro_tag"] == 21
+    assert not m.warnungen or all("Montagekapazität" not in w for w in m.warnungen)
+
+
+def test_wbz_folgt_dauerhafter_routenaenderung():
+    basis = lade_modell().primaerquelle("uhrwerk").wbz_min_tage
+    suez = lade_modell(szenario_pfad("C1")).primaerquelle("uhrwerk").wbz_min_tage
+    assert suez < basis
 
 
 # --------------------------------------------------------------------------- Bewertung
