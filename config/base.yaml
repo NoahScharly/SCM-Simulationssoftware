@@ -15,6 +15,7 @@ nachfrage:
 
 montage:
   kapazitaet_pro_tag: 25        # Regler 1 bis 150; Startwert nach eigener Schätzung N. Scharly (ca. 25 Uhren/Tag)
+  uhren_pro_mitarbeiter_tag: 7  # eigene Schätzung N. Scharly: ein Mitarbeiter montiert ca. 7 Uhren/Tag
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]

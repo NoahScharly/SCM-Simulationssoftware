@@ -46,6 +46,12 @@ with st.sidebar:
                     int(basis.param["montage"]["kapazitaet_pro_tag"]))
     noetig = math.ceil(menge / (grenzen["arbeitstage_pro_jahr"] * basis.param["montage"]["gutquote"])) if menge else 0
     st.caption(f"Nötig für diese Menge: mindestens {noetig} Montagen pro Tag")
+    pro_ma = float(basis.param["montage"].get("uhren_pro_mitarbeiter_tag", 7))
+    ma_eingestellt = math.ceil(kap / pro_ma)
+    ma_noetig = math.ceil(noetig / pro_ma) if noetig else 0
+    st.metric("Mitarbeiter Montage", ma_eingestellt,
+              help=f"{kap} Montagen/Tag bei {pro_ma:g} Uhren je Mitarbeiter und Tag")
+    st.caption(f"Für die gewählte Jahresmenge mindestens {ma_noetig} Mitarbeiter ({noetig} Montagen/Tag)")
 
     wbz = {}
     with st.expander("Wiederbeschaffungszeit je Komponente"):
