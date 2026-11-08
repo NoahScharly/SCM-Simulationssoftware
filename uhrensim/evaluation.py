@@ -111,8 +111,8 @@ def resilienz(erg: Ergebnis) -> list[dict[str, Any]]:
                     kandidat = min(kandidat, alt.wbz_min_tage)
                 lieferanten_ttr.append(kandidat)
         ttr = max(lieferanten_ttr) if lieferanten_ttr else dauer
-        ft = fehlteile[(fehlteile.zeit >= s["start"]) &
-                       fehlteile.komponente.apply(lambda x: any(k in str(x).split(";") for k in komps))]
+        betrifft = fehlteile.komponente.astype(str).apply(lambda x: any(k in x.split(";") for k in komps))
+        ft = fehlteile[(fehlteile.zeit >= s["start"]).to_numpy() & betrifft.to_numpy(dtype=bool)]
         tts = float(ft.zeit.min() - s["start"]) if not ft.empty else math.inf
         ergebnis.append({"stoerung": f"{s['typ']}:{s['ziel']}", "komponenten": ", ".join(komps),
                          "tts": tts, "ttr": float(ttr), "resilient": tts >= ttr})

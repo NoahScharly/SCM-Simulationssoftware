@@ -46,6 +46,11 @@ def tief_zusammenfuehren(basis: dict, aenderung: dict) -> dict:
     return ergebnis
 
 
+def _tsd(x: float) -> str:
+    """Ganzzahl mit deutschem Tausenderpunkt."""
+    return f"{x:,.0f}".replace(",", ".")
+
+
 def dreieck_mittel(werte: list[float]) -> float:
     a, b, c = werte
     return (a + b + c) / 3.0
@@ -202,9 +207,9 @@ def _pruefe_plausibilitaet(m: Modell) -> None:
     jahreskapazitaet = kap * g["arbeitstage_pro_jahr"] * gut
     if jahreskapazitaet < menge:
         m.warnungen.append(
-            f"Montagekapazität reicht nicht: {kap:.0f}/Tag × {g['arbeitstage_pro_jahr']} AT × {str(gut).replace(".", ",")} "
-            f"= {jahreskapazitaet:,.0f} < {menge:,.0f} Uhren. Mindestens "
-            f"{math.ceil(menge / (g['arbeitstage_pro_jahr'] * gut))}/Tag nötig.".replace(",", ".")
+            f"Montagekapazität reicht nicht: {kap:.0f}/Tag × {g['arbeitstage_pro_jahr']} AT × "
+            f"{str(gut).replace('.', ',')} = {_tsd(jahreskapazitaet)} < {_tsd(menge)} Uhren. Mindestens "
+            f"{math.ceil(menge / (g['arbeitstage_pro_jahr'] * gut))}/Tag nötig."
         )
     # WBZ: nie unter Fertigung + Transit + Zoll der regulären Route
     for liste in m.quellen.values():
