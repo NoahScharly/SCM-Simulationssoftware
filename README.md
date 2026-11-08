@@ -101,7 +101,7 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 ## Wichtige Modellannahmen und Grenzen
 
 - Werte mit `[A]` in den Konfigurationsdateien sind Annahmen und in der Sensitivitätsanalyse zu prüfen.
-- Basis-Montagekapazität 22 statt 20 Uhren/Tag: 20 × 250 Arbeitstage × 0,99 = 4.950 < 5.000.
+- Basis-Montagekapazität 25 Uhren/Tag (eigene Schätzung), per Regler frei einstellbar; bei 5.000 Uhren/Jahr sind mindestens 21/Tag nötig (20 × 250 × 0,99 = 4.950 < 5.000).
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.
 - Ausfälle sind unabhängig; keine Retouren, kein Bullwhip-Effekt bis Tier 2, Kapitalbindung nur auf Lagerbestand.

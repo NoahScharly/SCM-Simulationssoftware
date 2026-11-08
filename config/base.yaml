@@ -14,7 +14,7 @@ nachfrage:
   online_anteil: 0.8            # Poster: 80 % online, 20 % Fachhandel
 
 montage:
-  kapazitaet_pro_tag: 22        # Regler 1 bis 150; Poster: 20/Tag reicht rechnerisch nicht (20 × 250 × 0,99 = 4.950 < 5.000)
+  kapazitaet_pro_tag: 25        # Regler 1 bis 150; Startwert nach eigener Schätzung N. Scharly (ca. 25 Uhren/Tag)
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]

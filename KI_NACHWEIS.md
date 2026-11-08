@@ -2,7 +2,7 @@
 
 **System und Version:** Claude Opus 5.5 (Anthropic), claude.ai, November 2026
 
-**Eigene Leistung (ohne KI):** Simulationskonzept, Softwarearchitektur und Modulstruktur, Recherche aller
+**Eigene Leistung (ohne KI):** Basis-Montagekapazität (ca. 25 Uhren/Tag) und Jahresmenge als frei einstellbare Regler, Simulationskonzept, Softwarearchitektur und Modulstruktur, Recherche aller
 Quellen und Daten (Netz, Lieferanten, Komponenten, Emissionsfaktoren), Startkonfiguration aus dem eigenen Poster.
 
 **Verwendungszweck der KI:** teilweise Umsetzung der vorgegebenen Architektur in Python-Code sowie
@@ -22,7 +22,6 @@ Fehlerbehebung (Prüfungselement 2). Der übrige Code wurde selbst geschrieben.
 
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
-- Basis-Montagekapazität 22 statt 20 Uhren/Tag, weil 20 × 250 × 0,99 < 5.000
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
 - Lieferzeit in Werktagen statt Kalendertagen
 - Sicherheitsbestand nach SS = z · sqrt(L · σd² + d² · σL²)
