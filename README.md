@@ -111,8 +111,7 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 
 | Datei / Modul | Kennzeichen | Bemerkung |
 |---|---|---|
-| `config/*` | KI | Daten aus dem Poster von N. Scharly übernommen, Annahmen mit [A] markiert |
-| `uhrensim/*.py`, `app/app.py`, `tests/*` | KI | Erzeugt mit Claude Opus 5.5, Prompts in `KI_NACHWEIS.md` |
+| `config/*` | E | Daten und Quellen selbst recherchiert (Poster N. Scharly), Annahmen mit [A] markiert |
+| `uhrensim/*.py`, `app/app.py`, `tests/*` | G | Architektur und Fachlogik selbst erarbeitet, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI, siehe `KI_NACHWEIS.md` |
 | SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | F | Fremdbibliotheken, siehe `requirements.txt` |
 
-Eigene Änderungen bitte direkt hier und im Dateikopf als `E` oder `G` nachtragen.

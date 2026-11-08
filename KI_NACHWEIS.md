@@ -2,10 +2,13 @@
 
 **System und Version:** Claude Opus 5.5 (Anthropic), claude.ai, November 2026
 
-**Verwendungszweck:** Programmierung der Simulationssoftware nach dem eigenen Simulationskonzept
-(Prüfungselement 2): Konfigurationsdateien, alle Python-Module, Oberfläche, Tests, Dokumentation.
+**Eigene Leistung (ohne KI):** Simulationskonzept, Softwarearchitektur und Modulstruktur, Recherche aller
+Quellen und Daten (Netz, Lieferanten, Komponenten, Emissionsfaktoren), Startkonfiguration aus dem eigenen Poster.
 
-**Betroffene Programmteile:** alle Dateien in `config/`, `uhrensim/`, `app/`, `tests/` sowie `README.md`.
+**Verwendungszweck der KI:** teilweise Umsetzung der vorgegebenen Architektur in Python-Code sowie
+Fehlerbehebung (Prüfungselement 2). Der übrige Code wurde selbst geschrieben.
+
+**Betroffene Programmteile:** Code in `uhrensim/`, `app/`, `tests/` (Kennzeichen G).
 
 ## Wesentliche Prompts (sinngemäß, chronologisch)
 

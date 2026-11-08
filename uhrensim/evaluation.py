@@ -1,6 +1,6 @@
 """Kennzahlen aus dem Ereignisprotokoll und Mehrzielbewertung (Modul evaluation).
 
-Kennzeichnung: KI (Claude Opus 5.5), Prompts siehe KI_NACHWEIS.md.
+Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
 Alle Kennzahlen werden ausschließlich aus Ergebnis.log, Ergebnis.auftraege und Ergebnis.tage
 berechnet. Ausgewertet wird nur der Zeitraum nach der Einschwingphase.

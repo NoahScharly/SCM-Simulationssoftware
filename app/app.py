@@ -1,6 +1,6 @@
 """Streamlit-Oberfläche: Regler, drei Sichten, Szenariovergleich und Optimierung (Modul ui).
 
-Kennzeichnung: KI (Claude Opus 5.5), Prompts siehe KI_NACHWEIS.md.
+Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
 Start:  streamlit run app/app.py
 """

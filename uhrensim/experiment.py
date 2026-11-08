@@ -1,6 +1,6 @@
 """Monte-Carlo-Experimente, Szenariovergleich und Sensitivitätsanalyse.
 
-Kennzeichnung: KI (Claude Opus 5.5), Prompts siehe KI_NACHWEIS.md.
+Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
 Alle Szenarien eines Vergleichs nutzen denselben Seed und dieselben Replikationsnummern.
 Dadurch sind die Zufallsströme gleich (Common Random Numbers), und Differenzen zur Basis
