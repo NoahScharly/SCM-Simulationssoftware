@@ -1,0 +1,9 @@
+komponente,lieferant,rolle,preis_eur,fertigung_tage,wbz_tage,tier2,quelle
+uhrwerk,miyota_nagano,primaer,70.00,60,,,"Poster: Miyota 70 €, 2 Monate Fertigung [25]"
+uhrwerk,sellita_lcf,alternativ,150.00,30,,,"Poster: SW300-1 150 € als Notfallwerk [A]"
+saphirglas,rochester_glas,primaer,12.00,10,,,"[A]"
+armband,estancia_leder,primaer,18.00,14,,gerberei_br;garn_br,"[A]; Tier-2 laut Poster"
+zeiger,portlouis_zeiger,primaer,4.00,10,,,"[A]"
+zifferblatt,clichy_zifferblatt,primaer,9.00,7,,,"[A]"
+gehaeuse,biel_gehaeuse,primaer,35.00,10,,thyssen_stahl;krone_laubscher,"[A]; Tier-2 laut Poster"
+schliesse,conegliano_schliesse,primaer,6.00,7,,,"[A]"

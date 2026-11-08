@@ -1,0 +1,22 @@
+id,name,typ,stufe,land,lat,lon,zollgrenze,quelle
+miyota_nagano,MIYOTA Nagano (Uhrwerk),lieferant,tier1,JP,36.65,138.18,0,Poster [6] [25]
+sellita_lcf,Sellita La Chaux-de-Fonds (Notfallwerk SW300-1),lieferant,tier1,CH,47.10,6.83,0,Poster Alternative [A]
+rochester_glas,Rochester (Saphirglas),lieferant,tier1,US,43.16,-77.61,0,Poster [4]
+estancia_leder,Estancia Velha (Lederarmband),lieferant,tier1,BR,-29.65,-51.17,0,Poster [4] [14]
+portlouis_zeiger,Port Louis (Zeiger),lieferant,tier1,MU,-20.16,57.50,0,Poster [4]
+clichy_zifferblatt,Clichy (Zifferblatt),lieferant,tier1,FR,48.90,2.31,0,Poster [4]
+biel_gehaeuse,Biel (Gehäuse),lieferant,tier1,CH,47.14,7.25,0,Poster frei gewählt
+conegliano_schliesse,Conegliano (Schließe),lieferant,tier1,IT,45.89,12.30,0,Poster 7. Lieferant
+gerberei_br,Gerberei Novo Hamburgo,lieferant,tier2,BR,-29.68,-51.13,0,Poster Tier-2 [14]
+garn_br,Garn und Kantenfarbe Caxias do Sul,lieferant,tier2,BR,-29.17,-51.18,0,Poster Tier-2 [23]
+thyssen_stahl,thyssenkrupp Materials (Stahl),lieferant,tier2,DE,51.45,7.01,0,Poster Tier-2 [19]
+krone_laubscher,Krone Laubscher Täuffelen,lieferant,tier2,CH,47.07,7.20,0,Poster Tier-2 [19]
+yokohama,Hafen Yokohama,hafen,,JP,35.44,139.64,0,[A]
+new_york,Hafen New York,hafen,,US,40.67,-74.04,0,[A]
+rio_grande,Hafen Rio Grande,hafen,,BR,-32.03,-52.10,0,[A]
+rotterdam,Hafen Rotterdam,hafen,,NL,51.95,4.14,1,Poster
+hamburg,Hafen Hamburg,hafen,,DE,53.54,9.97,1,Poster
+bremerhaven,Hafen Bremerhaven (Ausweichhafen),hafen,,DE,53.55,8.58,1,Poster Alternative S3
+frankfurt,Flughafen Frankfurt,flughafen,,DE,50.03,8.57,1,[A] Notfallweg
+heilbronn,Montage und Lager Heilbronn,werk,,DE,49.14,9.22,0,Poster
+kunden_de,Kunden Deutschland,kunde,,DE,51.00,10.30,0,Poster

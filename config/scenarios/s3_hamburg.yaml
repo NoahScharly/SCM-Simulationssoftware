@@ -1,0 +1,8 @@
+id: S3
+name: Hafen Hamburg 14 Tage gestört
+beschreibung: Hamburg ab Tag 60 für 14 Tage geschlossen, Ausweichen über Bremerhaven (Poster S3)
+stoerungen:
+  - typ: knoten_ausfall
+    ziel: hamburg
+    start_tag: 60
+    dauer_tage: 14

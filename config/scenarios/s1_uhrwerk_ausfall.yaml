@@ -1,0 +1,10 @@
+id: S1
+name: Ausfall Uhrwerk 60 Tage
+beschreibung: Einziger Uhrwerk-Lieferant liefert ab Tag 120 für 60 Tage nicht (Poster S1)
+stoerungen:
+  - typ: knoten_ausfall
+    ziel: miyota_nagano
+    start_tag: 120
+    dauer_tage: 60
+sensitivitaet:
+  stoerungen.0.dauer_tage: [30, 60, 90]

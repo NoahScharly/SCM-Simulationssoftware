@@ -1,0 +1,73 @@
+# Basiskonfiguration: Normalbetrieb (S0)
+# Alle Werte mit [A] sind Modellannahmen und in der Sensitivitätsanalyse zu prüfen.
+# Szenarien in config/scenarios/ ändern nur einzelne Werte dieser Datei.
+
+simulation:
+  auswertung_tage: 365          # ausgewerteter Zeitraum (1 Jahr)
+  einschwingen_tage: 200        # Vorlauf, der nicht ausgewertet wird (> längste WBZ) [A]
+  replikationen: 20             # Monte-Carlo-Läufe je Szenario
+  seed: 20261110                # Master-Seed für alle Zufallsströme
+
+nachfrage:
+  uhren_pro_jahr: 5000          # Regler 0 bis 25.000
+  monatsfaktoren: {}            # z. B. {11: 1.3, 12: 1.3}; fehlende Monate = 1.0
+  online_anteil: 0.8            # Poster: 80 % online, 20 % Fachhandel
+
+montage:
+  kapazitaet_pro_tag: 22        # Regler 1 bis 150; Poster: 20/Tag reicht rechnerisch nicht (20 × 250 × 0,99 = 4.950 < 5.000)
+  arbeitstage_pro_woche: 5
+  gutquote: 0.99                # [A]
+  durchlauf_tage: 1             # Montage und Endprüfung [A]
+  fertigwaren_ziel_tage: 10     # Zielreichweite Fertigwarenlager in Tagen Nachfrage [A]
+
+distribution:
+  lieferzusage_tage: 3          # Poster: Lieferzeit höchstens 3 Tage
+  lieferzeit_einheit: werktage  # werktage | kalendertage (übliche Zusage: Werktage) [A]
+  versand_tage: [1, 1, 2]       # Paketlaufzeit Dreieck (min, modus, max) [A]
+  last_mile_km: 30              # [A]
+
+transport:
+  geschwindigkeit_km_tag: {see: 800, bahn: 400, binnen: 250, lkw: 600, luft: 8000}
+  umschlag_tage: {see: [1, 2, 4], bahn: [0.5, 1, 2], binnen: [0.5, 1, 2], lkw: [0, 0.5, 1], luft: [1, 1.5, 3]}
+  zoll_tage: [1, 2, 4]          # Zollabfertigung an der EU-Grenze, Dreieck [A]
+
+kosten:
+  transport_eur_tkm: {see: 0.02, bahn: 0.06, binnen: 0.05, lkw: 0.15, luft: 3.0}     # [A]
+  transport_fix_eur_sendung: {see: 250, bahn: 90, binnen: 90, lkw: 60, luft: 180}   # [A]
+  umschlag_eur_t: 40            # je Umschlag [A]
+  kapitalzins_pa: 0.10          # Kapitalbindung [A]
+  lager_eur_stueck_tag: 0.002   # Lagerplatz je Komponente [A]
+  montage_eur_uhr: 25           # [A]
+  paket_eur_uhr: 6              # [A]
+  verspaetung_eur_auftrag: 20   # Strafkosten je verspätetem Auftrag [A]
+
+emissionen:
+  umschlag_kg_t: 1.2            # GLEC Umschlag
+  last_mile_g_tkm: 840          # GLEC Transporter < 3,5 t
+  paket_kg: 0.3                 # [A]
+  verpackungsfaktor: 1.5        # Bruttogewicht / Nettogewicht [A]
+
+bestand:
+  servicegrad_ziel: 0.95        # für Sicherheitsbestand der Komponenten
+  bestellintervall_min_tage: 30 # Mindestlosgröße = Bedarf dieser Tage [A]
+
+massnahmen:
+  puffer_extra: {}              # zusätzlicher Sicherheitsbestand, z. B. {uhrwerk: 1000}
+  dual_sourcing: false          # bei Lieferantenausfall auf Alternativlieferant umschalten
+  luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
+  luft_ausloeser_tage: 5        # Reichweite, ab der Luftfracht ausgelöst wird
+  luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird
+
+bewertung:
+  methode: mindestwerte         # mindestwerte | gewichtet | lexikografisch
+  mindestwerte: {beta: 0.95}
+  gewichte: {kosten_pro_uhr: 0.4, co2e_pro_uhr_kg: 0.3, lieferzeit_p95: 0.3}
+  rangfolge: [beta, co2e_pro_uhr_kg, kosten_pro_uhr]
+
+grenzen:                        # Plausibilitätsregeln (Folie 2)
+  uhren_pro_jahr: [0, 25000]
+  kapazitaet_pro_tag: [1, 150]
+  arbeitstage_pro_jahr: 250
+  wbz_max_tage: 180
+
+stoerungen: []                  # werden von Szenarien gefüllt

@@ -1,0 +1,8 @@
+id: S2
+name: Rhein-Niedrigwasser 50 Tage
+beschreibung: Binnenschiff über Kaub ab Tag 200 für 50 Tage gesperrt, Umleitung auf Bahn (Poster S2)
+stoerungen:
+  - typ: kanten_sperre
+    ziel: e_rtm_hn_binnen
+    start_tag: 200
+    dauer_tage: 50
