@@ -10,15 +10,25 @@ Fehlerbehebung (Prüfungselement 2). Der übrige Code wurde selbst geschrieben.
 
 **Betroffene Programmteile:** Code in `uhrensim/`, `app/`, `tests/` (Kennzeichen G).
 
-## Wesentliche Prompts (sinngemäß, chronologisch)
+## Wesentliche Prompts (Auswahl, chronologisch)
 
-1. "Lass uns die Software jetzt zusammen bauen. Du sollst so viel wie möglich übernehmen."
-   Vorgaben aus dem Konzept: ereignisdiskrete Simulation mit SimPy, Python und Streamlit, Netz und Szenarien
-   als Daten, vier Kernkriterien plus Resilienz und Bestand, drei Sichten aus einer Datenquelle.
-2. Netzdaten: eigenes Poster als Startkonfiguration, Kap-Route, ab Rotterdam Binnenschiff, ab Hamburg Bahn,
-   später durch Gruppendaten ersetzbar.
-3. Uhren pro Jahr frei einstellbar von 0 bis 25.000, Montagen pro Tag und Wiederbeschaffungszeit anpassbar,
-   aber so, dass es realistisch bleibt.
+1. "Ich baue mit Python und SimPy eine ereignisdiskrete Simulation der Lieferkette einer Automatikuhr, die in
+   Heilbronn montiert wird. Schlag mir eine Ordnerstruktur mit den Modulen domain, data, simulation,
+   optimization, evaluation, compliance und ui vor. Schreib noch keinen Code."
+2. "Setz in SimPy die Prozesse Lieferant, Transport, Montage und Kunde um. Die Montage verbraucht pro Uhr ein Kit
+   aus 6 Komponenten und darf höchstens die eingestellte Anzahl Uhren pro Tag fertigen. Jede Zustandsänderung
+   soll als Zeile in ein Ereignisprotokoll geschrieben werden."
+3. "Richte die Zufallszahlen mit numpy SeedSequence so ein, dass jede Zufallsquelle (Nachfrage, Zollzeit,
+   Gutquote) ihren eigenen Generator hat und alle Szenarien dieselben Ströme nutzen. Führe jedes Szenario
+   30 Mal aus."
+4. "Berechne aus dem Ereignisprotokoll diese Kennzahlen: Gesamtkosten, Lieferfähigkeit β, Lieferzeit (Mittelwert
+   und 95-%-Quantil), CO2e nach GLEC sowie TTS und TTR je Störung. Gib jeden Wert mit 95-%-Konfidenzintervall aus."
+5. "Bau mir eine Streamlit-App mit drei Ansichten: eine animierte Plotly-Karte, auf der Sendungen entlang der
+   Kanten wandern, Diagramme zum Bestand und zu β über die Zeit und eine Kennzahlentabelle Szenario × Kriterium.
+   Alles soll aus demselben Ereignisprotokoll kommen."
+
+Weitere Prompts betrafen das Laden und Prüfen der Netzdaten, das Bestellpunktverfahren (s, Q), Szenarien als
+YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Fehlerbehebung.
 
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
