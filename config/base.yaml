@@ -15,8 +15,8 @@ nachfrage:
 
 montage:
   kapazitaet_pro_tag: auto      # auto = aus Jahresmenge: Mitarbeiter × Uhren je Mitarbeiter; oder feste Zahl
-  uhren_pro_mitarbeiter_tag: 3  # eigene Schätzung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle in Handarbeit,
-                                # ca. 2 bis 3 Uhren je Uhrmacher und Tag (Manufakturpraxis, z. B. Laco Pforzheim); Sensitivität 2/3/5/7
+  uhren_pro_mitarbeiter_tag: 5  # Festlegung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle mit zugekauften
+                                # Werken, ca. 5 Uhren je Uhrmacher und Tag; Sensitivität 2/3/5/7
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]

@@ -2,7 +2,7 @@
 
 **System und Version:** Claude Opus 5.5 (Anthropic), claude.ai, November 2026
 
-**Eigene Leistung (ohne KI):** Basis-Montagekapazität (ca. 25 Uhren/Tag), Montageleistung von ca. 3 Uhren je Uhrmacher und Tag (eigene Recherche Manufakturpraxis, vorher 7) zur Personalbedarfsermittlung und Jahresmenge als frei einstellbare Regler, Simulationskonzept, Softwarearchitektur und Modulstruktur, Recherche aller
+**Eigene Leistung (ohne KI):** Basis-Montagekapazität (ca. 25 Uhren/Tag), Montageleistung von 5 Uhren je Uhrmacher und Tag (eigene Festlegung nach Recherche Manufakturpraxis, vorher 7) zur Personalbedarfsermittlung und Jahresmenge als frei einstellbare Regler, Simulationskonzept, Softwarearchitektur und Modulstruktur, Recherche aller
 Quellen und Daten (Netz, Lieferanten, Komponenten, Emissionsfaktoren), Startkonfiguration aus dem eigenen Poster.
 
 **Verwendungszweck der KI:** teilweise Umsetzung der vorgegebenen Architektur in Python-Code sowie

@@ -154,8 +154,8 @@ def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
 
 def test_montage_wird_aus_jahresmenge_ausgelegt():
     m = lade_modell(overrides={"nachfrage": {"uhren_pro_jahr": 5000}})
-    assert m.param["montage"]["mitarbeiter"] == 7          # 5000 / (250 × 0,99) = 20,2 Montagen -> 7 × 3
-    assert m.param["montage"]["kapazitaet_pro_tag"] == 21
+    assert m.param["montage"]["mitarbeiter"] == 5          # 5000 / (250 × 0,99) = 20,2 Montagen -> 5 × 5
+    assert m.param["montage"]["kapazitaet_pro_tag"] == 25
     assert not m.warnungen or all("Montagekapazität" not in w for w in m.warnungen)
 
 
