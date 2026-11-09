@@ -64,20 +64,19 @@ def main() -> None:
 
     if args.optionen:
         from .data import szenario_dateien
-        from .handlungsoptionen import empfehlung_je_szenario, robuste_option, vergleiche_optionen
-        basis = lade_modell(None, overrides)
-        ziel_beta = float(basis.param["bewertung"]["mindestwerte"].get("beta", 0.95))
-        prio = ["kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"]
+        from .handlungsoptionen import (empfehlung_je_szenario, lade_entscheidungsregel, robuste_option,
+                                        vergleiche_optionen)
+        anf, prio = lade_entscheidungsregel()
         v = vergleiche_optionen(pfade or szenario_dateien(), overrides=overrides,
                                 replikationen=args.replikationen or 5,
                                 fortschritt=lambda i, n: print(f"Lauf {i}/{n}", end="\r"))
         v["detail"].to_csv(ziel / "handlungsoptionen.csv", index=False)
-        print("\nEmpfehlung je Szenario (Mindest-Lieferfähigkeit, dann Kosten):")
-        for sid, r in empfehlung_je_szenario(v["detail"], ziel_beta, prio).items():
+        print(f"\nEmpfehlung je Szenario (Anforderungen {anf}, Priorität {prio}):")
+        for sid, r in empfehlung_je_szenario(v["detail"], anf, prio).items():
             b = r.iloc[0]
             print(f"  {sid}: {b.option:16s} beta {b.beta:.3f}  {b.kosten_pro_uhr:.2f} EUR/Uhr")
         print("\nRobuste Option über alle Szenarien:")
-        print(robuste_option(v["detail"], ziel_beta, prio)[["rang", "option", "beta_min", "kosten_pro_uhr",
+        print(robuste_option(v["detail"], anf, prio)[["rang", "option", "beta_min", "kosten_pro_uhr",
                                                              "co2e_pro_uhr_kg", "zulaessig"]].round(3).to_string(index=False))
         return
 

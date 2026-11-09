@@ -53,6 +53,12 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    den Werken schon teuer, das muss in der Datenbasis richtig sein." Umsetzung: Brückenlieferung beim Wiederanlauf,
    Eilzuschlag, Luftfracht nur bei Versorgungsstörung, Route über Narita, Auslöser über Luft-WBZ, 2 neue Tests.
 
+12. (09.11.2026, Zielkriterien und Bestandsbalken) "Das Uhrwerk wiegt 79 g. Der Balken beim Bestand, der die
+   Neubestellung triggert, ist verbuggt. Zielkriterien besser auswählen lassen: aus Optionen wählen und von oben nach
+   unten anordnen, Lieferfähigkeit mit Standardwert einstellbar, Lieferzeit unter 3 bis 4 Tagen als Standard, oder
+   ohne Werte nur priorisieren, das kannst du entscheiden." Umsetzung: Gewicht 79 g, Bestandsbalken und
+   "bestellt" aus demselben Zeitfenster, Mindestanforderungen plus Drag-and-drop-Priorisierung mit ROC-Gewichten.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
@@ -72,6 +78,9 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Brückenmenge = Bedarf bis zur ersten regulären Ankunft + Sicherheitsbestand - Lager - versandte Ware
 - Eilzuschlag 25 % [A], Nachlauf 90 Tage [A], Auslöser 8 Tage (über Luft-WBZ von rund 6 bis 7 Tagen)
 - Vorlauf Lkw Nagano-Narita 290 km [A], Flug NRT-FRA 9.350 km [A]
+- Hybride Entscheidungsregel: Mindestanforderungen (Lieferzeit-Standard 3 Tage = Lieferzusage) plus
+  Rank-Order-Centroid-Gewichte aus der Reihenfolge, Min-Max-Normierung über die zulässigen Optionen
+- Bestandsbalken: Zustand kurz vor dem Bildzeitpunkt, gelb = in diesem Bild nachbestellt, Strich kupferfarben
 
 ## Vorgenommene Änderungen
 
@@ -79,6 +88,6 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 
 ## Fachliche und technische Prüfungen
 
-- 34 automatische Tests (`pytest -q`), davon 8 für Optionsvergleich und Luftfracht: Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 37 automatische Tests (`pytest -q`), davon 11 für Optionsvergleich, Entscheidungsregel und Luftfracht: Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

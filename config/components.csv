@@ -1,5 +1,5 @@
 komponente,bezeichnung,gewicht_g,zoll_satz,quelle
-uhrwerk,Automatikuhrwerk,30,0.00,"Gewicht [A]; Zollsatz nach TARIC prüfen"
+uhrwerk,Automatikuhrwerk,79,0.00,"Gewicht 79 g (Vorgabe N. Scharly); Zollsatz nach TARIC prüfen"
 saphirglas,Saphirglas,6,0.00,"[A]"
 armband,Lederarmband,25,0.00,"[A]"
 zeiger,Zeigersatz,2,0.00,"[A]"

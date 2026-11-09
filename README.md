@@ -124,8 +124,11 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
    ohne Programmierung ergänzt.
 4. **Fall ansehen:** Szenario wählen, mit dem Schalter zwischen den Optionen wechseln. Karte, Bestandsbalken und
    Kennzahlen zeigen die gewählte Option, die Differenzen beziehen sich auf "Ohne Maßnahme".
-5. **Empfehlung:** zweistufig und offengelegt. Stufe 1: Mindest-Lieferfähigkeit. Stufe 2: Priorität
-   (Kosten, CO2e oder Lieferzeit). Ergebnis je Szenario und als robuste Empfehlung über alle Szenarien.
+5. **Empfehlung:** zweistufig und offengelegt. Stufe 1: Mindestanforderungen (Standard Lieferfähigkeit
+   mindestens 95 %, Lieferzeit 95 % höchstens 3 Tage, beide abschaltbar und einstellbar). Stufe 2: Priorisierung,
+   Zielkriterien auswählen und per Drag-and-drop ordnen; aus der Reihenfolge werden Rank-Order-Centroid-Gewichte
+   (Barron und Barrett 1996), z. B. bei vier Kriterien 52 / 27 / 15 / 6 %. Standardwerte in `base.yaml`, Block
+   `entscheidung`. Ergebnis je Szenario und als robuste Empfehlung (Anforderungen im schlechtesten Szenario).
 6. **Kombinationen** (Abschnitt 4, für Fortgeschrittene): Rastersuche über alle Maßnahmenkombinationen.
 
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit

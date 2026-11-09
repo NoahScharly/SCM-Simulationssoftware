@@ -127,21 +127,26 @@ def _bestandsdaten(erg: Ergebnis) -> dict[str, Any]:
 
 
 def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar | go.Scatter]:
+    """Bestandsbalken zum Zeitpunkt t.
+
+    Zustand und Beschriftung kommen aus demselben Zeitfenster: Gezeigt wird der Tagesabschluss unmittelbar vor t,
+    "bestellt" markiert Bestellungen zwischen dem vorigen Bild und diesem (t - schritt, t]. So springt der helle
+    Balken genau in dem Bild nach rechts, in dem auch "bestellt" steht (vorher konnte das um ein Bild versetzt sein).
+    """
     tage = bd["tage"]
-    tag = int(min(max(math.floor(t), tage.index.min()), tage.index.max()))
+    tag = int(min(max(math.ceil(t) - 1, tage.index.min()), tage.index.max()))
     z = tage.loc[tag]
+    t_stand = tag + 1.0                         # Tagesabschluss wird kurz vor Tagesende geschrieben
     bestand = [z[f"bestand_{k}"] / bd["bedarf"][k] for k in bd["komps"]]
     position = [(z[f"bestand_{k}"] + z[f"unterwegs_{k}"]) / bd["bedarf"][k] for k in bd["komps"]]
     stueck = [z[f"bestand_{k}"] for k in bd["komps"]]
-    farbe = [ROT if b < 5 else ("#C9A227" if p <= s else BRAUN) for b, p, s in zip(bestand, position, bd["melde"])]
     b = bd["bestellungen"]
-    neu = b[(b.zeit > t - schritt) & (b.zeit <= t)]
-    txt = []
+    neu = set(b[(b.zeit > t_stand - schritt) & (b.zeit <= t_stand)].komponente)
+    farbe, txt = [], []
     for k, n, r in zip(bd["komps"], stueck, bestand):
-        zeile = f"{n:.0f} Stk · {r:.0f} T"
-        if k in set(neu.komponente):
-            zeile += "  ⟵ bestellt"
-        txt.append(zeile)
+        bestellt = k in neu
+        farbe.append(ROT if r < 5 else ("#C9A227" if bestellt else BRAUN))
+        txt.append(f"{n:.0f} Stk · {r:.0f} T" + ("  ⟵ bestellt" if bestellt else ""))
     return [
         go.Bar(y=bd["namen"], x=position, orientation="h", name="Lager + unterwegs",
                marker=dict(color="rgba(192,138,85,0.30)", line=dict(width=0)), showlegend=False,
@@ -247,8 +252,9 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
             text=[k.name for k in kn], hoverinfo="text", showlegend=zeige_legende, legendgroup="standorte"), **pos)
     if bd is not None:
         fig.add_trace(go.Scatter(y=bd["namen"], x=bd["melde"], mode="markers", name="Meldebestand",
-                                 marker=dict(symbol="line-ns", size=20, line=dict(width=3, color=BRAUN_DUNKEL)),
-                                 hovertemplate="%{y}: Meldebestand %{x:.0f} Tage<extra></extra>",
+                                 marker=dict(symbol="line-ns", size=22, line=dict(width=3, color=KUPFER)),
+                                 hovertemplate="%{y}: Meldebestand s = %{x:.0f} Tage (erreicht der helle Balken "
+                                               "den Strich, wird nachbestellt)<extra></extra>",
                                  showlegend=False), row=2, col=2)
 
     def geo_spuren(t: float, legende: bool) -> list[go.Scattergeo]:
@@ -489,11 +495,12 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     return _layout(fig, "Maßnahmen im Zielkonflikt", hoehe=480)
 
 
-def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], ziel_beta: float,
+def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], ziel_beta: float | None,
                       beta_spalte: str = "beta") -> go.Figure:
     """Zielkonflikt der Handlungsoptionen: Kosten (x) gegen Lieferfähigkeit (y), Punktgröße = CO2e je Uhr.
 
-    Rang 1 (Empfehlung) ist kupferfarben mit dunklem Rand, die gestrichelte Linie ist die Mindest-Lieferfähigkeit.
+    Rang 1 (Empfehlung) ist kupferfarben mit dunklem Rand, grün = erfüllt alle Mindestanforderungen, grau = nicht.
+    Die gestrichelte Linie ist die Mindest-Lieferfähigkeit (falls gesetzt).
     """
     d = rangfolge.sort_values("kosten_pro_uhr").copy()
     co2 = d.co2e_pro_uhr_kg * 1000
@@ -509,9 +516,11 @@ def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], ziel_beta:
                                                                           color=BRAUN_DUNKEL)),
         hovertemplate="%{text}<br>Kosten %{x:.2f} €/Uhr<br>Lieferfähigkeit %{y:.1f} %<br>CO2e %{customdata:.1f} g/Uhr"
                       "<extra></extra>", showlegend=False))
-    fig.add_hline(y=ziel_beta * 100, line=dict(color="#9B3B2A", dash="dash"),
-                  annotation_text=f"Mindest-Lieferfähigkeit {ziel_beta * 100:.0f} %".replace(".", ","),
-                  annotation_position="bottom right")
+    if ziel_beta:
+        fig.add_hline(y=ziel_beta * 100, line=dict(color="#9B3B2A", dash="dash"),
+                      annotation_text=f"Mindest-Lieferfähigkeit {ziel_beta * 100:.0f} %".replace(".", ","),
+                      annotation_position="bottom right")
+    ziel_beta = ziel_beta or 1.0
     fig.update_xaxes(title="Kosten je Uhr [€]  (links = günstiger)")
     fig.update_yaxes(title=("Lieferfähigkeit im schlechtesten Szenario [%]" if beta_spalte == "beta_min"
                             else "Lieferfähigkeit [%]"),

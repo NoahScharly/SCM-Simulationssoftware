@@ -23,8 +23,14 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
-from uhrensim.handlungsoptionen import (empfehlung_je_szenario, lade_optionen, robuste_option,  # noqa: E402
-                                        vergleiche_optionen, vor_und_nachteile, wirkt)
+from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
+                                        lade_optionen, robuste_option, roc_gewichte, vergleiche_optionen,
+                                        vor_und_nachteile, wirkt)
+
+try:  # Drag-and-drop-Liste für die Priorisierung; ohne das Paket greift eine einfache Auswahlliste
+    from streamlit_sortables import sort_items
+except ImportError:  # pragma: no cover
+    sort_items = None
 from uhrensim.optimization import kombinationen, optimum_je_szenario, raster_detail, robuste_empfehlung  # noqa: E402
 
 st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
@@ -112,7 +118,18 @@ basis = lade_modell()
 g, mo = basis.param["grenzen"], basis.param["montage"]
 PRO_MA = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
 SEED_STANDARD = int(basis.param["simulation"]["seed"])
-KRIT = {"kosten_pro_uhr": "Kosten je Uhr", "co2e_pro_uhr_kg": "CO2e je Uhr", "lieferzeit_p95": "Lieferzeit (95 %)"}
+KNAME = {k: v[0] for k, v in KRITERIEN.items()}
+ANF_STANDARD, PRIO_STANDARD = lade_entscheidungsregel()
+SORT_STIL = """
+.sortable-component {background-color: transparent; padding: 0; border: none;}
+.sortable-container {background-color: transparent; counter-reset: item; padding: 0; margin: 0;}
+.sortable-container-header {display: none;}
+.sortable-container-body {background-color: transparent; padding: 0;}
+.sortable-item, .sortable-item:hover {background-color: #FFFFFF; color: #3E2C23; border: 1px solid #E3D7C7;
+    border-left: 4px solid #8B5E3C; border-radius: 8px; font-size: 0.9rem; margin: 0 0 6px 0; padding: 7px 10px;
+    cursor: grab; text-align: left; font-family: 'Source Sans Pro', 'Source Sans 3', sans-serif;}
+.sortable-item::before {counter-increment: item; content: counter(item) ". "; font-weight: 600; color: #8B5E3C;}
+"""
 SEK_PER_LAUF = 0.25
 
 # --------------------------------------------------------------------------- Seitenleiste
@@ -142,17 +159,43 @@ with st.sidebar:
     st.caption(f"Basis wird immer mitgerechnet. Für jede Störung rechnet die Software automatisch alle "
                f"{len(OPTIONEN)} Handlungsoptionen durch: " + ", ".join(OPT_KURZ.values()) + ".")
 
-    st.markdown("#### 3 · Ziel für die Empfehlung")
-    ziel_beta = st.slider("Mindest-Lieferfähigkeit", 80, 100,
-                          int(round(basis.param["bewertung"]["mindestwerte"].get("beta", 0.95) * 100)), 1,
-                          format="%d %%",
-                          help="Stufe 1 der Empfehlung: Nur Optionen, die diesen Anteil pünktlicher Bestellungen "
-                               "erreichen, sind zulässig.") / 100
-    prio1 = st.radio("Danach zählt zuerst", list(KRIT), format_func=KRIT.get, horizontal=False,
-                     help="Stufe 2: Unter den zulässigen Optionen gewinnt die beste bei diesem Kriterium, bei "
-                          "Gleichstand entscheidet das nächste.")
-    prioritaet = [prio1] + [k for k in KRIT if k != prio1]
-    st.caption("Ziel und Priorität wirken sofort, ohne neu zu rechnen.")
+    st.markdown("#### 3 · Zielkriterien")
+    st.markdown("**Mindestanforderungen**")
+    anforderungen: dict[str, float] = {}
+    if st.toggle("Lieferfähigkeit mindestens", value="beta" in ANF_STANDARD, key="anf_beta_an"):
+        anforderungen["beta"] = st.slider(
+            "Lieferfähigkeit mindestens", 80, 100, int(round(ANF_STANDARD.get("beta", 0.95) * 100)), 1,
+            format="%d %%", label_visibility="collapsed",
+            help="Anteil der Bestellungen, die pünktlich ankommen. Optionen darunter sind nicht zulässig.") / 100
+    if st.toggle("Lieferzeit (95 %) höchstens", value="lieferzeit_p95" in ANF_STANDARD, key="anf_lz_an"):
+        anforderungen["lieferzeit_p95"] = st.slider(
+            "Lieferzeit höchstens", 1.0, 10.0, float(ANF_STANDARD.get("lieferzeit_p95", 3.0)), 0.5,
+            format="%.1f Tage", label_visibility="collapsed",
+            help="95 % der Kunden haben ihre Uhr spätestens nach so vielen Werktagen. Standard 3 Tage = Lieferzusage.")
+
+    st.markdown("**Priorisierung** (oben = am wichtigsten)")
+    gewaehlt = st.pills("Kriterien", list(KRITERIEN), default=PRIO_STANDARD, selection_mode="multi",
+                        format_func=KNAME.get, label_visibility="collapsed", key="prio_auswahl",
+                        help="Welche Zielkriterien sollen in die Empfehlung eingehen?") or []
+    alt = [k for k in st.session_state.get("prio_reihenfolge", PRIO_STANDARD) if k in gewaehlt]
+    start = alt + [k for k in gewaehlt if k not in alt]
+    if sort_items is not None and start:
+        sortiert = sort_items([KNAME[k] for k in start], direction="vertical", custom_style=SORT_STIL,
+                              key="prio_sort_" + "_".join(sorted(start)))
+        zurueck = {v: k for k, v in KNAME.items()}
+        prioritaet = [zurueck[x] for x in sortiert if x in zurueck]
+    else:
+        prioritaet = start
+        if start:
+            st.caption("Reihenfolge = Reihenfolge der Auswahl. Zum Umsortieren abwählen und neu anklicken.")
+    st.session_state["prio_reihenfolge"] = prioritaet
+    if prioritaet:
+        st.caption("Gewichte aus der Reihenfolge (Rank-Order-Centroid): " + " · ".join(
+            f"{KNAME[k]} {de(w * 100)} %" for k, w in zip(prioritaet, roc_gewichte(len(prioritaet)))))
+    else:
+        st.caption("Keine Priorisierung gewählt: Es zählen nur die Mindestanforderungen.")
+    ziel_beta = anforderungen.get("beta")
+    st.caption("Wirkt sofort, ohne neu zu rechnen. Ziehen zum Umsortieren.")
 
     with st.expander("Experteneinstellungen"):
         reps = st.slider("Wiederholungen je Szenario und Option", 2, 30, 5,
@@ -229,7 +272,25 @@ if st.session_state["lauf"] != schluessel:
             "Links auf **Simulation starten** drücken, um neu zu rechnen.")
 
 detail, erg_alle = vgl["detail"], vgl["ergebnisse"]
-rang_je_sz = empfehlung_je_szenario(detail, ziel_beta, prioritaet)
+rang_je_sz = empfehlung_je_szenario(detail, anforderungen, prioritaet)
+
+
+def anf_text() -> str:
+    teile = []
+    if "beta" in anforderungen:
+        teile.append(f"Lieferfähigkeit ≥ {de(anforderungen['beta'] * 100)} %")
+    if "lieferzeit_p95" in anforderungen:
+        teile.append(f"Lieferzeit (95 %) ≤ {de(anforderungen['lieferzeit_p95'], 1)} Tage")
+    return ", ".join(teile) or "keine Mindestanforderungen"
+
+
+def prio_text() -> str:
+    return " → ".join(f"{i + 1}. {KNAME[k]}" for i, k in enumerate(prioritaet)) or "keine Priorisierung"
+
+
+def kurzwerte(r) -> str:
+    return (f"{de(r.beta * 100, 1)} % Lieferfähigkeit, {de(r.kosten_pro_uhr, 2)} € und "
+            f"{de(r.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr, Lieferzeit (95 %) {de(r.lieferzeit_p95, 1)} Tage")
 zusage = int(pruefung.param["distribution"]["lieferzusage_tage"])
 lauf_seed = int(lauf_ov["simulation"]["seed"])
 
@@ -275,8 +336,8 @@ Montage mit dieser Menge weiterarbeiten? So sind 1.600 Uhrwerke und 160 Zifferbl
 |---|---|
 | **Dunkler Balken** | Was physisch im Lager liegt. Daneben steht die Stückzahl und die Reichweite (T = Tage). |
 | **Heller Balken** | Lager **plus** alles, was schon bestellt, in Fertigung oder unterwegs ist (Lagerposition). |
-| **Strich** | Meldebestand s. Sinkt der **helle** Balken auf den Strich, wird automatisch die Bestellmenge Q nachbestellt („⟵ bestellt“), der helle Balken springt nach rechts. |
-| Farbe | braun = normal · gelb = Bestellung fällig · rot = weniger als 5 Tage im Lager, Fehlteil droht |
+| **Kupferfarbener Strich** | Meldebestand s, gilt für den **hellen** Balken. Sinkt der **helle** Balken auf den Strich, wird automatisch die Bestellmenge Q nachbestellt („⟵ bestellt“), der helle Balken springt nach rechts. |
+| Farbe | braun = normal · gelb = in diesem Bild nachbestellt (heller Balken springt) · rot = weniger als 5 Tage im Lager, Fehlteil droht |
 
 **Beispiel Uhrwerk in diesem Lauf:** Bedarf {de(pol_u.bedarf_tag, 1) if pol_u else "-"} Stück pro Tag,
 Wiederbeschaffungszeit {de(pol_u.wbz_tage) if pol_u else "-"} Tage. Meldebestand s = Bedarf in der
@@ -307,8 +368,8 @@ def delta(spalte: str, faktor: float = 1.0, einheit: str = "", nachkomma: int = 
 
 karten = [
     ("Lieferfähigkeit", f"{de(z['beta'] * 100, 1)} %", delta("beta", 100, "Pp"), "normal",
-     f"Anteil der Bestellungen, die in höchstens {zusage} Werktagen ankommen. Ziel: mindestens "
-     f"{de(ziel_beta * 100)} %."),
+     f"Anteil der Bestellungen, die in höchstens {zusage} Werktagen ankommen."
+     + (f" Anforderung: mindestens {de(ziel_beta * 100)} %." if ziel_beta else "")),
     ("Kosten je Uhr", f"{de(z['kosten_pro_uhr'], 2)} €", delta("kosten_pro_uhr", 1, "€", 2), "inverse",
      "Einkauf, Montage, Transport, Lager, Kapitalbindung und Verspätungen, geteilt durch die gelieferten Uhren."),
     ("CO2e je Uhr", f"{de(z['co2e_pro_uhr_kg'] * 1000, 1)} g", delta("co2e_pro_uhr_kg", 1000, "g"), "inverse",
@@ -366,9 +427,10 @@ def stoerung_name(text: str) -> str:
 links, rechts = st.columns([3, 2], gap="large")
 with links:
     jahr, spaet = float(z["auftraege"]), float(z["verspaetet"])
-    if z["beta"] >= ziel_beta:
+    if z["beta"] >= (ziel_beta or 0.95):
         hinweis("gut", "Lieferversprechen gehalten.",
-                f"{de(z['beta'] * 100, 1)} % der Bestellungen kommen pünktlich an (Ziel {de(ziel_beta * 100)} %).")
+                f"{de(z['beta'] * 100, 1)} % der Bestellungen kommen pünktlich an"
+                + (f" (Anforderung {de(ziel_beta * 100)} %)." if ziel_beta else "."))
     else:
         hinweis("schlecht", "Lieferversprechen verfehlt.",
                 f"Nur {de(z['beta'] * 100, 1)} % pünktlich. Rund {de(spaet)} von {de(jahr)} Bestellungen im Jahr "
@@ -426,14 +488,15 @@ with links:
 with rechts:
     st.markdown(f"**Empfehlung für {sid}**")
     if empf.zulaessig:
+        n_zul = int(rang.zulaessig.sum())
         hinweis("gut", f"★ {OPT[empf.option]['name']}",
-                f"erreicht {de(empf.beta * 100, 1)} % Lieferfähigkeit und ist unter den zulässigen Optionen die beste "
-                f"bei {KRIT[prioritaet[0]]} ({de(empf.kosten_pro_uhr, 2)} € und "
-                f"{de(empf.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr).")
+                f"erfüllt die Mindestanforderungen ({anf_text()})"
+                + (f" und liegt unter {n_zul} zulässigen Optionen vorn nach eurer Priorisierung ({prio_text()})"
+                   if prioritaet and n_zul > 1 else "") + f": {kurzwerte(empf)}.")
     else:
         hinweis("schlecht", f"★ {OPT[empf.option]['name']}",
-                f"Keine Option erreicht {de(ziel_beta * 100)} %. Am nächsten kommt diese mit "
-                f"{de(empf.beta * 100, 1)} %. Hier helfen nur Kombinationen (Abschnitt 4).")
+                f"Keine Option erfüllt alle Mindestanforderungen ({anf_text()}). Am nächsten kommt diese, sie "
+                f"verfehlt: {empf.verletzt}. Werte: {kurzwerte(empf)}. Kombinationen prüft Abschnitt 4.")
     probleme = list(dict.fromkeys(pruefung.warnungen + list(e.get("warnungen", []))))
     if auslastung > 0.95:
         probleme.append(f"Die Montage ist zu {de(auslastung * 100)} % ausgelastet. Schwankungen und Saisonspitzen "
@@ -443,16 +506,18 @@ with rechts:
 
 # --------------------------------------------------------------------------- 2 · Optionen im Szenario
 st.markdown(f"### 2 · Handlungsoptionen für {sid} im Vergleich")
-st.markdown("Alle Optionen wurden automatisch mit denselben Zufallszahlen simuliert. Vergleichsmaßstab ist "
-            "„Ohne Maßnahme“ im selben Szenario. Die Rangfolge folgt der Logik links: erst Mindest-Lieferfähigkeit, "
-            f"dann {KRIT[prioritaet[0]]}.")
+st.markdown("Alle Optionen wurden automatisch mit denselben Zufallszahlen simuliert, Vergleichsmaßstab ist "
+            "„Ohne Maßnahme“ im selben Szenario. Rangfolge: **Stufe 1** Mindestanforderungen "
+            f"({anf_text()}), **Stufe 2** Priorisierung ({prio_text()}). Punkte = gewichteter Abstand zur jeweils "
+            "besten zulässigen Option, 0 = überall die beste.")
 tab_opt = []
 for r in rang.itertuples():
     vor, nach = vor_und_nachteile(rang.loc[r.Index])
     nicht = r.option != "keine" and not wirkt(rang.loc[r.Index])
     tab_opt.append({
         "Rang": r.rang, "Option": ("★ " if r.rang == 1 else "") + OPT[r.option]["name"],
-        "Ziel erreicht": "✅" if r.zulaessig else "❌",
+        "Anforderungen": "✅" if r.zulaessig else f"❌ {r.verletzt}",
+        "Punkte": round(r.punkte, 2) if r.zulaessig and prioritaet else None,
         "Lieferfähigkeit [%]": round(r.beta * 100, 1), "Kosten [€/Uhr]": round(r.kosten_pro_uhr, 2),
         "CO2e [g/Uhr]": round(r.co2e_pro_uhr_kg * 1000, 1), "Lieferzeit 95 % [Tage]": round(r.lieferzeit_p95, 1),
         "Stillstand [Tage]": round(r.fehlteil_tage, 1),
@@ -466,31 +531,32 @@ st.plotly_chart(viz.optionen_diagramm(rang, OPT_KURZ, ziel_beta), width="stretch
 
 # --------------------------------------------------------------------------- 3 · Gesamtbild
 st.markdown("### 3 · Gesamtbild: alle Szenarien × alle Optionen")
-st.markdown("Jede Zelle: Lieferfähigkeit und Kosten je Uhr. Zeigt, welche Option in welchem Fall greift und was sie "
-            "dort kostet.")
+st.markdown("Jede Zelle: Mindestanforderungen erfüllt (✅/❌), Lieferfähigkeit und Kosten je Uhr. Zeigt, welche Option "
+            "in welchem Fall greift und was sie dort kostet.")
 matrix = []
 for s in sz_ids:
     zs = detail[detail.szenario == s].set_index("option")
     zeile = {"Szenario": f"{s} · {SZ[s]['kurz']}"}
     for o in OPT:
         r = zs.loc[o]
-        zeichen = "✅" if r.beta >= ziel_beta else "❌"
+        zeichen = "✅" if rang_je_sz[s].set_index("option").loc[o, "zulaessig"] else "❌"
         zusatz = " (nicht ausgelöst)" if o in ("sellita", "luftfracht") and not wirkt(r) else ""
         zeile[OPT_KURZ[o]] = f"{zeichen} {de(r.beta * 100, 1)} % · {de(r.kosten_pro_uhr, 2)} €{zusatz}"
     zeile["Empfehlung"] = "★ " + OPT_KURZ[rang_je_sz[s].iloc[0].option]
     matrix.append(zeile)
 st.dataframe(pd.DataFrame(matrix), hide_index=True, width="stretch")
 
-robust = robuste_option(detail, ziel_beta, prioritaet)
+robust = robuste_option(detail, anforderungen, prioritaet)
 rb = robust.iloc[0]
 if rb.zulaessig:
     st.success(f"**Robuste Empfehlung, wenn man vorher nicht weiß, welche Störung kommt: {OPT[rb.option]['name']}.** "
-               f"Lieferfähigkeit im schlechtesten Szenario {de(rb.beta_min * 100, 1)} %, im Mittel "
-               f"{de(rb.kosten_pro_uhr, 2)} € und {de(rb.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr, bindet im Mittel "
-               f"{de(rb.kapital_gebunden_eur)} € Kapital.")
+               f"Erfüllt {anf_text()} auch im schlechtesten Szenario (Lieferfähigkeit mind. "
+               f"{de(rb.beta_min * 100, 1)} %, Lieferzeit höchstens {de(rb.lieferzeit_p95_schlecht, 1)} Tage). Im "
+               f"Mittel {de(rb.kosten_pro_uhr, 2)} € und {de(rb.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr, bindet im "
+               f"Mittel {de(rb.kapital_gebunden_eur)} € Kapital. Priorisierung: {prio_text()}.")
 else:
-    st.warning(f"Keine einzelne Option hält {de(ziel_beta * 100)} % in allen gewählten Szenarien. Am nächsten kommt "
-               f"**{OPT[rb.option]['name']}** mit {de(rb.beta_min * 100, 1)} % im schlechtesten Szenario. "
+    st.warning(f"Keine einzelne Option erfüllt {anf_text()} in allen gewählten Szenarien. Am nächsten kommt "
+               f"**{OPT[rb.option]['name']}**, sie verfehlt im schlechtesten Szenario: {rb.verletzt}. "
                f"Kombinationen prüft Abschnitt 4.")
 with st.expander("Robuste Rangfolge und Zielkonflikt über alle Szenarien"):
     st.dataframe(pd.DataFrame({
@@ -500,7 +566,9 @@ with st.expander("Robuste Rangfolge und Zielkonflikt über alle Szenarien"):
         "Kosten schlechtestes Szenario [€/Uhr]": robust.kosten_max.round(2).values,
         "CO2e Ø [g/Uhr]": (robust.co2e_pro_uhr_kg * 1000).round(1).values,
         "Gebundenes Kapital Ø [€]": robust.kapital_gebunden_eur.round(-2).astype(int).values,
-        "Zulässig": robust.zulaessig.map({True: "✅", False: "❌"}).values,
+        "Lieferzeit schlechtestes Szenario [Tage]": robust.lieferzeit_p95_schlecht.round(1).values,
+        "Anforderungen": ["✅" if z_ else f"❌ {v}" for z_, v in zip(robust.zulaessig, robust.verletzt)],
+        "Punkte": [round(p_, 2) if z_ and prioritaet else None for p_, z_ in zip(robust.punkte, robust.zulaessig)],
         "Pareto-optimal": robust.pareto.map({True: "ja", False: ""}).values,
     }), hide_index=True, width="stretch")
     st.plotly_chart(viz.optionen_diagramm(robust, OPT_KURZ, ziel_beta, beta_spalte="beta_min"), width="stretch")

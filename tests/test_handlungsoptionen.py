@@ -7,8 +7,8 @@ import pandas as pd
 import pytest
 
 from uhrensim.experiment import szenario_pfad
-from uhrensim.handlungsoptionen import (REFERENZ, lade_optionen, rangiere, robuste_option, vergleiche_optionen,
-                                        vor_und_nachteile, wirkt)
+from uhrensim.handlungsoptionen import (REFERENZ, lade_entscheidungsregel, lade_optionen, rangiere, robuste_option,
+                                        roc_gewichte, vergleiche_optionen, vor_und_nachteile, wirkt)
 
 
 def test_optionen_aus_konfiguration_referenz_zuerst():
@@ -18,19 +18,42 @@ def test_optionen_aus_konfiguration_referenz_zuerst():
     assert all("massnahmen" in o for o in opt)
 
 
-def test_rangiere_erst_mindestwert_dann_prioritaet():
-    df = pd.DataFrame({"option": ["billig_schlecht", "teuer_gut", "mittel_gut"],
-                       "beta": [0.90, 0.99, 0.97], "kosten_pro_uhr": [180.0, 210.0, 195.0],
-                       "co2e_pro_uhr_kg": [0.03, 0.03, 0.04]})
-    r = rangiere(df, 0.95, ["kosten_pro_uhr"])
-    assert list(r.option) == ["mittel_gut", "teuer_gut", "billig_schlecht"]
-    assert not r.set_index("option").loc["billig_schlecht", "zulaessig"]
+def _df():
+    return pd.DataFrame({"option": ["billig_schlecht", "teuer_gut", "mittel_gut", "gut_aber_langsam"],
+                         "beta": [0.90, 0.99, 0.97, 0.99], "kosten_pro_uhr": [180.0, 210.0, 195.0, 185.0],
+                         "co2e_pro_uhr_kg": [0.03, 0.03, 0.04, 0.03], "lieferzeit_p95": [2.0, 2.0, 2.0, 5.0]})
 
 
-def test_rangiere_ohne_zulaessige_option_nach_lieferfaehigkeit():
+def test_roc_gewichte():
+    w = roc_gewichte(4)
+    assert sum(w) == pytest.approx(1.0) and w == sorted(w, reverse=True)
+    assert w[0] == pytest.approx(25 / 48)
+
+
+def test_rangiere_erst_anforderungen_dann_prioritaet():
+    r = rangiere(_df(), {"beta": 0.95, "lieferzeit_p95": 3}, ["kosten_pro_uhr"])
+    assert list(r.option[:2]) == ["mittel_gut", "teuer_gut"]
+    z = r.set_index("option")
+    assert not z.loc["billig_schlecht", "zulaessig"] and z.loc["billig_schlecht", "verletzt"] == "Lieferfähigkeit"
+    assert z.loc["gut_aber_langsam", "verletzt"] == "Lieferzeit (95 %)"
+
+
+def test_reihenfolge_aendert_empfehlung():
+    oben_co2 = rangiere(_df(), {"beta": 0.95}, ["co2e_pro_uhr_kg", "kosten_pro_uhr"])
+    oben_kosten = rangiere(_df(), {"beta": 0.95}, ["kosten_pro_uhr", "co2e_pro_uhr_kg"])
+    assert oben_kosten.iloc[0].option == "gut_aber_langsam"
+    assert oben_co2.iloc[0].option in ("gut_aber_langsam", "teuer_gut") and oben_co2.iloc[-2].option == "mittel_gut"
+
+
+def test_rangiere_ohne_zulaessige_option_nach_abstand():
     df = pd.DataFrame({"option": ["a", "b"], "beta": [0.60, 0.80], "kosten_pro_uhr": [150.0, 300.0],
                        "co2e_pro_uhr_kg": [0.03, 0.03]})
-    assert rangiere(df, 0.95, ["kosten_pro_uhr"]).iloc[0].option == "b"
+    assert rangiere(df, {"beta": 0.95}, ["kosten_pro_uhr"]).iloc[0].option == "b"
+
+
+def test_entscheidungsregel_standard():
+    anf, prio = lade_entscheidungsregel()
+    assert anf == {"beta": 0.95, "lieferzeit_p95": 3.0} and prio[0] == "beta"
 
 
 def test_vor_und_nachteile_und_wirkung():
@@ -59,7 +82,7 @@ def test_notfallplan_wirkt_nur_bei_ausloeser(vergleich):
 
 
 def test_robuste_option_nutzt_schlechtestes_szenario(vergleich):
-    r = robuste_option(vergleich["detail"], 0.95, ["kosten_pro_uhr"])
+    r = robuste_option(vergleich["detail"], {"beta": 0.95}, ["kosten_pro_uhr"])
     assert r.iloc[0].option == "sellita"
     assert r.set_index("option").loc[REFERENZ, "beta_min"] < 0.95
 

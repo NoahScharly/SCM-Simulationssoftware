@@ -10,9 +10,9 @@ Ablauf in der Oberfläche:
     4. Über alle Szenarien: robuste Empfehlung (Mindest-Lieferfähigkeit im schlechtesten Szenario).
 
 Empfehlungslogik (transparent, keine Blackbox):
-    Stufe 1: zulässig ist eine Option, wenn die Lieferfähigkeit beta den Mindestwert erreicht.
-    Stufe 2: zulässige Optionen werden nach der gewählten Priorität sortiert (z. B. Kosten, dann CO2e).
-    Erreicht keine Option den Mindestwert, wird die Option mit der höchsten Lieferfähigkeit empfohlen.
+    Stufe 1: Mindestanforderungen (Standard: Lieferfähigkeit >= 95 %, Lieferzeit 95 % <= 3 Tage, einstellbar).
+    Stufe 2: Priorisierung durch Reihenfolge der Zielkriterien, daraus Rank-Order-Centroid-Gewichte.
+    Erfüllt keine Option alle Anforderungen, wird die mit dem kleinsten Abstand zu den Anforderungen empfohlen.
 """
 
 from __future__ import annotations
@@ -34,6 +34,14 @@ KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fe
 # Schwellen, ab denen eine Differenz als Vor- oder Nachteil gilt (darunter: Rauschen bzw. keine Wirkung)
 SCHWELLEN = {"beta": 0.005, "kosten_pro_uhr": 0.10, "co2e_pro_uhr_kg": 0.0005, "lieferzeit_p95": 0.5,
              "fehlteil_tage": 0.5, "kapital_gebunden_eur": 1000.0}
+
+
+def lade_entscheidungsregel(konfig_ordner: str | Path = KONFIG_STANDARD) -> tuple[dict[str, float], list[str]]:
+    """Standard-Anforderungen und -Priorisierung aus base.yaml (Block entscheidung)."""
+    e = lade_modell(None, None, konfig_ordner).param.get("entscheidung") or {}
+    anf = {k: float(v) for k, v in (e.get("anforderungen") or {"beta": 0.95, "lieferzeit_p95": 3}).items()}
+    prio = list(e.get("prioritaet") or ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"])
+    return anf, [k for k in prio if k in KRITERIEN]
 
 
 def lade_optionen(konfig_ordner: str | Path = KONFIG_STANDARD) -> list[dict[str, Any]]:
@@ -98,39 +106,96 @@ def vergleiche_optionen(
     return {"detail": pd.DataFrame(zeilen), "ergebnisse": ergebnisse, "optionen": optionen}
 
 
-def rangiere(df: pd.DataFrame, ziel_beta: float, prioritaet: list[str], beta_spalte: str = "beta") -> pd.DataFrame:
-    """Zweistufige Rangfolge: erst Mindest-Lieferfähigkeit, dann Priorität. Rang 1 = Empfehlung."""
-    out = df.copy()
-    out["zulaessig"] = out[beta_spalte] >= ziel_beta - 1e-9
-    out["pareto"] = pareto_front(out, ["kosten_pro_uhr", "co2e_pro_uhr_kg", beta_spalte])
-    zul = out[out.zulaessig]
-    rest = out[~out.zulaessig]
-    if not zul.empty:
-        schl = [f"_r{i}" for i in range(len(prioritaet))]
-        for s, kz in zip(schl, prioritaet):
-            zul = zul.assign(**{s: zul[kz].round(3 if kz in ("beta", beta_spalte) else 2)})
-        zul = zul.sort_values(schl, ascending=[RICHTUNG.get(kz, -1) < 0 for kz in prioritaet]).drop(columns=schl)
-    rest = rest.sort_values([beta_spalte, "kosten_pro_uhr"], ascending=[False, True])
-    out = pd.concat([zul, rest])
+# Zielkriterien, aus denen in der Oberfläche gewählt und priorisiert wird: Name, Einheit, Richtung (+1 = mehr ist besser)
+KRITERIEN: dict[str, tuple[str, str, int]] = {
+    "beta": ("Lieferfähigkeit", "%", +1),
+    "kosten_pro_uhr": ("Kosten je Uhr", "€", -1),
+    "co2e_pro_uhr_kg": ("CO2e je Uhr", "g", -1),
+    "lieferzeit_p95": ("Lieferzeit (95 %)", "Tage", -1),
+    "fehlteil_tage": ("Montagestillstand", "Tage", -1),
+    "kapital_gebunden_eur": ("Gebundenes Kapital", "€", -1),
+}
+
+
+def richtung(kz: str) -> int:
+    return KRITERIEN[kz][2] if kz in KRITERIEN else RICHTUNG.get(kz, -1)
+
+
+def roc_gewichte(n: int) -> list[float]:
+    """Rank-Order-Centroid-Gewichte (Barron und Barrett 1996): aus einer reinen Reihenfolge abgeleitete Gewichte.
+
+    w_i = 1/n * Summe_{k=i..n} 1/k. Beispiel n = 4: 52 %, 27 %, 15 %, 6 %.
+    """
+    return [sum(1 / k for k in range(i, n + 1)) / n for i in range(1, n + 1)]
+
+
+def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list[str],
+             spalten: dict[str, str] | None = None) -> pd.DataFrame:
+    """Zweistufige, offengelegte Rangfolge. Rang 1 = Empfehlung.
+
+    Stufe 1 (Mindestanforderungen): zulässig ist eine Option, wenn sie jede Anforderung erfüllt
+        (z. B. Lieferfähigkeit >= 95 %, Lieferzeit 95 % <= 3 Tage). spalten erlaubt, eine Anforderung gegen eine
+        andere Spalte zu prüfen (robust: schlechtestes Szenario statt Mittelwert).
+    Stufe 2 (Priorisierung): die Reihenfolge der Kriterien ergibt ROC-Gewichte. Jedes Kriterium wird über die
+        zulässigen Optionen auf 0 (bester Wert) bis 1 (schlechtester Wert) normiert, der gewichtete Abstand zum
+        Besten ist die Punktzahl (kleiner = besser).
+    Unzulässige Optionen stehen dahinter, sortiert nach ihrem relativen Abstand zu den Anforderungen.
+    """
+    spalten = spalten or {}
+    out = df.copy().reset_index(drop=True)
+    verletzt = [[] for _ in range(len(out))]
+    abstand = pd.Series(0.0, index=out.index)
+    for kz, grenze in (anforderungen or {}).items():
+        sp = spalten.get(kz, kz)
+        werte = out[sp].astype(float)
+        fehl = (grenze - werte) if richtung(kz) > 0 else (werte - grenze)
+        fehl = fehl.clip(lower=0).where(fehl > 1e-9, 0.0)
+        abstand += fehl / (abs(grenze) or 1.0)
+        for i in out.index[fehl > 0]:
+            verletzt[i].append(KRITERIEN.get(kz, (kz,))[0])
+    out["zulaessig"] = abstand <= 0
+    out["verletzt"] = [", ".join(v) for v in verletzt]
+    out["abstand_anforderung"] = abstand
+
+    gewichte = dict(zip(prioritaet, roc_gewichte(len(prioritaet))))
+    basis = out[out.zulaessig] if out.zulaessig.any() else out
+    punkte = pd.Series(0.0, index=out.index)
+    for kz, w in gewichte.items():
+        x = out[kz].astype(float)
+        bx = basis[kz].astype(float)
+        bester, schlechtester = (bx.max(), bx.min()) if richtung(kz) > 0 else (bx.min(), bx.max())
+        spanne = abs(schlechtester - bester)
+        norm = ((x - bester).abs() / spanne) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
+        out[f"norm_{kz}"] = norm
+        punkte += w * norm
+    out["punkte"] = punkte
+    out["pareto"] = pareto_front(out, list(gewichte)) if gewichte else False
+    out = out.sort_values(["zulaessig", "abstand_anforderung", "punkte"], ascending=[False, True, True])
     out["rang"] = range(1, len(out) + 1)
+    out.attrs["gewichte"] = gewichte
     return out
 
 
-def empfehlung_je_szenario(detail: pd.DataFrame, ziel_beta: float, prioritaet: list[str]) -> dict[str, pd.DataFrame]:
+def empfehlung_je_szenario(detail: pd.DataFrame, anforderungen: dict[str, float],
+                           prioritaet: list[str]) -> dict[str, pd.DataFrame]:
     """Rangfolge der Optionen getrennt für jedes Szenario."""
-    return {sid: rangiere(d.reset_index(drop=True), ziel_beta, prioritaet)
-            for sid, d in detail.groupby("szenario", sort=False)}
+    return {sid: rangiere(d, anforderungen, prioritaet) for sid, d in detail.groupby("szenario", sort=False)}
 
 
-def robuste_option(detail: pd.DataFrame, ziel_beta: float, prioritaet: list[str]) -> pd.DataFrame:
-    """Eine Option für alle Szenarien zugleich: Mindestwert gilt im schlechtesten Szenario (beta_min)."""
+def robuste_option(detail: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list[str]) -> pd.DataFrame:
+    """Eine Option für alle Szenarien zugleich.
+
+    Anforderungen gelten im schlechtesten Szenario (z. B. kleinste Lieferfähigkeit, längste Lieferzeit),
+    priorisiert wird nach dem Mittel über die Szenarien.
+    """
     g = detail.groupby("option", sort=False)
     df = g[[k for k in KENNZAHLEN if k in detail]].mean()
-    df["beta_min"] = g["beta"].min()
-    df["kosten_max"] = g["kosten_pro_uhr"].max()
+    for kz in KRITERIEN:
+        if kz in detail:
+            df[f"{kz}_schlecht"] = g[kz].min() if richtung(kz) > 0 else g[kz].max()
     df = df.reset_index()
-    prio = ["beta_min" if k == "beta" else k for k in prioritaet]
-    return rangiere(df, ziel_beta, prio, beta_spalte="beta_min")
+    df["beta_min"], df["kosten_max"] = df["beta_schlecht"], df["kosten_pro_uhr_schlecht"]
+    return rangiere(df, anforderungen, prioritaet, spalten={kz: f"{kz}_schlecht" for kz in anforderungen})
 
 
 def _de(x: float, n: int = 1) -> str:

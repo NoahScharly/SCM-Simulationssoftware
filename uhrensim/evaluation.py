@@ -24,6 +24,7 @@ from .simulation import Ergebnis
 RICHTUNG = {
     "beta": +1, "kosten_pro_uhr": -1, "kosten_gesamt": -1, "lieferzeit_mittel": -1, "lieferzeit_p95": -1,
     "co2e_pro_uhr_kg": -1, "reichweite_tage": -1, "fehlteil_tage": -1, "beta_min": +1, "kosten_max": -1,
+    "kapital_gebunden_eur": -1, "kapitalbindung_pro_uhr": -1,
 }
 
 BESCHRIFTUNG = {
