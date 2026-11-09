@@ -23,7 +23,7 @@ from .simulation import Ergebnis
 # Richtung je Kennzahl: +1 größer ist besser, -1 kleiner ist besser
 RICHTUNG = {
     "beta": +1, "kosten_pro_uhr": -1, "kosten_gesamt": -1, "lieferzeit_mittel": -1, "lieferzeit_p95": -1,
-    "co2e_pro_uhr_kg": -1, "reichweite_tage": -1, "fehlteil_tage": -1,
+    "co2e_pro_uhr_kg": -1, "reichweite_tage": -1, "fehlteil_tage": -1, "beta_min": +1, "kosten_max": -1,
 }
 
 BESCHRIFTUNG = {

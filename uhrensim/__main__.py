@@ -6,7 +6,8 @@ Beispiele:
     python -m uhrensim                         # alle Szenarien, Replikationen aus base.yaml
     python -m uhrensim -r 30 -s S0 S1          # nur S0 und S1, 30 Replikationen
     python -m uhrensim --menge 12000 --kapazitaet 60
-    python -m uhrensim --optimierung -s S0 S1 S2
+    python -m uhrensim --optimierung              # alle Szenarien × alle Maßnahmen, Optimum je Szenario + robust
+    python -m uhrensim --sensitivitaet -s S1      # Parameter aus base.yaml (Block sensitivitaet), einzeln variiert
 """
 
 from __future__ import annotations
@@ -17,8 +18,8 @@ from pathlib import Path
 import pandas as pd
 
 from .data import lade_modell
-from .experiment import szenario_pfad, vergleiche
-from .optimization import rastersuche
+from .experiment import sensitivitaet, szenario_pfad, vergleiche
+from .optimization import szenario_optimierung
 from .visualization import kennzahlentabelle
 
 
@@ -28,7 +29,8 @@ def main() -> None:
     ap.add_argument("-r", "--replikationen", type=int)
     ap.add_argument("--menge", type=int, help="Uhren pro Jahr (0 bis 25.000)")
     ap.add_argument("--kapazitaet", type=int, help="Montagen pro Tag (1 bis 150)")
-    ap.add_argument("--optimierung", action="store_true", help="Rastersuche über Maßnahmen")
+    ap.add_argument("--optimierung", action="store_true", help="Rastersuche über Maßnahmen je Szenario")
+    ap.add_argument("--sensitivitaet", action="store_true", help="One-at-a-time-Sensitivität aus base.yaml")
     ap.add_argument("-o", "--ausgabe", default="ergebnisse")
     args = ap.parse_args()
 
@@ -46,9 +48,25 @@ def main() -> None:
     pd.set_option("display.width", 200)
 
     if args.optimierung:
-        df = rastersuche(pfade or [szenario_pfad("S0")], overrides=overrides, replikationen=args.replikationen or 5,
-                         fortschritt=lambda i, n: print(f"Kombination {i}/{n}"))
-        df.to_csv(ziel / "optimierung.csv", index=False)
+        from .data import szenario_dateien
+        erg = szenario_optimierung(pfade or szenario_dateien(), overrides=overrides,
+                                   replikationen=args.replikationen or 5,
+                                   fortschritt=lambda i, n: print(f"Lauf {i}/{n}", end="\r"))
+        for name, df in erg.items():
+            df.to_csv(ziel / f"optimierung_{name}.csv", index=False)
+        print("\nOptimum je Szenario:")
+        print(erg["je_szenario"].round(3).to_string(index=False))
+        print("\nRobuste Empfehlung über alle Szenarien (Rang 1 oben):")
+        print(erg["robust"].round(3).head(5).to_string(index=False))
+        return
+
+    if args.sensitivitaet:
+        basis = lade_modell(None, overrides)
+        sz = pfade[0] if pfade else None
+        teile = [sensitivitaet(sz, pfad, werte, args.replikationen)
+                 for pfad, werte in (basis.param.get("sensitivitaet") or {}).items()]
+        df = pd.concat(teile, ignore_index=True)
+        df.to_csv(ziel / "sensitivitaet.csv", index=False)
         print(df.round(3).to_string(index=False))
         return
 

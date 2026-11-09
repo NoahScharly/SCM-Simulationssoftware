@@ -138,7 +138,7 @@ def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
 
 def test_montage_wird_aus_jahresmenge_ausgelegt():
     m = lade_modell(overrides={"nachfrage": {"uhren_pro_jahr": 5000}})
-    assert m.param["montage"]["mitarbeiter"] == 3          # 5000 / (250 × 0,99) = 20,2 Montagen -> 3 × 7
+    assert m.param["montage"]["mitarbeiter"] == 7          # 5000 / (250 × 0,99) = 20,2 Montagen -> 7 × 3
     assert m.param["montage"]["kapazitaet_pro_tag"] == 21
     assert not m.warnungen or all("Montagekapazität" not in w for w in m.warnungen)
 
@@ -160,3 +160,24 @@ def test_mindestwerte_filtern_unzulaessige_varianten():
                        "lieferzeit_p95": [2, 2]})
     out = bewerte(df, {"methode": "mindestwerte", "mindestwerte": {"beta": 0.95}})
     assert out.iloc[0].kosten_pro_uhr == 120 and not out.iloc[1].zulaessig
+
+
+# --------------------------------------------------------------------------- Optimierung
+def test_optimum_je_szenario_und_robuste_empfehlung():
+    from uhrensim.optimization import szenario_optimierung
+    raster = {"puffer_uhrwerk": [0, 1000], "uhrwerk_sellita": [False], "luftfracht_notfall": [False]}
+    o = szenario_optimierung([szenario_pfad("S0"), szenario_pfad("S1")], raster=raster,
+                             overrides=KURZ, replikationen=1)
+    assert len(o["detail"]) == 4                               # 2 Kombinationen × 2 Szenarien
+    assert list(o["je_szenario"].szenario) == ["S0", "S1"]
+    r = o["robust"]
+    assert len(r) == 2 and (r.beta_min <= r.beta + 1e-12).all()
+    assert r.rang.iloc[0] == 1
+
+
+def test_bestandsbalken_laufen_synchron_zur_karte():
+    from uhrensim.visualization import netzkarte
+    erg = simuliere(lade_modell(None, KURZ), replikation=0)
+    fig = netzkarte(erg, schritt_tage=10)
+    assert len(fig.frames[0].traces) == 4                      # Sendungen, Störung, 2 Bestandsbalken
+    assert len(fig.frames[0].data[3].x) == len(erg.politik)

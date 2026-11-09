@@ -17,7 +17,8 @@ python -m venv .venv
 pip install -r requirements.txt
 streamlit run app/app.py          # Dashboard: Karte, Kennzahlen, Einschätzung, Szenariovergleich
 python -m uhrensim -r 20          # Szenariovergleich in der Konsole, CSV in ergebnisse/
-python -m uhrensim --optimierung -s S0 S1 S2
+python -m uhrensim --optimierung              # alle Szenarien × alle Maßnahmen
+python -m uhrensim --sensitivitaet -s S1      # One-at-a-time aus base.yaml
 pytest -q                         # Verifikationstests
 ```
 
@@ -30,7 +31,7 @@ Python 3.11 oder neuer.
 | Netz | Gerichteter Graph: 7 Tier-1-Lieferanten, 4 Tier-2, Häfen, Flughafen, Werk Heilbronn, Kunden |
 | Transport | Seeschiff, Bahn, Binnenschiff, Lkw, Luftfracht (Notfall); Fahrplan je Kante, Umschlag, Zoll an der EU-Grenze |
 | Nachschub | Bestellpunktverfahren (s, Q) je Komponente, Sicherheitsbestand aus Nachfrage- und Lieferzeitstreuung, Losgröße nach EOQ |
-| Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 7 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
+| Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 3 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
 | Maßnahmen | Uhrwerk von Sellita (SW300-1, CH) statt Miyota, zusätzlicher Uhrwerk-Puffer, Luftfracht bei drohendem Fehlteil |
@@ -42,7 +43,7 @@ Python 3.11 oder neuer.
 | Parameter | Bereich | Regel |
 |---|---|---|
 | Uhren pro Jahr | 0 bis 25.000 | Nachfragerate = Menge ÷ 365 |
-| Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Mitarbeiter = aufgerundet nötig ÷ 7; Kapazität = Mitarbeiter × 7 |
+| Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Mitarbeiter = aufgerundet nötig ÷ 3; Kapazität = Mitarbeiter × 3 |
 | Wiederbeschaffungszeit | automatisch | Fertigung + Transit + Umschlag + Zoll der besten Route; dauerhafte Routenänderungen eines Szenarios (z. B. C1 Suez) werden übernommen |
 
 ## Ordnerstruktur
@@ -62,7 +63,7 @@ uhrensim/
   simulation.py      SimPy-Prozesse, Ereignisprotokoll
   evaluation.py      Kennzahlen, Resilienz, Pareto-Front, Bewertung
   experiment.py      Replikationen, Konfidenzintervalle, Szenariovergleich, Sensitivität
-  optimization.py    Rastersuche über Maßnahmen
+  optimization.py    Rastersuche: Optimum je Szenario und robuste Empfehlung über alle Szenarien
   visualization.py   animierte Karte, Diagramme, Kennzahlentabelle (Plotly)
   __main__.py        Kommandozeile
 app/app.py           Streamlit-Oberfläche
@@ -105,7 +106,11 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 ## Wichtige Modellannahmen und Grenzen
 
 - Werte mit `[A]` in den Konfigurationsdateien sind Annahmen und in der Sensitivitätsanalyse zu prüfen.
-- Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 3 Mitarbeiter × 7 = 21 Montagen/Tag.
+- Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 7 Mitarbeiter × 3 = 21 Montagen/Tag. Annahme 3 Uhren je Uhrmacher und Tag (Handarbeit: Einschalen, Zeiger, Armband, Endkontrolle), Sensitivität 2/3/5/7.
+- Zollsatz überall 0 % (Freihandels- bzw. Partnerschaftsabkommen mit JP, CH, MU, Mercosur, EU-US-Zollverordnung 2026). Die Zollabfertigung (0,5 bis 2 Tage) bleibt, weil Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer für Drittlandsware immer nötig sind.
+- Fehlmengenkosten: 20 € je verspätetem Auftrag, Sensitivität 10/20/50 €.
+- Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
+- Netzwerksicht: animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte) neben der Karte, aus demselben Lauf.
 - Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.

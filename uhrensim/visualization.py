@@ -93,13 +93,68 @@ def _sendungspositionen(erg: Ergebnis, t: float, linien: dict[str, np.ndarray]) 
     return pos
 
 
-def netzkarte(erg: Ergebnis, schritt_tage: int = 2, hoehe: int = 620, titel: str = "Animierte Netzwerksicht") -> go.Figure:
-    """Animierte geografische Netzwerksicht: Kanten nach Verkehrsträger, Sendungen als Punkte."""
+def _bestandsdaten(erg: Ergebnis) -> dict[str, Any]:
+    """Tagesbestände, Meldebestände und Bestellzeitpunkte für die animierten Bestandsbalken.
+
+    Alles in Reichweite (Tage Bedarf), damit 1.600 Uhrwerke und 160 Zifferblätter vergleichbar sind.
+    Liest nur aus dem Ergebnis desselben Laufs wie die Karte (eine Datenquelle).
+    """
+    m, t = erg.modell, erg.tage.set_index("tag")
+    komps = [k for k, p in erg.politik.items() if p.bedarf_tag > 0]
+    namen = [komp_name(m, k) for k in komps]
+    bed = {k: erg.politik[k].bedarf_tag for k in komps}
+    log = erg.log
+    best = log[log.ereignis == "bestellung"][["zeit", "komponente", "menge"]]
+    W = m.einschwingen
+    fenster = t[t.index >= W]
+    xmax = max(((fenster[f"bestand_{k}"] + fenster[f"unterwegs_{k}"]) / bed[k]).max() for k in komps) if komps else 1
+    return {"komps": komps, "namen": namen, "bedarf": bed, "tage": t, "bestellungen": best,
+            "melde": [erg.politik[k].meldebestand / bed[k] for k in komps], "xmax": float(xmax) * 1.08}
+
+
+def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar | go.Scatter]:
+    tage = bd["tage"]
+    tag = int(min(max(math.floor(t), tage.index.min()), tage.index.max()))
+    z = tage.loc[tag]
+    bestand = [z[f"bestand_{k}"] / bd["bedarf"][k] for k in bd["komps"]]
+    position = [(z[f"bestand_{k}"] + z[f"unterwegs_{k}"]) / bd["bedarf"][k] for k in bd["komps"]]
+    stueck = [z[f"bestand_{k}"] for k in bd["komps"]]
+    farbe = [ROT if b < 5 else ("#C9A227" if p <= s else BRAUN) for b, p, s in zip(bestand, position, bd["melde"])]
+    b = bd["bestellungen"]
+    neu = set(b[(b.zeit > t - schritt) & (b.zeit <= t)].komponente)
+    txt = [f"{n:.0f} Stk · {r:.0f} T" + ("  ⟵ Bestellung" if k in neu else "")
+           for k, n, r in zip(bd["komps"], stueck, bestand)]
+    return [
+        go.Bar(y=bd["namen"], x=position, orientation="h", name="Bestand + unterwegs",
+               marker=dict(color="rgba(192,138,85,0.30)", line=dict(width=0)), showlegend=False,
+               hovertemplate="%{y}: Lagerposition %{x:.0f} Tage<extra></extra>"),
+        go.Bar(y=bd["namen"], x=bestand, orientation="h", name="Bestand im Lager", text=txt,
+               textposition="outside", cliponaxis=False, textfont=dict(size=10),
+               marker=dict(color=farbe), showlegend=False,
+               hovertemplate="%{y}: Bestand %{x:.0f} Tage<extra></extra>"),
+    ]
+
+
+def netzkarte(erg: Ergebnis, schritt_tage: int = 2, hoehe: int = 620, titel: str = "Animierte Netzwerksicht",
+              mit_bestand: bool = True) -> go.Figure:
+    """Animierte geografische Netzwerksicht: Kanten nach Verkehrsträger, Sendungen als Punkte.
+
+    mit_bestand: rechts daneben animierte Bestandsbalken je Komponente (synchron zum Zeitregler).
+    Dunkler Balken = Bestand im Lager Heilbronn, heller Balken = Lagerposition (Bestand + bestellt/unterwegs),
+    Strich = Meldebestand. Fällt die Lagerposition auf den Strich, wird bestellt (gelb), unter 5 Tagen rot.
+    """
     m = erg.modell
     W, H = m.einschwingen, m.horizont
     genutzte = {k for r in m.routen.values() for route in r for k in route.kanten}
     linien = {kid: _polylinie(erg, kid) for kid in genutzte}
-    fig = go.Figure()
+    if mit_bestand:
+        fig = make_subplots(rows=1, cols=2, column_widths=[0.70, 0.30], horizontal_spacing=0.10,
+                            specs=[[{"type": "geo"}, {"type": "xy"}]],
+                            subplot_titles=("", "Bestand in Heilbronn [Tage Reichweite]"))
+        bd = _bestandsdaten(erg)
+    else:
+        fig = go.Figure()
+        bd = None
 
     # statische Kanten, je Verkehrsträger eine Spur (Legende)
     for modus in MODUS_FARBE:
@@ -157,12 +212,29 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 2, hoehe: int = 620, titel: str
                           text=gestoert_txt, hoverinfo="text"),
         ]
 
+    if bd is not None:
+        fig.add_trace(go.Scatter(y=bd["namen"], x=bd["melde"], mode="markers", name="Meldebestand",
+                                 marker=dict(symbol="line-ns", size=22, line=dict(width=3, color=BRAUN_DUNKEL)),
+                                 hovertemplate="%{y}: Meldebestand %{x:.0f} Tage<extra></extra>",
+                                 showlegend=False), row=1, col=2)
     n_statisch = len(fig.data)
     for spur in dynamische_spuren(W):
-        fig.add_trace(spur)
+        fig.add_trace(spur, **({"row": 1, "col": 1} if bd is not None else {}))
+    dyn = [n_statisch, n_statisch + 1]
+    if bd is not None:
+        for spur in _bestand_spuren(bd, W, schritt_tage):
+            fig.add_trace(spur, row=1, col=2)
+        dyn += [n_statisch + 2, n_statisch + 3]
+        fig.update_layout(barmode="overlay")
+        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage", row=1, col=2)
+        fig.update_yaxes(autorange="reversed", row=1, col=2)
+
+    def rahmen(t: float) -> list:
+        spuren = dynamische_spuren(t)
+        return spuren + (_bestand_spuren(bd, t, schritt_tage) if bd is not None else [])
+
     zeiten = np.arange(W, H, schritt_tage)
-    fig.frames = [go.Frame(data=dynamische_spuren(t), traces=[n_statisch, n_statisch + 1],
-                           name=f"{int(t - W)}") for t in zeiten]
+    fig.frames = [go.Frame(data=rahmen(t), traces=dyn, name=f"{int(t - W)}") for t in zeiten]
     schritte = [dict(method="animate", label=_datum(t - W),
                      args=[[f"{int(t - W)}"], dict(mode="immediate", frame=dict(duration=0, redraw=True),
                                                     transition=dict(duration=0))]) for t in zeiten]

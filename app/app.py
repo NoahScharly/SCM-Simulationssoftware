@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
 from uhrensim.experiment import vergleiche  # noqa: E402
-from uhrensim.optimization import rastersuche  # noqa: E402
+from uhrensim.optimization import szenario_optimierung  # noqa: E402
 
 st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
@@ -192,7 +192,10 @@ st.markdown(f'<div class="untertitel"><b>{sid} · {SZ[sid]["name"]}:</b> {SZ[sid
 st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=600, titel=""), width="stretch",
                 config={"displayModeBar": False})
 st.caption("▶ Abspielen zeigt ein simuliertes Jahr: Punkte sind Sendungen (Farbe je Komponente, Raute = "
-           "Luftfracht), ein roter Kreis markiert eine aktive Störung.")
+           "Luftfracht), ein roter Kreis markiert eine aktive Störung. Rechts der Bestand in Heilbronn als "
+           "Reichweite in Tagen: dunkler Balken = im Lager, heller Balken = inklusive bestellter und unterwegs "
+           "befindlicher Ware, Strich = Meldebestand. Erreicht der helle Balken den Strich, wird nachbestellt "
+           "(gelb, „⟵ Bestellung“). Rot = weniger als 5 Tage Bestand.")
 
 # --------------------------------------------------------------------------- Kennzahlen
 st.markdown("### Kennzahlen")
@@ -403,48 +406,73 @@ with st.expander("Wie sicher sind die Ergebnisse?"):
     st.dataframe(viz.kennzahlentabelle(tab), width="stretch", hide_index=True)
     st.download_button("Kennzahlen als CSV", tab.to_csv().encode("utf-8"), "kennzahlen.csv", "text/csv")
 
-with st.expander("Maßnahmen automatisch vergleichen (Optimierung)"):
-    st.markdown("Probiert alle Kombinationen aus Sellita-Uhrwerk, Uhrwerk-Puffer (0, 500, 1.000 Stück) und "
-                "Luftfracht durch und bewertet sie über die gewählten Szenarien gemeinsam. So sieht man, welche "
-                "Maßnahme das Lieferversprechen am günstigsten hält.")
+with st.expander("Beste Maßnahmen je Szenario finden (Optimierung)"):
+    st.markdown("Probiert für **jedes Szenario** alle 12 Kombinationen aus Sellita-Uhrwerk, Uhrwerk-Puffer "
+                "(0, 500, 1.000 Stück) und Luftfracht durch. Ergebnis: das Optimum je Szenario und eine "
+                "**robuste Empfehlung**, die in allen gewählten Szenarien das Lieferversprechen hält und dabei "
+                "im Mittel am günstigsten ist. Da man vorher nicht weiß, welche Störung eintritt, ist die "
+                "robuste Empfehlung die eigentliche Entscheidung.")
     c1, c2, c3 = st.columns([3, 1, 2])
-    opt_sz = c1.multiselect("Szenarien", list(SZ), default=[s for s in ("S0", "S1", "S2") if s in SZ],
+    opt_sz = c1.multiselect("Szenarien", list(SZ), default=list(SZ),
                             format_func=lambda s: f"{s} · {SZ[s]['name']}")
-    opt_reps = c2.slider("Wiederholungen", 1, 10, 3)
+    opt_reps = c2.slider("Wiederholungen", 1, 20, 5)
     methode = c3.selectbox("Bewertung", ["mindestwerte", "gewichtet", "lexikografisch"],
                            format_func={"mindestwerte": "Lieferfähigkeit ≥ Ziel, dann günstigste",
                                         "gewichtet": "Gewichtete Summe aus Kosten, CO2e, Lieferzeit",
                                         "lexikografisch": "Rangfolge: Lieferfähigkeit, CO2e, Kosten"}.get)
-    if st.button("Optimierung starten"):
+    st.caption(f"{len(opt_sz) * 12 * opt_reps} Simulationsläufe, etwa {de(len(opt_sz) * 12 * opt_reps * 0.25 / 60, 1)} "
+               "Minuten.")
+    if st.button("Optimierung starten") and opt_sz:
         bal = st.progress(0.0)
         ov = {k: v for k, v in overrides.items() if k != "massnahmen"}
         bewertung = pruefung.param["bewertung"] | {"methode": methode}
-        st.session_state["raster"] = rastersuche([SZ[s]["pfad"] for s in opt_sz], overrides=ov,
-                                                 replikationen=opt_reps, bewertung=bewertung,
-                                                 fortschritt=lambda i, n: bal.progress(i / n, text=f"{i} von {n}"))
+        st.session_state["opt"] = szenario_optimierung(
+            [SZ[s]["pfad"] for s in opt_sz], overrides=ov, replikationen=opt_reps, bewertung=bewertung,
+            fortschritt=lambda i, n: bal.progress(i / n, text=f"Lauf {i} von {n}"))
         bal.empty()
-    if "raster" in st.session_state:
-        r = st.session_state["raster"].sort_values("rang")
-        beste = r.iloc[0]
-        teile = [f"Puffer {de(beste.puffer_uhrwerk)} Stück"]
-        if beste.uhrwerk_sellita:
-            teile.append("Sellita-Uhrwerk")
-        if beste.luftfracht_notfall:
+
+    def massnahme_txt(r) -> str:
+        teile = [f"Puffer {de(r.puffer_uhrwerk)} Stück" if r.puffer_uhrwerk else "kein Puffer"]
+        teile.append("Sellita" if r.uhrwerk_sellita else "Miyota")
+        if r.luftfracht_notfall:
             teile.append("Luftfracht")
-        st.success(f"Beste Kombination: {', '.join(teile)}. Lieferfähigkeit im Mittel {de(beste.beta * 100, 1)} % "
-                   f"(schlechtestes Szenario {de(beste.beta_min * 100, 1)} %), {de(beste.kosten_pro_uhr, 2)} € "
-                   f"und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr.")
+        return ", ".join(teile)
+
+    if "opt" in st.session_state:
+        o = st.session_state["opt"]
+        r = o["robust"].sort_values("rang")
+        beste = r.iloc[0]
+        if beste.zulaessig:
+            st.success(f"Robuste Empfehlung: **{massnahme_txt(beste)}**. Lieferfähigkeit im schlechtesten Szenario "
+                       f"{de(beste.beta_min * 100, 1)} %, im Mittel {de(beste.beta * 100, 1)} %, "
+                       f"{de(beste.kosten_pro_uhr, 2)} € und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr.")
+        else:
+            st.warning(f"Keine Kombination hält das Lieferversprechen in allen Szenarien. Am nächsten kommt "
+                       f"**{massnahme_txt(beste)}** mit {de(beste.beta_min * 100, 1)} % im schlechtesten Szenario.")
+        js = o["je_szenario"]
+        st.markdown("**Optimum je Szenario**")
+        st.dataframe(pd.DataFrame({
+            "Szenario": [f"{s} · {SZ[s]['name']}" if s in SZ else s for s in js.szenario],
+            "Beste Maßnahmen": [massnahme_txt(x) for x in js.itertuples()],
+            "Lieferfähigkeit [%]": (js.beta * 100).round(1),
+            "Kosten [€/Uhr]": js.kosten_pro_uhr.round(2),
+            "CO2e [g/Uhr]": (js.co2e_pro_uhr_kg * 1000).round(1),
+            "Ziel erreicht": js.zulaessig.map({True: "✅", False: "❌"}),
+            "Wie Empfehlung": ["ja" if (x.puffer_uhrwerk, x.uhrwerk_sellita, x.luftfracht_notfall)
+                               == (beste.puffer_uhrwerk, beste.uhrwerk_sellita, beste.luftfracht_notfall)
+                               else "nein" for x in js.itertuples()],
+        }), width="stretch", hide_index=True)
         st.plotly_chart(viz.pareto_diagramm(r), width="stretch")
-        zeige = pd.DataFrame({
-            "Rang": r.rang, "Puffer [Stück]": r.puffer_uhrwerk,
-            "Sellita": r.uhrwerk_sellita.map({True: "ja", False: "nein"}),
-            "Luftfracht": r.luftfracht_notfall.map({True: "ja", False: "nein"}),
-            "Lieferfähigkeit Mittel [%]": (r.beta * 100).round(1),
+        st.markdown("**Alle Kombinationen über alle Szenarien**")
+        st.dataframe(pd.DataFrame({
+            "Rang": r.rang, "Maßnahmen": [massnahme_txt(x) for x in r.itertuples()],
             "Lieferfähigkeit schlechtestes Szenario [%]": (r.beta_min * 100).round(1),
-            "Kosten [€/Uhr]": r.kosten_pro_uhr.round(2), "CO2e [g/Uhr]": (r.co2e_pro_uhr_kg * 1000).round(1),
-            "Ziel erreicht": r.zulaessig.map({True: "✅", False: "❌"}),
-        })
-        st.dataframe(zeige, width="stretch", hide_index=True)
+            "Lieferfähigkeit Mittel [%]": (r.beta * 100).round(1),
+            "Kosten Mittel [€/Uhr]": r.kosten_pro_uhr.round(2), "CO2e [g/Uhr]": (r.co2e_pro_uhr_kg * 1000).round(1),
+            "Ziel überall erreicht": r.zulaessig.map({True: "✅", False: "❌"}),
+        }), width="stretch", hide_index=True)
+        st.download_button("Alle Läufe als CSV", o["detail"].to_csv(index=False).encode("utf-8"),
+                           "optimierung_detail.csv", "text/csv")
 
 with st.expander("Modell und Daten"):
     st.markdown("**Nachschub je Komponente (Bestellpunktverfahren)**  \n"

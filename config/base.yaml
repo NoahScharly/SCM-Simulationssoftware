@@ -15,7 +15,8 @@ nachfrage:
 
 montage:
   kapazitaet_pro_tag: auto      # auto = aus Jahresmenge: Mitarbeiter × Uhren je Mitarbeiter; oder feste Zahl
-  uhren_pro_mitarbeiter_tag: 7  # eigene Schätzung N. Scharly: ein Mitarbeiter montiert ca. 7 Uhren/Tag
+  uhren_pro_mitarbeiter_tag: 3  # eigene Schätzung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle in Handarbeit,
+                                # ca. 2 bis 3 Uhren je Uhrmacher und Tag (Manufakturpraxis, z. B. Laco Pforzheim); Sensitivität 2/3/5/7
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]
@@ -30,7 +31,9 @@ distribution:
 transport:
   geschwindigkeit_km_tag: {see: 800, bahn: 400, binnen: 250, lkw: 600, luft: 8000}
   umschlag_tage: {see: [1, 2, 4], bahn: [0.5, 1, 2], binnen: [0.5, 1, 2], lkw: [0, 0.5, 1], luft: [1, 1.5, 3]}
-  zoll_tage: [1, 2, 4]          # Zollabfertigung an der EU-Grenze, Dreieck [A]
+  zoll_tage: [0.5, 1, 2]        # Zollabfertigung Drittland, Dreieck [A]. Zollsatz überall 0 % (EPA Japan, FHA Schweiz,
+                                # Interim-EPA Mauritius, Mercosur vorläufig ab 1.5.2026, EU-US-Zollverordnung 2026),
+                                # Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer bleiben aber nötig
 
 kosten:
   transport_eur_tkm: {see: 0.02, bahn: 0.06, binnen: 0.05, lkw: 0.15, luft: 3.0}     # [A]
@@ -40,7 +43,8 @@ kosten:
   lager_eur_stueck_tag: 0.002   # Lagerplatz je Komponente [A]
   montage_eur_uhr: 25           # [A]
   paket_eur_uhr: 6              # [A]
-  verspaetung_eur_auftrag: 20   # Strafkosten je verspätetem Auftrag [A]
+  verspaetung_eur_auftrag: 20   # Fehlmengenkosten je verspätetem Auftrag (Rabatt, entgangener Deckungsbeitrag, Image) [A];
+                                # Sensitivität 10/20/50 €
 
 emissionen:
   umschlag_kg_t: 1.2            # GLEC Umschlag
@@ -70,5 +74,11 @@ grenzen:                        # Plausibilitätsregeln (Folie 2)
   kapazitaet_pro_tag: [1, 150]
   arbeitstage_pro_jahr: 250
   wbz_max_tage: 180
+
+sensitivitaet:                  # One-at-a-time (Folie 11): python -m uhrensim --sensitivitaet
+  kosten.verspaetung_eur_auftrag: [10, 20, 50]
+  montage.uhren_pro_mitarbeiter_tag: [2, 3, 5, 7]
+  transport.zoll_tage: [[0.5, 1, 2], [1, 2, 4]]
+  emissionen.verpackungsfaktor: [1.2, 1.5, 1.8]
 
 stoerungen: []                  # werden von Szenarien gefüllt
