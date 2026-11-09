@@ -26,7 +26,7 @@ from .experiment import fuehre_aus
 
 STANDARD_RASTER: dict[str, list[Any]] = {
     "puffer_uhrwerk": [0, 500, 1000],
-    "uhrwerk_sellita": [False, True],
+    "sellita_notfall": [False, True],
     "luftfracht_notfall": [False, True],
 }
 KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage")
@@ -35,7 +35,7 @@ KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fe
 def _massnahmen(kombination: dict[str, Any]) -> dict[str, Any]:
     return {
         "puffer_extra": {"uhrwerk": kombination["puffer_uhrwerk"]},
-        "uhrwerk_sellita": kombination["uhrwerk_sellita"],
+        "sellita_notfall": kombination["sellita_notfall"],
         "luftfracht_notfall": kombination["luftfracht_notfall"],
     }
 

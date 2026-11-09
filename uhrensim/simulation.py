@@ -473,6 +473,38 @@ class Simulation:
                     self.bestelle(k, float(math.ceil(mass["luft_menge_tage"] * pol.bedarf_tag)), q, typ="notfall")
             yield self.env.timeout(1.0)
 
+    # ================================================================ Notfallplan Ersatzlieferant
+    def _notfallplan(self, s, komp: str, primaer: Bezugsquelle, ersatz: Bezugsquelle):
+        """Lieferantenwechsel bei Ausfall des Primärlieferanten (Maßnahme sellita_notfall).
+
+        Nach der Reaktionszeit wird beim Ersatzlieferanten bestellt. Aufträge beim ausgefallenen Lieferanten,
+        die noch nicht versandt sind, werden storniert (Einkaufskosten gutgeschrieben) und neu disponiert.
+        Endet der Ausfall, wird wieder beim Primärlieferanten bestellt; laufende Ersatzaufträge werden geliefert.
+        """
+        reaktion = float(self.p["massnahmen"].get("notfall_reaktion_tage", 3))
+        start = s.start + reaktion
+        if start >= s.ende:
+            return
+        yield self.env.timeout(max(0.0, start - self.env.now))
+        self.aktive_quelle[komp] = ersatz
+        self._log("lieferantenwechsel", komp, "notfallplan", ersatz.lieferant, komponente=komp,
+                  alt=primaer.lieferant, neu=ersatz.lieferant)
+        for b in list(self.offen[komp]):
+            if b["lieferant"] == primaer.lieferant and b["status"] in ("fertigung", "wartet") and not b["storniert"]:
+                b["storniert"] = True
+                self.pipeline[komp] -= b["menge"]
+                self.offen[komp].remove(b)
+                self._log("storno", b["id"], "bestellung", primaer.lieferant, b["menge"], komponente=komp,
+                          alt=b["status"], neu="storniert", kategorie="einkauf",
+                          kosten=-b["menge"] * self.preis(primaer, self.env.now))
+        self._pruefe_nachschub()
+        if math.isfinite(s.ende) and s.ende < self.H:
+            yield self.env.timeout(s.ende - self.env.now)
+            self.aktive_quelle[komp] = primaer
+            self._log("lieferantenwechsel", komp, "notfallplan", primaer.lieferant, komponente=komp,
+                      alt=ersatz.lieferant, neu=primaer.lieferant)
+            self._pruefe_nachschub()
+
     # ================================================================ Störungen und Tagesabschluss
     def _stoerung(self, s):
         yield self.env.timeout(max(0.0, s.start - self.env.now))
@@ -506,6 +538,11 @@ class Simulation:
             self.env.process(self._luftfracht())
         for s in self.m.stoerungen:
             self.env.process(self._stoerung(s))
+            if s.typ == "knoten_ausfall" and self.p["massnahmen"].get("sellita_notfall"):
+                for k in self.m.komponenten:
+                    q, ersatz = self.m.primaerquelle(k), self.m.alternativquelle(k)
+                    if ersatz is not None and s.ziel in (q.lieferant, *q.tier2):
+                        self.env.process(self._notfallplan(s, k, q, ersatz))
         self._pruefe_nachschub()
         self.env.run(until=self.H)
         fenster = [{"typ": s.typ, "ziel": s.ziel, "start": s.start, "ende": s.ende} for s in self.m.stoerungen]

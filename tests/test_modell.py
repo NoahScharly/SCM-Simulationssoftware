@@ -128,9 +128,25 @@ def test_niedrigwasser_leitet_auf_bahn_um():
     assert not ((binnen.zeit >= s.start) & (binnen.zeit < s.ende)).any()
 
 
+def test_sellita_notfallplan_erst_miyota_dann_sellita_dann_zurueck():
+    m = lade_modell(szenario_pfad("S1"), {"massnahmen": {"sellita_notfall": True}})
+    erg = simuliere(m, 0)
+    s = m.stoerungen[0]
+    best = erg.log[(erg.log.ereignis == "bestellung") & (erg.log.komponente == "uhrwerk")]
+    vorher = best[best.zeit < s.start]
+    waehrend = best[(best.zeit >= s.start) & (best.zeit < s.ende)]
+    assert set(vorher.ort) == {"miyota_nagano"}                 # vor dem Ausfall nur Miyota
+    assert set(waehrend.ort) == {"sellita_lcf"}                 # während des Ausfalls nur Sellita
+    assert waehrend.zeit.min() >= s.start + m.param["massnahmen"]["notfall_reaktion_tage"] - 1e-9
+    wechsel = erg.log[erg.log.ereignis == "lieferantenwechsel"]
+    assert list(wechsel.zustand_neu) == ["sellita_lcf", "miyota_nagano"]
+    ohne = simuliere(lade_modell(szenario_pfad("S0"), {"massnahmen": {"sellita_notfall": True}}), 0)
+    assert "sellita_lcf" not in set(ohne.log[ohne.log.ereignis == "bestellung"].ort)  # ohne Ausfall nie Sellita
+
+
 def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
     ohne = kennzahlen(simuliere(lade_modell(szenario_pfad("S1")), 0))
-    mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": {"uhrwerk_sellita": True}}), 0))
+    mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": {"sellita_notfall": True}}), 0))
     assert mit["beta"] > ohne["beta"]
     assert mit["fehlteil_tage"] <= ohne["fehlteil_tage"]
     assert mit["kosten_pro_uhr"] > ohne["kosten_pro_uhr"] - 50  # teureres Werk, aber keine Fehlmengenkosten
@@ -165,7 +181,7 @@ def test_mindestwerte_filtern_unzulaessige_varianten():
 # --------------------------------------------------------------------------- Optimierung
 def test_optimum_je_szenario_und_robuste_empfehlung():
     from uhrensim.optimization import szenario_optimierung
-    raster = {"puffer_uhrwerk": [0, 1000], "uhrwerk_sellita": [False], "luftfracht_notfall": [False]}
+    raster = {"puffer_uhrwerk": [0, 1000], "sellita_notfall": [False], "luftfracht_notfall": [False]}
     o = szenario_optimierung([szenario_pfad("S0"), szenario_pfad("S1")], raster=raster,
                              overrides=KURZ, replikationen=1)
     assert len(o["detail"]) == 4                               # 2 Kombinationen × 2 Szenarien
@@ -179,5 +195,5 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
     from uhrensim.visualization import netzkarte
     erg = simuliere(lade_modell(None, KURZ), replikation=0)
     fig = netzkarte(erg, schritt_tage=10)
-    assert len(fig.frames[0].traces) == 4                      # Sendungen, Störung, 2 Bestandsbalken
-    assert len(fig.frames[0].data[3].x) == len(erg.politik)
+    assert len(fig.frames[0].traces) == 8                      # je Karte Sendungen, Störung, Lieferant; 2 Balken
+    assert len(fig.frames[0].data[-1].x) == len(erg.politik)

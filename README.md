@@ -34,7 +34,7 @@ Python 3.11 oder neuer.
 | Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 3 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
-| Maßnahmen | Uhrwerk von Sellita (SW300-1, CH) statt Miyota, zusätzlicher Uhrwerk-Puffer, Luftfracht bei drohendem Fehlteil |
+| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht bei Reichweite < 5 Tage |
 | Kennzahlen | Kosten je Uhr, Lieferfähigkeit β, Lieferzeit (Mittel, 95-%-Quantil), CO2e je Uhr, TTS/TTR, Bestandsreichweite |
 | Zufall | Getrennte Zufallsströme je Quelle (SeedSequence), gleiche Ströme in allen Szenarien (Common Random Numbers) |
 
@@ -110,7 +110,22 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 - Zollsatz überall 0 % (Freihandels- bzw. Partnerschaftsabkommen mit JP, CH, MU, Mercosur, EU-US-Zollverordnung 2026). Die Zollabfertigung (0,5 bis 2 Tage) bleibt, weil Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer für Drittlandsware immer nötig sind.
 - Fehlmengenkosten: 20 € je verspätetem Auftrag, Sensitivität 10/20/50 €.
 - Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
-- Netzwerksicht: animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte) neben der Karte, aus demselben Lauf.
+- Netzwerksicht: Weltkarte, Ausschnitt Europa und animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte), synchron und aus demselben Lauf. Goldener Ring und Statuskasten zeigen, welcher Lieferant das Uhrwerk gerade liefert. Abspielen in halber Geschwindigkeit (240 ms je Bild), ▶▶ doppelt so schnell.
+
+## Konfiguration in drei Schritten
+
+1. **Produktion:** Uhren pro Jahr. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
+2. **Vorsorge und Notfallpläne:** gelten in allen gewählten Szenarien gleichzeitig. Der Puffer wirkt immer, ein Notfallplan nur, wenn sein Auslöser eintritt.
+3. **Szenarien:** welche Störungen durchgespielt werden. Jedes Szenario läuft mit denselben Maßnahmen und denselben Zufallszahlen.
+
+| Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |
+|---|---|---|---|---|
+| S0 Basis | Normalbetrieb | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| S1 Uhrwerk-Ausfall | Miyota liefert ab Tag 120 für 60 Tage nicht | wirkt | **ausgelöst** (Tag 123 bis 180) | Uhrwerk nicht (Lieferant steht), andere Teile bei Bedarf |
+| S2 Niedrigwasser | Binnenschiff über Kaub gesperrt, Umleitung Bahn | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| S3 Hamburg gestört | Hafen 14 Tage zu, Ausweichen Bremerhaven | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| S4 Saisonspitze | Nachfrage Nov/Dez +30 % | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| C1 Suez offen | kürzere Seeroute für das Uhrwerk | wirkt | nicht ausgelöst | nur bei Fehlteil |
 - Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.

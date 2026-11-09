@@ -71,25 +71,39 @@ def _punkt_auf_linie(linie: np.ndarray, anteil: float) -> tuple[float, float]:
     return float(p[0]), float(p[1])
 
 
-def _sendungspositionen(erg: Ergebnis, t: float, linien: dict[str, np.ndarray]) -> list[dict[str, Any]]:
+def _sendungspositionen(erg: Ergebnis, t: float, linien: dict[str, np.ndarray],
+                        schritt: float = 0.0) -> list[dict[str, Any]]:
+    """Position jeder Sendung zum Zeitpunkt t.
+
+    Kurze Lkw-Fahrten (z. B. Sellita -> Heilbronn, rund 1 Tag) wären bei 3 Tagen je Bild nie zu sehen.
+    Deshalb wird eine Sendung, die im Intervall (t - schritt, t] unterwegs war, in der Mitte dieses
+    Abschnitts gezeigt.
+    """
     m = erg.modell
     pos = []
     for s in erg.sendungen:
         ab = s["abschnitte"]
-        if not ab or t < ab[0]["t_ab"] or t >= s["t_ankunft"]:
+        if not ab:
+            continue
+        beginn, ende = ab[0]["t_ab"], s["t_ankunft"]
+        if beginn <= t < ende:
+            tt = t
+        elif schritt > 0 and beginn < t and ende > t - schritt:
+            tt = (max(beginn, t - schritt) + min(ende, t)) / 2
+        else:
             continue
         lat = lon = None
         for j, a in enumerate(ab):
-            if a["t_ab"] <= t < a["t_an"]:
-                lat, lon = _punkt_auf_linie(linien[a["kante"]], (t - a["t_ab"]) / max(a["t_an"] - a["t_ab"], 1e-9))
+            if a["t_ab"] <= tt < a["t_an"]:
+                lat, lon = _punkt_auf_linie(linien[a["kante"]], (tt - a["t_ab"]) / max(a["t_an"] - a["t_ab"], 1e-9))
                 break
-            if t >= a["t_an"] and (j == len(ab) - 1 or t < ab[j + 1]["t_ab"]):
+            if tt >= a["t_an"] and (j == len(ab) - 1 or tt < ab[j + 1]["t_ab"]):
                 kn = m.knoten[m.kanten[a["kante"]].nach]
                 lat, lon = kn.lat, kn.lon
                 break
         if lat is not None:
             pos.append({"lat": lat, "lon": lon, "komponente": s["komponente"], "menge": s["menge"],
-                        "typ": s["typ"], "id": s["sendung_id"]})
+                        "typ": s["typ"], "id": s["sendung_id"], "lieferant": s["lieferant"]})
     return pos
 
 
@@ -104,12 +118,12 @@ def _bestandsdaten(erg: Ergebnis) -> dict[str, Any]:
     namen = [komp_name(m, k) for k in komps]
     bed = {k: erg.politik[k].bedarf_tag for k in komps}
     log = erg.log
-    best = log[log.ereignis == "bestellung"][["zeit", "komponente", "menge"]]
+    best = log[log.ereignis == "bestellung"][["zeit", "komponente", "menge", "ort"]]
     W = m.einschwingen
     fenster = t[t.index >= W]
     xmax = max(((fenster[f"bestand_{k}"] + fenster[f"unterwegs_{k}"]) / bed[k]).max() for k in komps) if komps else 1
     return {"komps": komps, "namen": namen, "bedarf": bed, "tage": t, "bestellungen": best,
-            "melde": [erg.politik[k].meldebestand / bed[k] for k in komps], "xmax": float(xmax) * 1.08}
+            "melde": [erg.politik[k].meldebestand / bed[k] for k in komps], "xmax": float(xmax) * 1.15}
 
 
 def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar | go.Scatter]:
@@ -121,139 +135,221 @@ def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar
     stueck = [z[f"bestand_{k}"] for k in bd["komps"]]
     farbe = [ROT if b < 5 else ("#C9A227" if p <= s else BRAUN) for b, p, s in zip(bestand, position, bd["melde"])]
     b = bd["bestellungen"]
-    neu = set(b[(b.zeit > t - schritt) & (b.zeit <= t)].komponente)
-    txt = [f"{n:.0f} Stk · {r:.0f} T" + ("  ⟵ Bestellung" if k in neu else "")
-           for k, n, r in zip(bd["komps"], stueck, bestand)]
+    neu = b[(b.zeit > t - schritt) & (b.zeit <= t)]
+    txt = []
+    for k, n, r in zip(bd["komps"], stueck, bestand):
+        zeile = f"{n:.0f} Stk · {r:.0f} T"
+        if k in set(neu.komponente):
+            zeile += "  ⟵ bestellt"
+        txt.append(zeile)
     return [
-        go.Bar(y=bd["namen"], x=position, orientation="h", name="Bestand + unterwegs",
+        go.Bar(y=bd["namen"], x=position, orientation="h", name="Lager + unterwegs",
                marker=dict(color="rgba(192,138,85,0.30)", line=dict(width=0)), showlegend=False,
-               hovertemplate="%{y}: Lagerposition %{x:.0f} Tage<extra></extra>"),
-        go.Bar(y=bd["namen"], x=bestand, orientation="h", name="Bestand im Lager", text=txt,
+               hovertemplate="%{y}: Lager + bestellt/unterwegs = %{x:.0f} Tage<extra></extra>"),
+        go.Bar(y=bd["namen"], x=bestand, orientation="h", name="Im Lager", text=txt,
                textposition="outside", cliponaxis=False, textfont=dict(size=10),
                marker=dict(color=farbe), showlegend=False,
-               hovertemplate="%{y}: Bestand %{x:.0f} Tage<extra></extra>"),
+               hovertemplate="%{y}: im Lager %{x:.0f} Tage<extra></extra>"),
     ]
 
 
-def netzkarte(erg: Ergebnis, schritt_tage: int = 2, hoehe: int = 620, titel: str = "Animierte Netzwerksicht",
-              mit_bestand: bool = True) -> go.Figure:
-    """Animierte geografische Netzwerksicht: Kanten nach Verkehrsträger, Sendungen als Punkte.
+def _quellen_verlauf(erg: Ergebnis) -> dict[str, list[tuple[float, str]]]:
+    """Aktiver Lieferant je Komponente über die Zeit (aus den Ereignissen 'lieferantenwechsel')."""
+    m = erg.modell
+    verlauf = {k: [(-math.inf, m.primaerquelle(k).lieferant)] for k in m.komponenten if m.alternativquelle(k)}
+    if not erg.log.empty:
+        w = erg.log[erg.log.ereignis == "lieferantenwechsel"]
+        for z in w.itertuples():
+            verlauf.setdefault(z.komponente, []).append((z.zeit, z.zustand_neu))
+    return verlauf
 
-    mit_bestand: rechts daneben animierte Bestandsbalken je Komponente (synchron zum Zeitregler).
-    Dunkler Balken = Bestand im Lager Heilbronn, heller Balken = Lagerposition (Bestand + bestellt/unterwegs),
-    Strich = Meldebestand. Fällt die Lagerposition auf den Strich, wird bestellt (gelb), unter 5 Tagen rot.
+
+def _aktiver_lieferant(verlauf: list[tuple[float, str]], t: float) -> str:
+    aktiv = verlauf[0][1]
+    for zeit, lief in verlauf:
+        if zeit <= t:
+            aktiv = lief
+    return aktiv
+
+
+def _status_text(erg: Ergebnis, verlauf: dict[str, list[tuple[float, str]]], t: float) -> str:
+    m = erg.modell
+    teile = []
+    for k, v in verlauf.items():
+        aktiv = _aktiver_lieferant(v, t)
+        primaer = m.primaerquelle(k).lieferant
+        name = m.knoten[aktiv].name.split(" (")[0]
+        land = m.knoten[aktiv].land
+        if aktiv != primaer:
+            seit = max(z for z, l in v if z <= t and l == aktiv)
+            teile.append(f"<b>{komp_name(m, k)}</b> kommt aus: <b>{name} ({land})</b> · "
+                         f"<span style='color:{ROT}'>Notfallplan aktiv seit {_datum(seit - m.einschwingen)}</span>")
+        else:
+            ausfall = any(s["typ"] == "knoten_ausfall" and s["start"] <= t < s["ende"]
+                          and s["ziel"] in (primaer, *m.primaerquelle(k).tier2) for s in erg.stoerungsfenster)
+            zusatz = f" · <span style='color:{ROT}'>Lieferant ausgefallen</span>" if ausfall else ""
+            teile.append(f"<b>{komp_name(m, k)}</b> kommt aus: <b>{name} ({land})</b>{zusatz}")
+    return "<br>".join(teile)
+
+
+def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str = "Animierte Netzwerksicht",
+              mit_bestand: bool = True, tempo_ms: int = 240) -> go.Figure:
+    """Animierte geografische Netzwerksicht mit Europa-Ausschnitt und Bestandsbalken.
+
+    Links die Weltkarte, rechts oben ein Ausschnitt Europa (Häfen, Rhein, Bahn, Sellita, Heilbronn),
+    rechts unten die Bestandsbalken je Komponente, alles synchron zum Zeitregler und aus demselben Lauf.
+    Ein goldener Ring markiert den Lieferanten, der das Uhrwerk gerade liefert (Miyota oder im Notfall Sellita).
+    tempo_ms: Dauer eines Bildes; 240 ms = halbe Geschwindigkeit gegenüber früher (120 ms).
     """
     m = erg.modell
     W, H = m.einschwingen, m.horizont
     genutzte = {k for r in m.routen.values() for route in r for k in route.kanten}
     linien = {kid: _polylinie(erg, kid) for kid in genutzte}
+    verlauf = _quellen_verlauf(erg)
     if mit_bestand:
-        fig = make_subplots(rows=1, cols=2, column_widths=[0.70, 0.30], horizontal_spacing=0.10,
-                            specs=[[{"type": "geo"}, {"type": "xy"}]],
-                            subplot_titles=("", "Bestand in Heilbronn [Tage Reichweite]"))
+        fig = make_subplots(
+            rows=2, cols=2, column_widths=[0.60, 0.40], row_heights=[0.55, 0.45],
+            horizontal_spacing=0.09, vertical_spacing=0.10,
+            specs=[[{"type": "geo", "rowspan": 2}, {"type": "geo"}], [None, {"type": "xy"}]],
+            subplot_titles=("", "Ausschnitt Europa", "Bestand in Heilbronn (Reichweite in Tagen)"))
+        geos = [("geo", dict(row=1, col=1)), ("geo2", dict(row=1, col=2))]
         bd = _bestandsdaten(erg)
     else:
         fig = go.Figure()
+        geos = [("geo", {})]
         bd = None
-
-    # statische Kanten, je Verkehrsträger eine Spur (Legende)
-    for modus in MODUS_FARBE:
-        lats, lons = [], []
-        for kid in genutzte:
-            k = m.kanten[kid]
-            if k.modus != modus:
-                continue
-            lin = linien[kid]
-            lats += list(lin[:, 0]) + [None]
-            lons += list(lin[:, 1]) + [None]
-        if lats:
-            fig.add_trace(go.Scattergeo(lat=lats, lon=lons, mode="lines", name=MODUS_NAME[modus],
-                                        line=dict(width=1.6, color=MODUS_FARBE[modus],
-                                                  dash="dot" if modus == "luft" else "solid"),
-                                        hoverinfo="skip", opacity=0.75))
-    # Knoten
-    kn = [k for k in m.knoten.values() if k.typ != "kunde"]
-    fig.add_trace(go.Scattergeo(
-        lat=[k.lat for k in kn], lon=[k.lon for k in kn], mode="markers", name="Standorte",
-        marker=dict(size=[11 if k.typ == "werk" else 7 for k in kn],
-                    color=[BRAUN if k.typ == "werk" else ("white" if k.typ != "lieferant" else BRAUN_DUNKEL) for k in kn],
-                    line=dict(width=1.2, color=BRAUN_DUNKEL)),
-        text=[k.name for k in kn], hoverinfo="text"))
 
     komps = list(m.komponenten)
     farbe = {k: KOMP_FARBE[i % len(KOMP_FARBE)] for i, k in enumerate(komps)}
+    kn = [k for k in m.knoten.values() if k.typ != "kunde"]
+    for g_nr, (geo, pos) in enumerate(geos):
+        zeige_legende = g_nr == 0
+        for modus in MODUS_FARBE:
+            lats, lons = [], []
+            for kid in genutzte:
+                if m.kanten[kid].modus != modus:
+                    continue
+                lin = linien[kid]
+                lats += list(lin[:, 0]) + [None]
+                lons += list(lin[:, 1]) + [None]
+            if lats:
+                fig.add_trace(go.Scattergeo(lat=lats, lon=lons, mode="lines", name=MODUS_NAME[modus],
+                                            line=dict(width=1.6, color=MODUS_FARBE[modus],
+                                                      dash="dot" if modus == "luft" else "solid"),
+                                            hoverinfo="skip", opacity=0.75, showlegend=zeige_legende,
+                                            legendgroup=modus), **pos)
+        fig.add_trace(go.Scattergeo(
+            lat=[k.lat for k in kn], lon=[k.lon for k in kn], mode="markers", name="Standorte",
+            marker=dict(size=[11 if k.typ == "werk" else 7 for k in kn],
+                        color=[BRAUN if k.typ == "werk" else ("white" if k.typ != "lieferant" else BRAUN_DUNKEL)
+                               for k in kn],
+                        line=dict(width=1.2, color=BRAUN_DUNKEL)),
+            text=[k.name for k in kn], hoverinfo="text", showlegend=zeige_legende, legendgroup="standorte"), **pos)
+    if bd is not None:
+        fig.add_trace(go.Scatter(y=bd["namen"], x=bd["melde"], mode="markers", name="Meldebestand",
+                                 marker=dict(symbol="line-ns", size=20, line=dict(width=3, color=BRAUN_DUNKEL)),
+                                 hovertemplate="%{y}: Meldebestand %{x:.0f} Tage<extra></extra>",
+                                 showlegend=False), row=2, col=2)
 
-    def dynamische_spuren(t: float) -> list[go.Scattergeo]:
-        p = _sendungspositionen(erg, t, linien)
-        gestoert_lat, gestoert_lon, gestoert_txt = [], [], []
+    def geo_spuren(t: float, legende: bool) -> list[go.Scattergeo]:
+        p = _sendungspositionen(erg, t, linien, schritt_tage)
+        g_lat, g_lon, g_txt = [], [], []
         for s in erg.stoerungsfenster:
             if s["start"] <= t < s["ende"]:
                 if s["typ"] == "knoten_ausfall":
                     k = m.knoten[s["ziel"]]
-                    gestoert_lat.append(k.lat); gestoert_lon.append(k.lon)
+                    g_lat.append(k.lat); g_lon.append(k.lon)
                 elif s["typ"] == "kanten_sperre":
                     lin = linien.get(s["ziel"], _polylinie(erg, s["ziel"]))
                     mitte = lin[len(lin) // 2]
-                    gestoert_lat.append(mitte[0]); gestoert_lon.append(mitte[1])
+                    g_lat.append(mitte[0]); g_lon.append(mitte[1])
                 else:
                     continue
                 ziel = m.knoten[s["ziel"]].name if s["ziel"] in m.knoten else s["ziel"]
-                gestoert_txt.append(f"Störung: {ziel}")
+                g_txt.append(f"Störung: {ziel}")
+        aktiv = [(k, _aktiver_lieferant(v, t)) for k, v in verlauf.items()]
         return [
             go.Scattergeo(lat=[x["lat"] for x in p], lon=[x["lon"] for x in p], mode="markers", name="Sendungen",
                           marker=dict(size=[8 if x["typ"] != "notfall" else 10 for x in p],
                                       color=[farbe[x["komponente"]] for x in p],
                                       symbol=["circle" if x["typ"] != "notfall" else "diamond" for x in p],
                                       line=dict(width=0.8, color="white")),
-                          text=[f"{komp_name(m, x['komponente'])}: {x['menge']:.0f} Stück"
-                                + (" (Luftfracht)" if x["typ"] == "notfall" else "") for x in p], hoverinfo="text"),
-            go.Scattergeo(lat=gestoert_lat, lon=gestoert_lon, mode="markers", name="Störung aktiv",
+                          text=[f"{komp_name(m, x['komponente'])}: {x['menge']:.0f} Stück von "
+                                f"{m.knoten[x['lieferant']].name.split(' (')[0]}"
+                                + (" (Luftfracht)" if x["typ"] == "notfall" else "") for x in p],
+                          hoverinfo="text", showlegend=legende, legendgroup="sendungen"),
+            go.Scattergeo(lat=g_lat, lon=g_lon, mode="markers", name="Störung aktiv",
                           marker=dict(size=18, color="rgba(155,59,42,0.35)", line=dict(width=2, color=ROT)),
-                          text=gestoert_txt, hoverinfo="text"),
+                          text=g_txt, hoverinfo="text", showlegend=legende, legendgroup="stoerung"),
+            go.Scattergeo(lat=[m.knoten[l].lat for _, l in aktiv], lon=[m.knoten[l].lon for _, l in aktiv],
+                          mode="markers+text", name="liefert gerade",
+                          marker=dict(size=17, color="rgba(201,162,39,0.15)", line=dict(width=2.5, color="#C9A227")),
+                          text=["Uhrwerk" if k == "uhrwerk" else komp_name(m, k) for k, _ in aktiv], textposition="top center",
+                          textfont=dict(size=10, color=BRAUN_DUNKEL),
+                          hovertext=[f"{komp_name(m, k)} kommt gerade von {m.knoten[l].name}" for k, l in aktiv],
+                          hoverinfo="text", showlegend=legende, legendgroup="aktiv"),
         ]
 
-    if bd is not None:
-        fig.add_trace(go.Scatter(y=bd["namen"], x=bd["melde"], mode="markers", name="Meldebestand",
-                                 marker=dict(symbol="line-ns", size=22, line=dict(width=3, color=BRAUN_DUNKEL)),
-                                 hovertemplate="%{y}: Meldebestand %{x:.0f} Tage<extra></extra>",
-                                 showlegend=False), row=1, col=2)
     n_statisch = len(fig.data)
-    for spur in dynamische_spuren(W):
-        fig.add_trace(spur, **({"row": 1, "col": 1} if bd is not None else {}))
-    dyn = [n_statisch, n_statisch + 1]
+    dyn = []
+    for g_nr, (geo, pos) in enumerate(geos):
+        for spur in geo_spuren(W, g_nr == 0):
+            dyn.append(len(fig.data))
+            fig.add_trace(spur, **pos)
     if bd is not None:
         for spur in _bestand_spuren(bd, W, schritt_tage):
-            fig.add_trace(spur, row=1, col=2)
-        dyn += [n_statisch + 2, n_statisch + 3]
+            dyn.append(len(fig.data))
+            fig.add_trace(spur, row=2, col=2)
         fig.update_layout(barmode="overlay")
-        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage", row=1, col=2)
-        fig.update_yaxes(autorange="reversed", row=1, col=2)
+        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage Reichweite", row=2, col=2)
+        fig.update_yaxes(autorange="reversed", row=2, col=2)
+
+    basis_anno = list(fig.layout.annotations)
+
+    def status_anno(t: float) -> list:
+        if not verlauf:
+            return basis_anno
+        return basis_anno + [go.layout.Annotation(
+            text=_status_text(erg, verlauf, t), xref="paper", yref="paper", x=0.0, y=1.0, xanchor="left",
+            yanchor="bottom", showarrow=False, align="left", font=dict(size=12, color=BRAUN_DUNKEL),
+            bgcolor="rgba(248,244,236,0.92)", bordercolor="#C9A227", borderwidth=1, borderpad=4)]
 
     def rahmen(t: float) -> list:
-        spuren = dynamische_spuren(t)
+        spuren = []
+        for g_nr, _ in enumerate(geos):
+            spuren += geo_spuren(t, g_nr == 0)
         return spuren + (_bestand_spuren(bd, t, schritt_tage) if bd is not None else [])
 
     zeiten = np.arange(W, H, schritt_tage)
-    fig.frames = [go.Frame(data=rahmen(t), traces=dyn, name=f"{int(t - W)}") for t in zeiten]
+    fig.frames = [go.Frame(data=rahmen(t), traces=dyn, name=f"{int(t - W)}",
+                           layout=go.Layout(annotations=status_anno(t))) for t in zeiten]
+    fig.update_layout(annotations=status_anno(W))
     schritte = [dict(method="animate", label=_datum(t - W),
                      args=[[f"{int(t - W)}"], dict(mode="immediate", frame=dict(duration=0, redraw=True),
                                                     transition=dict(duration=0))]) for t in zeiten]
+    geo_basis = dict(showland=True, landcolor="#E9DFD0", showocean=True, oceancolor="#F4EFE6", showcountries=True,
+                     countrycolor="#D8CBB8", coastlinecolor="#CBBBA5", bgcolor=CREME)
     fig.update_layout(
-        geo=dict(projection_type="natural earth", showland=True, landcolor="#E9DFD0", showocean=True,
-                 oceancolor="#F4EFE6", showcountries=True, countrycolor="#D8CBB8", coastlinecolor="#CBBBA5",
-                 lataxis_range=[-50, 70], lonaxis_range=[-95, 150], bgcolor=CREME),
-        updatemenus=[dict(type="buttons", showactive=False, x=0.02, y=0.02, xanchor="left", yanchor="bottom",
+        geo=geo_basis | dict(projection_type="natural earth", lataxis_range=[-50, 70], lonaxis_range=[-95, 150]),
+        updatemenus=[dict(type="buttons", showactive=False, x=0.0, y=-0.02, xanchor="left", yanchor="top",
+                          direction="right",
                           buttons=[dict(label="▶ Abspielen", method="animate",
-                                        args=[None, dict(frame=dict(duration=120, redraw=True), fromcurrent=True,
+                                        args=[None, dict(frame=dict(duration=tempo_ms, redraw=True), fromcurrent=True,
                                                          transition=dict(duration=0))]),
+                                   dict(label="▶▶ Doppelt", method="animate",
+                                        args=[None, dict(frame=dict(duration=tempo_ms // 2, redraw=True),
+                                                         fromcurrent=True, transition=dict(duration=0))]),
                                    dict(label="❚❚ Pause", method="animate",
                                         args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
-        sliders=[dict(steps=schritte, x=0.18, len=0.8, y=0.0, currentvalue=dict(prefix="Datum: "),
-                      pad=dict(t=10))],
+        sliders=[dict(steps=schritte, x=0.30, len=0.70, y=-0.02, yanchor="top", currentvalue=dict(prefix="Datum: "),
+                      pad=dict(t=0))],
     )
-    fig.update_layout(legend=dict(orientation="h", yanchor="bottom", y=1.0, x=0))
+    if bd is not None:
+        fig.update_layout(geo2=geo_basis | dict(projection_type="mercator", resolution=50,
+                                                lataxis_range=[42.5, 55.5], lonaxis_range=[-1.0, 17.0]))
+    fig.update_layout(legend=dict(orientation="h", yanchor="top", y=-0.16, x=0))
     fig = _layout(fig, titel, hoehe=hoehe)
-    fig.update_layout(margin=dict(l=0, r=0, t=40 if titel else 30, b=40))
+    fig.update_layout(margin=dict(l=0, r=10, t=70, b=150))
     return fig
 
 
@@ -374,7 +470,7 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     fig = go.Figure()
     def label(r):
         teile = [f"Puffer {r.puffer_uhrwerk}"]
-        if r.uhrwerk_sellita: teile.append("Sellita")
+        if r.sellita_notfall: teile.append("Sellita")
         if r.luftfracht_notfall: teile.append("Luft")
         return ", ".join(teile)
     for zul, farbe, name in ((False, "#B0A69C", "unzulässig (Mindestwert verfehlt)"), (True, KUPFER, "zulässig")):

@@ -95,7 +95,7 @@ PRO_MA = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
 with st.sidebar:
     st.markdown("## Einstellungen")
 
-    st.markdown("#### Produktion")
+    st.markdown("#### 1 · Produktion")
     menge = st.slider("Uhren pro Jahr", int(g["uhren_pro_jahr"][0]), int(g["uhren_pro_jahr"][1]),
                       int(basis.param["nachfrage"]["uhren_pro_jahr"]), step=250,
                       help="Geplante Jahresmenge. Montagekapazität und Mitarbeiterzahl werden daraus abgeleitet.")
@@ -109,22 +109,31 @@ with st.sidebar:
         f'Arbeitstage · {de(float(mo["gutquote"]) * 100)} % Gutquote</span></div>',
         unsafe_allow_html=True)
 
-    st.markdown("#### Maßnahmen")
-    sellita = st.toggle(
-        "Uhrwerk von Sellita statt Miyota",
-        help="Sellita SW300-1 aus La Chaux-de-Fonds (Schweiz): flacher als das Miyota und doppelt so teuer "
-             "(140 statt 70 € je Werk). Kommt per Lkw in wenigen Tagen statt per Schiff aus Japan.")
+    st.markdown("#### 2 · Vorsorge und Notfallpläne")
+    st.caption("Gelten in **allen** gewählten Szenarien gleichzeitig. Der Puffer wirkt immer, ein Notfallplan "
+               "greift nur, wenn sein Auslöser eintritt.")
     puffer = st.select_slider(
-        "Zusätzlicher Uhrwerk-Puffer", options=[0, 250, 500, 750, 1000, 1500, 2000],
+        "Vorsorge: zusätzlicher Uhrwerk-Puffer", options=[0, 250, 500, 750, 1000, 1500, 2000],
         format_func=lambda v: f"{de(v)} Stück",
-        help="Extra-Sicherheitsbestand an Uhrwerken in Heilbronn. Überbrückt Lieferausfälle, bindet aber Kapital.")
+        help="Wirkt immer: zusätzlicher Sicherheitsbestand an Uhrwerken in Heilbronn. Überbrückt Lieferausfälle, "
+             "bindet aber in jedem Szenario Kapital.")
+    sellita = st.toggle(
+        "Notfallplan Sellita (Uhrwerk)",
+        help="Auslöser: Miyota fällt aus (Szenario S1). Nach "
+             f"{de(basis.param['massnahmen'].get('notfall_reaktion_tage', 3))} Tagen Reaktionszeit wird bei Sellita "
+             "in La Chaux-de-Fonds (Schweiz) bestellt, noch nicht versandte Miyota-Aufträge werden storniert. "
+             "Sellita SW300-1: flacher als das Miyota, kompatibel über Werkhaltering und Zifferblattvariante, doppelter "
+             "Preis (140 statt 70 €), per Lkw in rund einem Tag in Heilbronn. Nach dem Wiederanlauf wird wieder "
+             "bei Miyota bestellt. Fällt Miyota nicht aus, passiert nichts und es entstehen keine Kosten.")
     luft = st.toggle(
-        "Luftfracht bei drohendem Fehlteil",
-        help="Reicht der Bestand einer Komponente nur noch wenige Tage, wird ein Eilauftrag per Flugzeug "
-             "ausgelöst. Schnell, aber teuer und mit viel CO2e.")
+        "Notfallplan Luftfracht",
+        help=f"Auslöser: Der Bestand einer Komponente reicht nur noch "
+             f"{de(basis.param['massnahmen']['luft_ausloeser_tage'])} Tage. Dann wird der Bedarf von "
+             f"{de(basis.param['massnahmen']['luft_menge_tage'])} Tagen per Flugzeug bestellt. Schnell, aber teuer "
+             "und mit viel CO2e. Kann in jedem Szenario auslösen.")
 
-    st.markdown("#### Szenarien")
-    auswahl = st.pills("Welche Situationen sollen simuliert werden?", list(SZ), default=list(SZ),
+    st.markdown("#### 3 · Störungen durchspielen")
+    auswahl = st.pills("Welche Szenarien sollen simuliert werden?", list(SZ), default=list(SZ),
                        selection_mode="multi", format_func=lambda s: SZ[s]["kurz"],
                        help="Die Basis wird immer mitgerechnet, sie ist der Vergleichsmaßstab.") or []
 
@@ -144,13 +153,13 @@ overrides = {
     "nachfrage": {"uhren_pro_jahr": menge},
     "montage": {"kapazitaet_pro_tag": "auto"},
     "simulation": {"seed": int(seed)},
-    "massnahmen": {"uhrwerk_sellita": sellita, "puffer_extra": {"uhrwerk": puffer}, "luftfracht_notfall": luft},
+    "massnahmen": {"sellita_notfall": sellita, "puffer_extra": {"uhrwerk": puffer}, "luftfracht_notfall": luft},
 }
 ids = tuple(["S0", *[s for s in auswahl if s != "S0"]])
 schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
 
 # --------------------------------------------------------------------------- Kopf
-uhrwerk_txt = "Sellita (CH)" if sellita else "Miyota (JP)"
+uhrwerk_txt = "Miyota (JP), Notfallplan Sellita (CH) bereit" if sellita else "Miyota (JP)"
 st.title("Uhren-Supply-Chain Heilbronn")
 st.markdown(f'<div class="untertitel">Ereignisdiskrete Simulation · {de(menge)} Uhren pro Jahr · '
             f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Uhrwerk von {uhrwerk_txt}</div>',
@@ -176,6 +185,11 @@ if st.session_state["lauf"] != schluessel:
             "Links auf **Simulation starten** drücken, um neu zu rechnen.")
 
 tab, erg_alle = vgl["tabelle"], vgl["ergebnisse"]
+# Anzeigen beziehen sich immer auf die Maßnahmen des gerechneten Laufs, nicht auf geänderte Regler
+lauf_mass = lauf_ov.get("massnahmen", {})
+sellita = bool(lauf_mass.get("sellita_notfall"))
+luft = bool(lauf_mass.get("luftfracht_notfall"))
+puffer = int((lauf_mass.get("puffer_extra") or {}).get("uhrwerk", 0) or 0)
 ziel_beta = float(pruefung.param["bewertung"]["mindestwerte"].get("beta", 0.95))
 zusage = int(pruefung.param["distribution"]["lieferzusage_tage"])
 
@@ -189,13 +203,41 @@ m = erg.modell
 st.markdown(f'<div class="untertitel"><b>{sid} · {SZ[sid]["name"]}:</b> {SZ[sid]["beschreibung"]}</div>',
             unsafe_allow_html=True)
 
-st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=600, titel=""), width="stretch",
+st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=760, titel=""), width="stretch",
                 config={"displayModeBar": False})
-st.caption("▶ Abspielen zeigt ein simuliertes Jahr: Punkte sind Sendungen (Farbe je Komponente, Raute = "
-           "Luftfracht), ein roter Kreis markiert eine aktive Störung. Rechts der Bestand in Heilbronn als "
-           "Reichweite in Tagen: dunkler Balken = im Lager, heller Balken = inklusive bestellter und unterwegs "
-           "befindlicher Ware, Strich = Meldebestand. Erreicht der helle Balken den Strich, wird nachbestellt "
-           "(gelb, „⟵ Bestellung“). Rot = weniger als 5 Tage Bestand.")
+st.caption("▶ Abspielen zeigt ein simuliertes Jahr in halber Geschwindigkeit (▶▶ doppelt so schnell). Punkte sind "
+           "Sendungen (Farbe je Komponente, Raute = Luftfracht), ein roter Kreis eine aktive Störung, der goldene "
+           "Ring den Lieferanten, der das Uhrwerk gerade liefert. Der Kasten oben links zeigt, ob ein Notfallplan "
+           "aktiv ist.")
+
+pol_u = erg.politik.get("uhrwerk")
+with st.expander("So liest du die Bestandsbalken", expanded=False):
+    st.markdown(f"""
+Jede Zeile ist eine Komponente im Lager Heilbronn. Gemessen wird in **Tagen Reichweite**: Wie viele Tage kann die
+Montage mit dieser Menge weiterarbeiten? So sind 1.600 Uhrwerke und 160 Zifferblätter vergleichbar.
+
+| Element | Bedeutung |
+|---|---|
+| **Dunkler Balken** | Was physisch im Lager liegt. Daneben steht die Stückzahl und die Reichweite (T = Tage). |
+| **Heller Balken** | Lager **plus** alles, was schon bestellt, in Fertigung oder unterwegs ist (Lagerposition). |
+| **Strich** | Meldebestand s. Sinkt der **helle** Balken auf den Strich, wird automatisch die Bestellmenge Q nachbestellt („⟵ bestellt“), der helle Balken springt nach rechts. |
+| Farbe | braun = normal · gelb = Bestellung fällig · rot = weniger als 5 Tage im Lager, Fehlteil droht |
+
+**Warum wird mit dem hellen Balken verglichen?** Sonst würde jeden Tag neu bestellt, solange die erste Lieferung
+noch auf dem Schiff ist. Was schon unterwegs ist, zählt mit.
+
+**Beispiel Uhrwerk in diesem Lauf:** Bedarf {de(pol_u.bedarf_tag, 1) if pol_u else "-"} Stück pro Tag,
+Wiederbeschaffungszeit {de(pol_u.wbz_tage) if pol_u else "-"} Tage (60 Tage Fertigung bei Miyota plus Schiff über
+das Kap). Meldebestand s = Bedarf in der Wiederbeschaffungszeit + Sicherheitsbestand =
+{de(pol_u.meldebestand) if pol_u else "-"} Stück, also {de(pol_u.meldebestand / pol_u.bedarf_tag) if pol_u else "-"}
+Tage. Bestellmenge Q = {de(pol_u.losgroesse) if pol_u else "-"} Stück. Deshalb liegt der dunkle Balken beim Uhrwerk
+meist weit unter dem Strich, ohne dass das ein Problem ist: Der größte Teil steckt in Fertigung und auf dem Schiff.
+
+**Was ändert sich mit den Einstellungen?** Mehr Uhren pro Jahr erhöhen den Bedarf, die Tage bleiben ähnlich. Der
+Uhrwerk-Puffer schiebt den Strich beim Uhrwerk nach rechts (mehr Bestand, mehr Kapitalbindung). Der Notfallplan
+Sellita ändert den Strich nicht, aber während eines Miyota-Ausfalls kommen Uhrwerke in rund einem Tag per Lkw, der
+dunkle Balken erholt sich dann schnell. Luftfracht füllt einen roten Balken innerhalb weniger Tage auf.
+""")
 
 # --------------------------------------------------------------------------- Kennzahlen
 st.markdown("### Kennzahlen")
@@ -316,7 +358,7 @@ with links:
                 hinweis("schlecht", f"{name}: Lager reicht nicht.",
                         f"Der Bestand hält {de(tts_m)} Tage (TTS), bis wieder Ware ankommt, vergehen aber "
                         f"{de(ttr)} Tage (TTR). Es fehlen rund {de(luecke)} Tage, also etwa {de(stueck, 0)} Stück "
-                        f"{viz.komp_name(m, komp)}. Ein Puffer in dieser Höhe oder ein zweiter Lieferant würde die "
+                        f"{viz.komp_name(m, komp)}. Ein Puffer in dieser Höhe oder der Notfallplan Sellita würde die "
                         f"Lücke schließen.")
 
     # Maßnahmen und Kosten
@@ -338,8 +380,21 @@ with links:
                 f"im Mittel {de(z['luftfracht_sendungen'], 1)} Eilsendungen. Das hält die Montage am Laufen, "
                 f"treibt aber Kosten und CO2e.")
     if sellita:
-        hinweis("", "Sellita-Uhrwerk:",
-                "unabhängig von Japan und den Seewegen, dafür doppelter Einkaufspreis je Werk.")
+        wechsel = erg.log[erg.log.ereignis == "lieferantenwechsel"]
+        if wechsel.empty:
+            hinweis("", "Notfallplan Sellita bereit, aber nicht ausgelöst:",
+                    "in diesem Szenario fällt Miyota nicht aus, alle Uhrwerke kommen aus Japan, keine Mehrkosten.")
+        else:
+            zu = wechsel[wechsel.zustand_neu != "miyota_nagano"]
+            zurueck = wechsel[wechsel.zustand_neu == "miyota_nagano"]
+            n_storno = int((erg.log.ereignis == "storno").sum())
+            n_sel = int(((erg.log.ereignis == "bestellung") & (erg.log.ort == "sellita_lcf")).sum())
+            txt = (f"ab {viz._datum(zu.zeit.min() - m.einschwingen)} wird bei Sellita bestellt "
+                   f"({n_sel} Bestellungen, {n_storno} Miyota-Aufträge storniert)")
+            if not zurueck.empty:
+                txt += f", ab {viz._datum(zurueck.zeit.min() - m.einschwingen)} wieder bei Miyota"
+            hinweis("warn", "Notfallplan Sellita ausgelöst:", txt + ". Kostet den doppelten Preis je Werk, "
+                    "verhindert aber den Montagestillstand.")
 
 with rechts:
     st.markdown("**Hinweise zur Konfiguration**")
@@ -351,13 +406,43 @@ with rechts:
         probleme.append(f"Der Uhrwerk-Puffer von {de(puffer)} Stück kostet in diesem Szenario nur Kapitalbindung, "
                         f"weil kein Lieferant ausfällt.")
     if sellita and puffer:
-        probleme.append("Puffer und Sellita zusammen sind doppelt abgesichert: Sellita kommt per Lkw in wenigen "
-                        "Tagen, ein großer Puffer ist dann kaum nötig.")
+        probleme.append("Puffer und Notfallplan Sellita sichern denselben Ausfall doppelt ab. Mit Sellita reicht ein "
+                        "kleiner Puffer für die Reaktionszeit und die Sellita-Fertigung.")
     if probleme:
         for p in probleme:
             hinweis("warn", "", p)
     else:
         hinweis("gut", "Keine Auffälligkeiten.", "Die Einstellungen sind in sich stimmig.")
+
+# --------------------------------------------------------------------------- Maßnahmen je Szenario
+st.markdown("### Welche Maßnahme greift in welchem Szenario?")
+st.markdown("**Szenario** = was passiert (eine Störung, von außen vorgegeben). **Maßnahme** = wie ihr vorbereitet "
+            "seid (links eingestellt). Jede Simulation rechnet alle gewählten Szenarien mit denselben Maßnahmen. "
+            "Die Tabelle zeigt für einen Beispiellauf je Szenario, ob ein Notfallplan tatsächlich ausgelöst wurde.")
+zeilen = []
+for s_id, e_s in erg_alle.items():
+    lg, ms = e_s["beispiellauf"].log, e_s["beispiellauf"].modell
+    w = lg[lg.ereignis == "lieferantenwechsel"]
+    if not sellita:
+        sel = "aus"
+    elif w.empty:
+        sel = "bereit, nicht ausgelöst"
+    else:
+        sel = f"ausgelöst {viz._datum(w.zeit.min() - ms.einschwingen)}"
+        zur = w[w.zustand_neu == ms.primaerquelle("uhrwerk").lieferant]
+        if not zur.empty:
+            sel += f" bis {viz._datum(zur.zeit.min() - ms.einschwingen)}"
+    luft_n = float(tab.loc[s_id, "luftfracht_sendungen"]) if "luftfracht_sendungen" in tab else 0.0
+    zeilen.append({
+        "Szenario": f"{s_id} · {SZ[s_id]['name']}",
+        "Was passiert": SZ[s_id]["beschreibung"],
+        "Puffer": f"wirkt immer (+{de(puffer)} Stück)" if puffer else "aus",
+        "Notfallplan Sellita": sel,
+        "Notfallplan Luftfracht": ("aus" if not luft else
+                                   (f"{de(luft_n, 1)} Eilsendungen (Mittel)" if luft_n >= 0.05 else "bereit, nicht ausgelöst")),
+        "Lieferfähigkeit [%]": round(float(tab.loc[s_id, "beta"]) * 100, 1),
+    })
+st.dataframe(pd.DataFrame(zeilen), width="stretch", hide_index=True)
 
 # --------------------------------------------------------------------------- Szenariovergleich
 st.markdown("### Alle Szenarien im Vergleich")
@@ -407,8 +492,8 @@ with st.expander("Wie sicher sind die Ergebnisse?"):
     st.download_button("Kennzahlen als CSV", tab.to_csv().encode("utf-8"), "kennzahlen.csv", "text/csv")
 
 with st.expander("Beste Maßnahmen je Szenario finden (Optimierung)"):
-    st.markdown("Probiert für **jedes Szenario** alle 12 Kombinationen aus Sellita-Uhrwerk, Uhrwerk-Puffer "
-                "(0, 500, 1.000 Stück) und Luftfracht durch. Ergebnis: das Optimum je Szenario und eine "
+    st.markdown("Probiert für **jedes Szenario** alle 12 Kombinationen aus Uhrwerk-Puffer (0, 500, 1.000 Stück), "
+                "Notfallplan Sellita und Notfallplan Luftfracht durch. Ergebnis: das Optimum je Szenario und eine "
                 "**robuste Empfehlung**, die in allen gewählten Szenarien das Lieferversprechen hält und dabei "
                 "im Mittel am günstigsten ist. Da man vorher nicht weiß, welche Störung eintritt, ist die "
                 "robuste Empfehlung die eigentliche Entscheidung.")
@@ -433,9 +518,10 @@ with st.expander("Beste Maßnahmen je Szenario finden (Optimierung)"):
 
     def massnahme_txt(r) -> str:
         teile = [f"Puffer {de(r.puffer_uhrwerk)} Stück" if r.puffer_uhrwerk else "kein Puffer"]
-        teile.append("Sellita" if r.uhrwerk_sellita else "Miyota")
+        if r.sellita_notfall:
+            teile.append("Notfallplan Sellita")
         if r.luftfracht_notfall:
-            teile.append("Luftfracht")
+            teile.append("Notfallplan Luftfracht")
         return ", ".join(teile)
 
     if "opt" in st.session_state:
@@ -458,8 +544,8 @@ with st.expander("Beste Maßnahmen je Szenario finden (Optimierung)"):
             "Kosten [€/Uhr]": js.kosten_pro_uhr.round(2),
             "CO2e [g/Uhr]": (js.co2e_pro_uhr_kg * 1000).round(1),
             "Ziel erreicht": js.zulaessig.map({True: "✅", False: "❌"}),
-            "Wie Empfehlung": ["ja" if (x.puffer_uhrwerk, x.uhrwerk_sellita, x.luftfracht_notfall)
-                               == (beste.puffer_uhrwerk, beste.uhrwerk_sellita, beste.luftfracht_notfall)
+            "Wie Empfehlung": ["ja" if (x.puffer_uhrwerk, x.sellita_notfall, x.luftfracht_notfall)
+                               == (beste.puffer_uhrwerk, beste.sellita_notfall, beste.luftfracht_notfall)
                                else "nein" for x in js.itertuples()],
         }), width="stretch", hide_index=True)
         st.plotly_chart(viz.pareto_diagramm(r), width="stretch")

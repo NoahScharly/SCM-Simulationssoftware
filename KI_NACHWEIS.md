@@ -33,7 +33,10 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 6. "Erweitere die Rastersuche so, dass alle Szenarien mit allen Maßnahmen durchlaufen und das Optimum je
    Szenario vorgeschlagen wird. Dual Sourcing soll nicht drin sein, nur Sellita als kompatibles Ersatzwerk."
 7. "Zeig rechts neben der Karte die Bestände im Lager als animierte Balken, die zu- und abnehmen, und
-   markiere, wann eine Bestellung ausgelöst wird." 
+   markiere, wann eine Bestellung ausgelöst wird."
+8. "Sellita soll nur als Notfallplan gelten: zuerst kommt das Uhrwerk von Miyota, nach dem Ausfall aus der
+   Schweiz. Das soll man auf der Karte sehen, dazu eine kleine Karte mit Zoom auf Europa und halbe
+   Abspielgeschwindigkeit." 
 
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
@@ -43,6 +46,7 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - TTR als Eingabe (Störungsdauer plus Transit), TTS aus der Simulation
 - Robuste Empfehlung: zulässig nur, wenn β im schlechtesten Szenario den Mindestwert erreicht
 - Bestandsbalken als Reichweite in Tagen statt Stück
+- Notfallplan Sellita: Reaktionszeit 3 Tage, Storno nicht versandter Miyota-Aufträge mit Gutschrift, Rückwechsel nach Wiederanlauf
 
 ## Vorgenommene Änderungen
 
@@ -50,6 +54,6 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 
 ## Fachliche und technische Prüfungen
 
-- 23 automatische Tests (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 24 automatische Tests (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

@@ -58,7 +58,11 @@ bestand:
 
 massnahmen:
   puffer_extra: {}              # zusätzlicher Sicherheitsbestand, z. B. {uhrwerk: 1000}
-  uhrwerk_sellita: false        # Uhrwerk von Sellita (SW300-1, flacher, doppelter Preis) statt Miyota
+  sellita_notfall: false        # Notfallplan: fällt der Uhrwerk-Lieferant Miyota (oder sein Vorlieferant) aus, wird nach
+                                # der Reaktionszeit bei Sellita (SW300-1, La Chaux-de-Fonds) bestellt; offene, noch nicht
+                                # versandte Miyota-Aufträge werden storniert. Nach Wiederanlauf zurück zu Miyota.
+                                # Annahme: Gehäuse und Zifferblatt-Variante für SW300-1 sind vorab freigegeben.
+  notfall_reaktion_tage: 3      # Ausfallmeldung bis erste Bestellung beim Ersatzlieferanten [A]
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 5        # Reichweite, ab der Luftfracht ausgelöst wird
   luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird

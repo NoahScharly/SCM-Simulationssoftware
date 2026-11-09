@@ -277,15 +277,6 @@ def _pruefe_plausibilitaet(m: Modell) -> None:
             f"Einschwingphase {m.einschwingen:.0f} Tage ist kürzer als die längste WBZ ({laengste:.0f} Tage)")
 
 
-def _setze_primaer(quellen: dict[str, list[Bezugsquelle]], komponente: str, lieferant: str) -> None:
-    """Maßnahme Lieferantenwechsel: gewählter Lieferant wird primär, der bisherige alternativ."""
-    if not any(q.lieferant == lieferant for q in quellen.get(komponente, [])):
-        raise KonfigurationsFehler(f"Lieferantenwechsel: {lieferant} liefert kein {komponente}")
-    for q in quellen[komponente]:
-        q.rolle = "primaer" if q.lieferant == lieferant else "alternativ"
-    quellen[komponente].sort(key=lambda q: 0 if q.rolle == "primaer" else 1)
-
-
 # --------------------------------------------------------------------------- Hauptfunktion
 def lade_modell(
     szenario: str | Path | dict | None = None,
@@ -314,9 +305,6 @@ def lade_modell(
         for q in quellen[komp]:
             if q.rolle == "primaer":
                 q.wbz_tage = None if tage is None else float(tage)
-
-    if param.get("massnahmen", {}).get("uhrwerk_sellita"):
-        _setze_primaer(quellen, "uhrwerk", "sellita_lcf")
 
     einschwingen = float(param["simulation"]["einschwingen_tage"])
     modell = Modell(
