@@ -7,6 +7,8 @@ portlouis_zeiger,Port Louis (Zeiger),lieferant,tier1,MU,-20.16,57.50,0,Poster [4
 clichy_zifferblatt,Clichy (Zifferblatt),lieferant,tier1,FR,48.90,2.31,0,Poster [4]
 biel_gehaeuse,Biel (Gehäuse),lieferant,tier1,CH,47.14,7.25,0,Poster frei gewählt
 conegliano_schliesse,Conegliano (Schließe),lieferant,tier1,IT,45.89,12.30,0,Poster 7. Lieferant
+santacroce_armband,Santa Croce sull'Arno (Lederarmband Italien),lieferant,tier1,IT,43.71,10.78,0,Option Italien [A]
+santacroce_gerberei,Gerbereibezirk Santa Croce (Leder Italien),lieferant,tier2,IT,43.70,10.80,0,Option Italien [A]
 gerberei_br,Gerberei Novo Hamburgo,lieferant,tier2,BR,-29.68,-51.13,0,Poster Tier-2 [14]
 garn_br,Garn und Kantenfarbe Caxias do Sul,lieferant,tier2,BR,-29.17,-51.18,0,Poster Tier-2 [23]
 thyssen_stahl,thyssenkrupp Materials (Stahl),lieferant,tier2,DE,51.45,7.01,0,Poster Tier-2 [19]

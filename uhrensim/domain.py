@@ -76,7 +76,7 @@ class Bezugsquelle:
 
     komponente: str
     lieferant: str
-    rolle: str  # primaer | alternativ
+    rolle: str  # primaer | alternativ (Notfallplan) | option (wählbare Bezugsquelle)
     preis_eur: float
     fertigung_tage: float
     wbz_tage: float | None  # vom Nutzer gewünschte WBZ, None = physisches Minimum

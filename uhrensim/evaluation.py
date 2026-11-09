@@ -198,6 +198,9 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
     }
     for art, wert in kosten.items():
         ergebnis[f"kosten_{art}"] = float(wert)
+    # Kapitalbindung sichtbar machen: Ø gebundener Bestandswert und dessen Zinskosten je Uhr
+    ergebnis["kapital_gebunden_eur"] = float(tf.bestandswert_eur.mean()) if not tf.empty else math.nan
+    ergebnis["kapitalbindung_pro_uhr"] = kosten["kapitalbindung"] / n if zugestellt else math.nan
     return ergebnis
 
 

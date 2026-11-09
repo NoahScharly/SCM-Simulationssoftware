@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
 from uhrensim.experiment import vergleiche  # noqa: E402
-from uhrensim.optimization import optimum_je_szenario, raster_detail, robuste_empfehlung  # noqa: E402
+from uhrensim.optimization import kombinationen, optimum_je_szenario, raster_detail, robuste_empfehlung  # noqa: E402
 
 st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
@@ -132,6 +132,13 @@ with st.sidebar:
              f"{de(basis.param['massnahmen']['luft_menge_tage'])} Tagen per Flugzeug bestellt. Schnell, aber teuer "
              "und mit viel CO2e. Kann in jedem Szenario auslösen.")
 
+    armband_it = st.toggle(
+        "Bezugsoption: Lederarmband komplett aus Italien",
+        help="Armband und Leder aus Santa Croce sull'Arno (Toskana) statt aus Estancia Velha (Brasilien). Teurer "
+             "(28 statt 18 € je Armband, Annahme), aber rund 880 km per Lkw über den Brenner statt Seeweg über Hamburg: "
+             "kein Zoll, weniger Ware unterwegs und keine Abhängigkeit von Rio Grande, Hamburg und den Tier-2 in "
+             "Brasilien. Wirkt in allen Szenarien.")
+
     st.markdown("#### 3 · Störungen durchspielen")
     auswahl = st.pills("Welche Szenarien sollen simuliert werden?", list(SZ), default=list(SZ),
                        selection_mode="multi", format_func=lambda s: SZ[s]["kurz"],
@@ -153,7 +160,8 @@ overrides = {
     "nachfrage": {"uhren_pro_jahr": menge},
     "montage": {"kapazitaet_pro_tag": "auto"},
     "simulation": {"seed": int(seed)},
-    "massnahmen": {"sellita_notfall": sellita, "puffer_extra": {"uhrwerk": puffer}, "luftfracht_notfall": luft},
+    "massnahmen": {"sellita_notfall": sellita, "puffer_extra": {"uhrwerk": puffer}, "luftfracht_notfall": luft,
+                   "armband_italien": armband_it},
 }
 ids = tuple(["S0", *[s for s in auswahl if s != "S0"]])
 schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
@@ -162,7 +170,8 @@ schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
 uhrwerk_txt = "Miyota (JP), Notfallplan Sellita (CH) bereit" if sellita else "Miyota (JP)"
 st.title("Uhren-Supply-Chain Heilbronn")
 st.markdown(f'<div class="untertitel">Ereignisdiskrete Simulation · {de(menge)} Uhren pro Jahr · '
-            f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Uhrwerk von {uhrwerk_txt}</div>',
+            f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Uhrwerk von {uhrwerk_txt} · Lederarmband aus '
+            f'{"Italien" if armband_it else "Brasilien"}</div>',
             unsafe_allow_html=True)
 
 if menge == 0:
@@ -189,6 +198,7 @@ tab, erg_alle = vgl["tabelle"], vgl["ergebnisse"]
 lauf_mass = lauf_ov.get("massnahmen", {})
 sellita = bool(lauf_mass.get("sellita_notfall"))
 luft = bool(lauf_mass.get("luftfracht_notfall"))
+armband_it = bool(lauf_mass.get("armband_italien"))
 puffer = int((lauf_mass.get("puffer_extra") or {}).get("uhrwerk", 0) or 0)
 ziel_beta = float(pruefung.param["bewertung"]["mindestwerte"].get("beta", 0.95))
 zusage = int(pruefung.param["distribution"]["lieferzusage_tage"])
@@ -538,8 +548,8 @@ with o2:
     opt_sz = st.multiselect("Szenarien", list(SZ), default=list(SZ),
                             format_func=lambda s: f"{s} · {SZ[s]['name']}", key="opt_sz")
     opt_reps = st.slider("Wiederholungen je Kombination", 1, 20, 5, key="opt_reps")
-    st.caption(f"{len(opt_sz) * 12 * opt_reps} Simulationsläufe, etwa "
-               f"{de(len(opt_sz) * 12 * opt_reps * 0.25 / 60, 1)} Minuten.")
+    st.caption(f"{len(opt_sz) * len(kombinationen()) * opt_reps} Simulationsläufe, etwa "
+               f"{de(len(opt_sz) * len(kombinationen()) * opt_reps * 0.25 / 60, 1)} Minuten.")
 
 bewertung = {"methode": verfahren, "rangfolge": ziele or ["kosten_pro_uhr"],
              "gewichte": gewichte or {"kosten_pro_uhr": 1.0},
@@ -557,6 +567,8 @@ def massnahme_txt(r) -> str:
     teile = [f"Puffer {de(r.puffer_uhrwerk)} Stück" if r.puffer_uhrwerk else "kein Puffer"]
     if r.sellita_notfall:
         teile.append("Notfallplan Sellita")
+    if getattr(r, "armband_italien", False):
+        teile.append("Armband Italien")
     if r.luftfracht_notfall:
         teile.append("Notfallplan Luftfracht")
     return ", ".join(teile)
@@ -573,7 +585,9 @@ if "opt_detail" in st.session_state:
         st.success(f"Robuste Empfehlung: **{massnahme_txt(beste)}**. Lieferfähigkeit im schlechtesten Szenario "
                    f"{de(beste.beta_min * 100, 1)} %, im Mittel {de(beste.beta * 100, 1)} %, "
                    f"{de(beste.kosten_pro_uhr, 2)} € und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr, "
-                   f"{de(beste.fehlteil_tage, 1)} Tage Montagestillstand im Mittel.")
+                   f"{de(beste.fehlteil_tage, 1)} Tage Montagestillstand im Mittel. Bindet im Mittel "
+                   f"{de(beste.kapital_gebunden_eur)} € Kapital, die Zinsen darauf "
+                   f"({de(beste.kapitalbindung_pro_uhr, 2)} € je Uhr) sind in den Kosten enthalten.")
     else:
         st.warning(f"Keine Kombination erfüllt die Mindestanforderung in allen Szenarien. Am nächsten kommt "
                    f"**{massnahme_txt(beste)}** mit {de(beste.beta_min * 100, 1)} % im schlechtesten Szenario.")
@@ -583,16 +597,17 @@ if "opt_detail" in st.session_state:
                 "Kosten [€/Uhr]": d.kosten_pro_uhr.round(2).values,
                 "CO2e [g/Uhr]": (d.co2e_pro_uhr_kg * 1000).round(1).values,
                 "Lieferzeit 95 % [Tage]": d.lieferzeit_p95.round(1).values,
-                "Stillstand [Tage]": d.fehlteil_tage.round(1).values}
+                "Stillstand [Tage]": d.fehlteil_tage.round(1).values,
+                "davon Kapitalbindung [€/Uhr]": d.kapitalbindung_pro_uhr.round(2).values,
+                "Gebundenes Kapital Ø [€]": d.kapital_gebunden_eur.round(-2).astype(int).values}
 
     st.markdown("**Optimum je Szenario**")
     st.dataframe(pd.DataFrame({
         "Szenario": [f"{z} · {SZ[z]['name']}" if z in SZ else z for z in js.szenario],
         "Beste Maßnahmen": [massnahme_txt(x) for x in js.itertuples()]} | spalten(js) | {
         "Ziel erreicht": js.zulaessig.map({True: "✅", False: "❌"}).values,
-        "Gleich wie robuste Empfehlung": ["ja" if (x.puffer_uhrwerk, x.sellita_notfall, x.luftfracht_notfall)
-                                          == (beste.puffer_uhrwerk, beste.sellita_notfall, beste.luftfracht_notfall)
-                                          else "nein" for x in js.itertuples()],
+        "Gleich wie robuste Empfehlung": ["ja" if massnahme_txt(x) == massnahme_txt(beste) else "nein"
+                                          for x in js.itertuples()],
     }), width="stretch", hide_index=True)
     st.plotly_chart(viz.pareto_diagramm(r), width="stretch")
     st.markdown("**Alle Kombinationen über alle Szenarien** (Rang nach deinen Kriterien)")

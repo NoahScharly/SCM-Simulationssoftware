@@ -27,15 +27,18 @@ from .experiment import fuehre_aus
 STANDARD_RASTER: dict[str, list[Any]] = {
     "puffer_uhrwerk": [0, 500, 1000],
     "sellita_notfall": [False, True],
+    "armband_italien": [False, True],
     "luftfracht_notfall": [False, True],
 }
-KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage")
+KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage",
+              "kapitalbindung_pro_uhr", "kapital_gebunden_eur")
 
 
 def _massnahmen(kombination: dict[str, Any]) -> dict[str, Any]:
     return {
         "puffer_extra": {"uhrwerk": kombination["puffer_uhrwerk"]},
         "sellita_notfall": kombination["sellita_notfall"],
+        "armband_italien": kombination.get("armband_italien", False),
         "luftfracht_notfall": kombination["luftfracht_notfall"],
     }
 

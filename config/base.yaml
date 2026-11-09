@@ -63,6 +63,8 @@ massnahmen:
                                 # versandte Miyota-Aufträge werden storniert. Nach Wiederanlauf zurück zu Miyota.
                                 # Annahme: Gehäuse und Zifferblatt-Variante für SW300-1 sind vorab freigegeben.
   notfall_reaktion_tage: 3      # Ausfallmeldung bis erste Bestellung beim Ersatzlieferanten [A]
+  armband_italien: false        # Bezugsoption: Lederarmband komplett aus Italien (Santa Croce, Leder aus der Toskana)
+                                # statt Estancia Velha (Brasilien). Teurer, aber kurzer Lkw-Weg, kein Zoll, kein Seeweg.
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 5        # Reichweite, ab der Luftfracht ausgelöst wird
   luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird

@@ -197,3 +197,21 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
     fig = netzkarte(erg, schritt_tage=10)
     assert len(fig.frames[0].traces) == 8                      # je Karte Sendungen, Störung, Lieferant; 2 Balken
     assert len(fig.frames[0].data[-1].x) == len(erg.politik)
+
+
+# --------------------------------------------------------------------------- Bezugsoption und Kapital
+def test_armband_italien_ersetzt_brasilien_ohne_zoll():
+    m = lade_modell(None, {"massnahmen": {"armband_italien": True}})
+    assert m.primaerquelle("armband").lieferant == "santacroce_armband"
+    erg = simuliere(m, 0)
+    band = erg.log[erg.log.komponente == "armband"]
+    assert not (band.ort == "estancia_leder").any()
+    assert not (band.ereignis == "zollfreigabe").any()
+
+
+def test_mehr_bestand_bindet_kapital_und_kostet_zinsen():
+    ohne = kennzahlen(simuliere(lade_modell(None, KURZ), 0))
+    mit = kennzahlen(simuliere(lade_modell(None, KURZ | {"massnahmen": {"puffer_extra": {"uhrwerk": 1000}}}), 0))
+    # 1.000 Uhrwerke × 70 € = 70.000 € mehr gebundenes Kapital
+    assert mit["kapital_gebunden_eur"] - ohne["kapital_gebunden_eur"] == pytest.approx(70000, rel=0.15)
+    assert mit["kapitalbindung_pro_uhr"] > ohne["kapitalbindung_pro_uhr"]

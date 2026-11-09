@@ -34,7 +34,7 @@ Python 3.11 oder neuer.
 | Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 5 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
-| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht bei Reichweite < 5 Tage |
+| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht bei Reichweite < 5 Tage; Bezugsoption Lederarmband komplett aus Italien (Santa Croce, Lkw über den Brenner, kein Zoll) |
 | Kennzahlen | Kosten je Uhr, Lieferfähigkeit β, Lieferzeit (Mittel, 95-%-Quantil), CO2e je Uhr, TTS/TTR, Bestandsreichweite |
 | Zufall | Getrennte Zufallsströme je Quelle (SeedSequence), gleiche Ströme in allen Szenarien (Common Random Numbers) |
 
@@ -131,6 +131,11 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.
 - Ausfälle sind unabhängig; keine Retouren, kein Bullwhip-Effekt bis Tier 2, Kapitalbindung nur auf Lagerbestand.
 - Lieferzeit in Werktagen (`distribution.lieferzeit_einheit`), auf Kalendertage umstellbar.
+
+**Kapitalbindung im Vorschlag:** Der Puffer ist Vermögen, kein Aufwand. In die Kosten je Uhr gehen die Zinsen auf den
+durchschnittlich gebundenen Bestandswert ein (`kosten.kapitalzins_pa`). Die Optimierung zeigt zusätzlich
+"davon Kapitalbindung [€/Uhr]" und "Gebundenes Kapital Ø [€]", damit sichtbar ist, was eine Empfehlung an Kapital
+bindet. Beispiel: +1.000 Uhrwerke binden rund 70.000 € mehr und kosten bei 10 % rund 1,40 € je Uhr.
 
 ## Kennzeichnung der Urheberschaft (Aufgabenstellung 6.2)
 

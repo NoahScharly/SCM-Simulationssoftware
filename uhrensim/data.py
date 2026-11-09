@@ -277,6 +277,18 @@ def _pruefe_plausibilitaet(m: Modell) -> None:
             f"Einschwingphase {m.einschwingen:.0f} Tage ist kürzer als die längste WBZ ({laengste:.0f} Tage)")
 
 
+def _waehle_bezugsquelle(quellen: dict[str, list[Bezugsquelle]], komp: str, lieferant: str) -> None:
+    """Macht eine Option zum Primärlieferanten; der bisherige Primärlieferant wird zur Option."""
+    neu = next((q for q in quellen.get(komp, []) if q.lieferant == lieferant and q.rolle == "option"), None)
+    if neu is None:
+        raise KonfigurationsFehler(f"'{lieferant}' ist keine Bezugsoption für {komp}")
+    for q in quellen[komp]:
+        if q.rolle == "primaer":
+            q.rolle = "option"
+    neu.rolle = "primaer"
+    quellen[komp].sort(key=lambda q: 0 if q.rolle == "primaer" else 1)
+
+
 # --------------------------------------------------------------------------- Hauptfunktion
 def lade_modell(
     szenario: str | Path | dict | None = None,
@@ -298,6 +310,10 @@ def lade_modell(
     overrides = copy.deepcopy(overrides or {})
     wbz_wunsch = overrides.pop("wbz", {}) or {}
     param = tief_zusammenfuehren(param, overrides)
+
+    # Bezugsoption: Lederarmband komplett aus Italien statt Brasilien
+    if (param.get("massnahmen") or {}).get("armband_italien"):
+        _waehle_bezugsquelle(quellen, "armband", "santacroce_armband")
 
     for komp, tage in wbz_wunsch.items():
         if komp not in quellen:
