@@ -66,8 +66,14 @@ massnahmen:
   armband_italien: false        # Bezugsoption: Lederarmband komplett aus Italien (Santa Croce, Leder aus der Toskana)
                                 # statt Estancia Velha (Brasilien). Teurer, aber kurzer Lkw-Weg, kein Zoll, kein Seeweg.
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
-  luft_ausloeser_tage: 5        # Reichweite, ab der Luftfracht ausgelöst wird
-  luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird
+  luft_ausloeser_tage: 8        # Reichweite, ab der Luftfracht ausgelöst wird; muss über der Luft-WBZ liegen
+                                # (2 Tage Eilfertigung + Lkw + Flug + Zoll + Umschlag = rund 6 bis 7 Tage)
+  luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird (Reichweiten-Auslöser)
+  luft_bei_wiederanlauf: true   # nach Lieferantenausfall: erste Lieferung als Brücke per Flugzeug
+  luft_nur_im_stoerfall: true   # Reichweiten-Auslöser nur bei Versorgungsstörung der Komponente (Lieferant,
+                                # Vorlieferant, Knoten oder Kante der Route) und im Nachlauf, nie im Normalbetrieb
+  luft_nachlauf_tage: 90        # so lange nach Störungsende darf noch geflogen werden (rund längste WBZ) [A]
+  luft_eilzuschlag: 0.25        # Aufschlag auf den Stückpreis für Eilfertigung und Priorisierung [A]
 
 handlungsoptionen:              # werden nach dem Start für jedes gewählte Szenario automatisch durchgerechnet
   - id: keine                   # Referenz: nur die eingebauten Reaktionen des Modells
@@ -89,7 +95,8 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
   - id: luftfracht
     name: Notfallplan Luftfracht
     kurz: Luftfracht
-    beschreibung: Droht ein Fehlteil (Reichweite unter Auslöser), wird der Bedarf per Flugzeug nachgeliefert
+    beschreibung: Nach einem Lieferantenausfall kommt die erste Lieferung als Brücke per Flugzeug (Eilfertigung mit
+      Aufschlag), danach wieder Seeweg; zusätzlich Eilbezug, wenn die Reichweite unter den Auslöser fällt
     massnahmen: {luftfracht_notfall: true}
   - id: armband_italien
     name: Lederarmband aus Italien
@@ -114,5 +121,7 @@ sensitivitaet:                  # One-at-a-time (Folie 11): python -m uhrensim -
   montage.uhren_pro_mitarbeiter_tag: [2, 3, 5, 7]
   transport.zoll_tage: [[0.5, 1, 2], [1, 2, 4]]
   emissionen.verpackungsfaktor: [1.2, 1.5, 1.8]
+  massnahmen.luft_eilzuschlag: [0.0, 0.25, 0.5]     # wirkt nur mit Notfallplan Luftfracht (Szenario S1)
+  kosten.transport_eur_tkm.luft: [0.6, 3.0]         # Spotrate Linie (BAI 2026) vs. Express-Kleinsendung [A]
 
 stoerungen: []                  # werden von Szenarien gefüllt

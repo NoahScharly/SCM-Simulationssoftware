@@ -20,5 +20,6 @@ rotterdam,Hafen Rotterdam,hafen,,NL,51.95,4.14,1,Poster
 hamburg,Hafen Hamburg,hafen,,DE,53.54,9.97,1,Poster
 bremerhaven,Hafen Bremerhaven (Ausweichhafen),hafen,,DE,53.55,8.58,1,Poster Alternative S3
 frankfurt,Flughafen Frankfurt,flughafen,,DE,50.03,8.57,1,[A] Notfallweg
+narita,Flughafen Tokio-Narita,flughafen,,JP,35.77,140.39,0,[A] Notfallweg Uhrwerk (Nagano hat keinen Frachtflughafen)
 heilbronn,Montage und Lager Heilbronn,werk,,DE,49.14,9.22,0,Poster
 kunden_de,Kunden Deutschland,kunde,,DE,51.00,10.30,0,Poster

@@ -62,3 +62,25 @@ def test_robuste_option_nutzt_schlechtestes_szenario(vergleich):
     r = robuste_option(vergleich["detail"], 0.95, ["kosten_pro_uhr"])
     assert r.iloc[0].option == "sellita"
     assert r.set_index("option").loc[REFERENZ, "beta_min"] < 0.95
+
+
+def test_luftfracht_brueckenlieferung_nach_ausfall():
+    """S1: Während des Ausfalls wird nicht geflogen, beim Wiederanlauf kommt eine Brückenlieferung per Flugzeug."""
+    from uhrensim.experiment import fuehre_aus
+    e = fuehre_aus(szenario_pfad("S1"), {"massnahmen": {"luftfracht_notfall": True}}, 1)
+    erg = e["beispiellauf"]
+    log, m = erg.log, erg.modell
+    st = m.stoerungen[0]
+    bruecke = log[log.ereignis == "luft_wiederanlauf"]
+    assert len(bruecke) == 1 and bruecke.zeit.iloc[0] == pytest.approx(st.ende)
+    flug = log[(log.ereignis == "abfahrt") & log.kante.astype(str).str.contains("luft")]
+    assert not ((flug.zeit > st.start) & (flug.zeit < st.ende)).any()
+    # Eilzuschlag: Notfallbestellung teurer als regulärer Stückpreis
+    b = log[(log.ereignis == "bestellung") & (log.objekt_id.isin(flug.objekt_id))].iloc[0]
+    assert b.kosten_eur > b.menge * m.primaerquelle(b.komponente).preis_eur
+
+
+def test_luftfracht_nicht_im_normalbetrieb():
+    from uhrensim.experiment import fuehre_aus
+    z = fuehre_aus(szenario_pfad("S0"), {"massnahmen": {"luftfracht_notfall": True}}, 2)["zusammenfassung"]
+    assert z.loc["luftfracht_sendungen", "mittel"] == 0

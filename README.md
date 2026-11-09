@@ -35,7 +35,7 @@ Python 3.11 oder neuer.
 | Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 5 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
-| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht bei Reichweite < 5 Tage; Bezugsoption Lederarmband komplett aus Italien (Santa Croce, Lkw über den Brenner, kein Zoll) |
+| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht: nach Lieferantenausfall Brückenlieferung per Flugzeug beim Wiederanlauf (Eilfertigung 2 Tage, 25 % Eilzuschlag [A], Lkw Nagano-Narita, Flug nach Frankfurt), sonst bei Versorgungsstörung und Reichweite < 8 Tage; Bezugsoption Lederarmband komplett aus Italien (Santa Croce, Lkw über den Brenner, kein Zoll) |
 | Kennzahlen | Kosten je Uhr, Lieferfähigkeit β, Lieferzeit (Mittel, 95-%-Quantil), CO2e je Uhr, TTS/TTR, Bestandsreichweite |
 | Zufall | Getrennte Zufallsströme je Quelle (SeedSequence), gleiche Ströme in allen Szenarien (Common Random Numbers) |
 
@@ -136,7 +136,7 @@ jeder Start dieselben Zahlen liefert.
 | Ohne Maßnahme | Bestellpunktverfahren und automatische Ausweichroute | Referenz |
 | Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | immer |
 | Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | nur bei Ausfall Miyota |
-| Notfallplan Luftfracht | Eilbezug per Flugzeug | nur bei Reichweite < 5 Tage |
+| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | nur bei Versorgungsstörung: beim Wiederanlauf des Lieferanten oder Reichweite < 8 Tage, nie im Normalbetrieb |
 | Lederarmband aus Italien | Lkw statt Seeweg, teurer | immer |
 
 | Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |

@@ -48,6 +48,11 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    versteckt." Umsetzung: Modul `handlungsoptionen.py`, Optionen in `base.yaml`, App-Ablauf neu, Seed unter
    Experteneinstellungen, 6 neue Tests.
 
+11. (09.11.2026, Luftfracht in S1) "Bei S1: Uhrwerk fällt 60 Tage aus. Weil es Notfall ist und schneller Uhrwerke
+   gebraucht werden, um Stillstand zu minimieren, holt man die erste Lieferung per Flugzeug. Das ist dann aber bei
+   den Werken schon teuer, das muss in der Datenbasis richtig sein." Umsetzung: Brückenlieferung beim Wiederanlauf,
+   Eilzuschlag, Luftfracht nur bei Versorgungsstörung, Route über Narita, Auslöser über Luft-WBZ, 2 neue Tests.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
@@ -64,6 +69,9 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Schwellen für Vor- und Nachteile (z. B. 0,5 Pp Lieferfähigkeit, 0,10 € je Uhr), darunter gilt eine Option als
   "nicht ausgelöst"
 - Puffer-Option mit 1.000 Uhrwerken als einzelne Handlungsoption
+- Brückenmenge = Bedarf bis zur ersten regulären Ankunft + Sicherheitsbestand - Lager - versandte Ware
+- Eilzuschlag 25 % [A], Nachlauf 90 Tage [A], Auslöser 8 Tage (über Luft-WBZ von rund 6 bis 7 Tagen)
+- Vorlauf Lkw Nagano-Narita 290 km [A], Flug NRT-FRA 9.350 km [A]
 
 ## Vorgenommene Änderungen
 
@@ -71,6 +79,6 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 
 ## Fachliche und technische Prüfungen
 
-- 32 automatische Tests (`pytest -q`), davon 6 für den Optionsvergleich: Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 34 automatische Tests (`pytest -q`), davon 8 für Optionsvergleich und Luftfracht: Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

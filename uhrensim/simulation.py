@@ -351,8 +351,9 @@ class Simulation:
              "typ": typ, "status": "fertigung", "storniert": False, "t_bestellung": self.env.now}
         self.pipeline[komp] += menge
         self.offen[komp].append(b)
+        zuschlag = float(self.p["massnahmen"].get("luft_eilzuschlag", 0.0)) if typ == "notfall" else 0.0
         self._log("bestellung", b["id"], "bestellung", quelle.lieferant, menge, komponente=komp, neu="bestellt",
-                  kosten=menge * self.preis(quelle, self.env.now), kategorie="einkauf")
+                  kosten=menge * self.preis(quelle, self.env.now) * (1 + zuschlag), kategorie="einkauf")
         self.env.process(self._lieferant(b, quelle))
         return b
 
@@ -485,11 +486,30 @@ class Simulation:
                   neu="verfuegbar")
 
     # ================================================================ Eilbezug
+    def _im_stoerfall(self, t: float, komp: str) -> bool:
+        """Notfallplan Luftfracht gilt nur bei einer Versorgungsstörung dieser Komponente und im Nachlauf danach.
+
+        Versorgungsstörung = Ausfall des Lieferanten, eines Vorlieferanten oder eines Knotens auf der regulären
+        Route, oder Sperrung einer Kante dieser Route. Nachfragespitzen oder Normalbetrieb lösen keinen Flug aus.
+        """
+        if not self.p["massnahmen"].get("luft_nur_im_stoerfall", True):
+            return True
+        nach = float(self.p["massnahmen"].get("luft_nachlauf_tage", 90))
+        q = self.aktive_quelle[komp]
+        kanten = {kid for r in self._routen(q.lieferant, False) for kid in r.kanten}
+        knoten = {q.lieferant, *q.tier2} | {self.m.kanten[kid].nach for kid in kanten}
+        for st in self.m.stoerungen:
+            if not st.start <= t <= st.ende + nach:
+                continue
+            if (st.typ == "knoten_ausfall" and st.ziel in knoten) or (st.typ == "kanten_sperre" and st.ziel in kanten):
+                return True
+        return False
+
     def _luftfracht(self):
         mass = self.p["massnahmen"]
         while self.env.now < self.H:
             for k, pol in self.politik.items():
-                if self.luft_offen[k] or pol.bedarf_tag <= 0:
+                if self.luft_offen[k] or pol.bedarf_tag <= 0 or not self._im_stoerfall(self.env.now, k):
                     continue
                 q = self.aktive_quelle[k]
                 if not self._routen(q.lieferant, notfall=True) or self.lieferant_unten(q, self.env.now):
@@ -498,6 +518,37 @@ class Simulation:
                     self.luft_offen[k] = True
                     self.bestelle(k, float(math.ceil(mass["luft_menge_tage"] * pol.bedarf_tag)), q, typ="notfall")
             yield self.env.timeout(1.0)
+
+    def _luft_wiederanlauf(self, s):
+        """Brückenlieferung per Luftfracht, sobald ein ausgefallener Lieferant wieder produziert.
+
+        Während des Ausfalls kann nichts geflogen werden (es wird nichts gefertigt). Beim Wiederanlauf wird der
+        Bedarf bis zur Ankunft der ersten regulären Seesendung (plus Sicherheitsbestand) abzüglich Lager und
+        bereits versandter Ware als Eilauftrag per Flugzeug bestellt. Danach übernimmt wieder der Seeweg.
+        """
+        yield self.env.timeout(max(0.0, s.ende - self.env.now))
+        for k, pol in self.politik.items():
+            q = self.aktive_quelle[k]
+            if s.ziel not in (q.lieferant, *q.tier2) or pol.bedarf_tag <= 0 or self.luft_offen[k]:
+                continue
+            if not self._routen(q.lieferant, notfall=True):
+                continue
+            transport_plan = max(q.wbz_min_tage - q.fertigung_tage, 0.0)
+            ankunft = [self._fertigungsende(q, b["t_bestellung"], q.fertigung_tage + q.wbz_zuschlag_tage)
+                       + transport_plan for b in self.offen[k]
+                       if b["typ"] == "regulaer" and not b["storniert"] and b["status"] in ("fertigung", "wartet")
+                       and b["lieferant"] == q.lieferant]
+            if not ankunft:
+                continue
+            versandt = sum(b["menge"] for b in self.offen[k] if b["status"] == "transport" and not b["storniert"])
+            bedarf = pol.bedarf_tag * (min(ankunft) - self.env.now) + pol.sicherheitsbestand
+            menge = math.ceil(max(0.0, bedarf - self.bestand[k] - versandt))
+            if menge <= 0:
+                continue
+            self.luft_offen[k] = True
+            self._log("luft_wiederanlauf", k, "notfallplan", q.lieferant, float(menge), komponente=k,
+                      alt="ausfall_beendet", neu="brueckenlieferung")
+            self.bestelle(k, float(menge), q, typ="notfall")
 
     # ================================================================ Notfallplan Ersatzlieferant
     def _notfallplan(self, s, komp: str, primaer: Bezugsquelle, ersatz: Bezugsquelle):
@@ -564,6 +615,10 @@ class Simulation:
             self.env.process(self._luftfracht())
         for s in self.m.stoerungen:
             self.env.process(self._stoerung(s))
+            if (s.typ == "knoten_ausfall" and self.p["massnahmen"].get("luftfracht_notfall")
+                    and self.p["massnahmen"].get("luft_bei_wiederanlauf", True)
+                    and math.isfinite(s.ende) and s.ende < self.H):
+                self.env.process(self._luft_wiederanlauf(s))
             if s.typ == "knoten_ausfall" and self.p["massnahmen"].get("sellita_notfall"):
                 for k in self.m.komponenten:
                     q, ersatz = self.m.primaerquelle(k), self.m.alternativquelle(k)
