@@ -21,7 +21,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
 from uhrensim.experiment import vergleiche  # noqa: E402
-from uhrensim.optimization import szenario_optimierung  # noqa: E402
+from uhrensim.optimization import optimum_je_szenario, raster_detail, robuste_empfehlung  # noqa: E402
 
 st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
@@ -491,74 +491,120 @@ with st.expander("Wie sicher sind die Ergebnisse?"):
     st.dataframe(viz.kennzahlentabelle(tab), width="stretch", hide_index=True)
     st.download_button("Kennzahlen als CSV", tab.to_csv().encode("utf-8"), "kennzahlen.csv", "text/csv")
 
-with st.expander("Beste Maßnahmen je Szenario finden (Optimierung)"):
-    st.markdown("Probiert für **jedes Szenario** alle 12 Kombinationen aus Uhrwerk-Puffer (0, 500, 1.000 Stück), "
-                "Notfallplan Sellita und Notfallplan Luftfracht durch. Ergebnis: das Optimum je Szenario und eine "
-                "**robuste Empfehlung**, die in allen gewählten Szenarien das Lieferversprechen hält und dabei "
-                "im Mittel am günstigsten ist. Da man vorher nicht weiß, welche Störung eintritt, ist die "
-                "robuste Empfehlung die eigentliche Entscheidung.")
-    c1, c2, c3 = st.columns([3, 1, 2])
-    opt_sz = c1.multiselect("Szenarien", list(SZ), default=list(SZ),
-                            format_func=lambda s: f"{s} · {SZ[s]['name']}")
-    opt_reps = c2.slider("Wiederholungen", 1, 20, 5)
-    methode = c3.selectbox("Bewertung", ["mindestwerte", "gewichtet", "lexikografisch"],
-                           format_func={"mindestwerte": "Lieferfähigkeit ≥ Ziel, dann günstigste",
-                                        "gewichtet": "Gewichtete Summe aus Kosten, CO2e, Lieferzeit",
-                                        "lexikografisch": "Rangfolge: Lieferfähigkeit, CO2e, Kosten"}.get)
-    st.caption(f"{len(opt_sz) * 12 * opt_reps} Simulationsläufe, etwa {de(len(opt_sz) * 12 * opt_reps * 0.25 / 60, 1)} "
-               "Minuten.")
-    if st.button("Optimierung starten") and opt_sz:
-        bal = st.progress(0.0)
-        ov = {k: v for k, v in overrides.items() if k != "massnahmen"}
-        bewertung = pruefung.param["bewertung"] | {"methode": methode}
-        st.session_state["opt"] = szenario_optimierung(
-            [SZ[s]["pfad"] for s in opt_sz], overrides=ov, replikationen=opt_reps, bewertung=bewertung,
-            fortschritt=lambda i, n: bal.progress(i / n, text=f"Lauf {i} von {n}"))
-        bal.empty()
+# --------------------------------------------------------------------------- Optimierung
+st.markdown("### Optimierung: beste Maßnahmen je Szenario")
+st.markdown("Probiert für **jedes Szenario** alle 12 Kombinationen aus Uhrwerk-Puffer (0, 500, 1.000 Stück), "
+            "Notfallplan Sellita und Notfallplan Luftfracht durch. Ergebnis: das Optimum je Szenario und eine "
+            "**robuste Empfehlung**, die in allen gewählten Szenarien die Mindestanforderung erfüllt und nach deinen "
+            "Zielkriterien am besten abschneidet. Da man vorher nicht weiß, welche Störung eintritt, ist die "
+            "robuste Empfehlung die eigentliche Entscheidung.")
 
-    def massnahme_txt(r) -> str:
-        teile = [f"Puffer {de(r.puffer_uhrwerk)} Stück" if r.puffer_uhrwerk else "kein Puffer"]
-        if r.sellita_notfall:
-            teile.append("Notfallplan Sellita")
-        if r.luftfracht_notfall:
-            teile.append("Notfallplan Luftfracht")
-        return ", ".join(teile)
+KRIT = {"beta": "Lieferfähigkeit", "kosten_pro_uhr": "Kosten je Uhr", "co2e_pro_uhr_kg": "CO2e je Uhr",
+        "lieferzeit_p95": "Lieferzeit (95 %)", "fehlteil_tage": "Montagestillstand"}
+o1, o2 = st.columns([3, 2])
+with o1:
+    st.markdown("**1 · Zielkriterien und Priorität**")
+    ziele = st.multiselect(
+        "Kriterien in der Reihenfolge ihrer Priorität auswählen (zuerst gewählt = wichtigstes)",
+        list(KRIT), default=["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg"], format_func=KRIT.get, key="opt_ziele")
+    verfahren = st.radio(
+        "Wie sollen die Kriterien verrechnet werden?",
+        ["lexikografisch", "gewichtet"], horizontal=True, key="opt_verfahren",
+        format_func={"lexikografisch": "Streng nach Priorität",
+                     "gewichtet": "Gewichtet"}.get,
+        help="Streng nach Priorität: Das erste Kriterium entscheidet; nur bei Gleichstand zählt das nächste. "
+             "Gewichtet: Jedes Kriterium wird auf 0 bis 1 normiert und mit seinem Gewicht addiert, ein guter Wert "
+             "bei einem Kriterium kann einen schlechten bei einem anderen ausgleichen.")
+    gewichte = {}
+    if verfahren == "gewichtet" and ziele:
+        n = len(ziele)
+        start = [round(100 * (n - i) / (n * (n + 1) / 2)) for i in range(n)]
+        gcols = st.columns(n)
+        for c, kz, w0 in zip(gcols, ziele, start):
+            gewichte[kz] = c.slider(f"Gewicht {KRIT[kz]}", 0, 100, w0, 5, format="%d %%", key=f"opt_w_{kz}")
+        summe = sum(gewichte.values()) or 1
+        gewichte = {k: v / summe for k, v in gewichte.items()}
+        st.caption("Gewichte werden auf 100 % normiert: " +
+                   " · ".join(f"{KRIT[k]} {de(v * 100)} %" for k, v in gewichte.items()))
+    elif ziele:
+        st.caption("Priorität: " + " → ".join(f"{i + 1}. {KRIT[k]}" for i, k in enumerate(ziele)))
+with o2:
+    st.markdown("**2 · Mindestanforderung**")
+    mit_min = st.checkbox("Lieferfähigkeit muss erreicht werden", value=True, key="opt_min_an")
+    min_beta = st.slider("Mindest-Lieferfähigkeit (im schlechtesten Szenario)", 80, 100,
+                         int(round(pruefung.param["bewertung"]["mindestwerte"].get("beta", 0.95) * 100)), 1,
+                         format="%d %%", disabled=not mit_min, key="opt_min")
+    st.markdown("**3 · Umfang**")
+    opt_sz = st.multiselect("Szenarien", list(SZ), default=list(SZ),
+                            format_func=lambda s: f"{s} · {SZ[s]['name']}", key="opt_sz")
+    opt_reps = st.slider("Wiederholungen je Kombination", 1, 20, 5, key="opt_reps")
+    st.caption(f"{len(opt_sz) * 12 * opt_reps} Simulationsläufe, etwa "
+               f"{de(len(opt_sz) * 12 * opt_reps * 0.25 / 60, 1)} Minuten.")
 
-    if "opt" in st.session_state:
-        o = st.session_state["opt"]
-        r = o["robust"].sort_values("rang")
-        beste = r.iloc[0]
-        if beste.zulaessig:
-            st.success(f"Robuste Empfehlung: **{massnahme_txt(beste)}**. Lieferfähigkeit im schlechtesten Szenario "
-                       f"{de(beste.beta_min * 100, 1)} %, im Mittel {de(beste.beta * 100, 1)} %, "
-                       f"{de(beste.kosten_pro_uhr, 2)} € und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr.")
-        else:
-            st.warning(f"Keine Kombination hält das Lieferversprechen in allen Szenarien. Am nächsten kommt "
-                       f"**{massnahme_txt(beste)}** mit {de(beste.beta_min * 100, 1)} % im schlechtesten Szenario.")
-        js = o["je_szenario"]
-        st.markdown("**Optimum je Szenario**")
-        st.dataframe(pd.DataFrame({
-            "Szenario": [f"{s} · {SZ[s]['name']}" if s in SZ else s for s in js.szenario],
-            "Beste Maßnahmen": [massnahme_txt(x) for x in js.itertuples()],
-            "Lieferfähigkeit [%]": (js.beta * 100).round(1),
-            "Kosten [€/Uhr]": js.kosten_pro_uhr.round(2),
-            "CO2e [g/Uhr]": (js.co2e_pro_uhr_kg * 1000).round(1),
-            "Ziel erreicht": js.zulaessig.map({True: "✅", False: "❌"}),
-            "Wie Empfehlung": ["ja" if (x.puffer_uhrwerk, x.sellita_notfall, x.luftfracht_notfall)
-                               == (beste.puffer_uhrwerk, beste.sellita_notfall, beste.luftfracht_notfall)
-                               else "nein" for x in js.itertuples()],
-        }), width="stretch", hide_index=True)
-        st.plotly_chart(viz.pareto_diagramm(r), width="stretch")
-        st.markdown("**Alle Kombinationen über alle Szenarien**")
-        st.dataframe(pd.DataFrame({
-            "Rang": r.rang, "Maßnahmen": [massnahme_txt(x) for x in r.itertuples()],
-            "Lieferfähigkeit schlechtestes Szenario [%]": (r.beta_min * 100).round(1),
-            "Lieferfähigkeit Mittel [%]": (r.beta * 100).round(1),
-            "Kosten Mittel [€/Uhr]": r.kosten_pro_uhr.round(2), "CO2e [g/Uhr]": (r.co2e_pro_uhr_kg * 1000).round(1),
-            "Ziel überall erreicht": r.zulaessig.map({True: "✅", False: "❌"}),
-        }), width="stretch", hide_index=True)
-        st.download_button("Alle Läufe als CSV", o["detail"].to_csv(index=False).encode("utf-8"),
-                           "optimierung_detail.csv", "text/csv")
+bewertung = {"methode": verfahren, "rangfolge": ziele or ["kosten_pro_uhr"],
+             "gewichte": gewichte or {"kosten_pro_uhr": 1.0},
+             "mindestwerte": {"beta": min_beta / 100} if mit_min else {}}
+if st.button("Optimierung starten", type="primary") and opt_sz:
+    bal = st.progress(0.0)
+    ov = {k: v for k, v in overrides.items() if k != "massnahmen"}
+    st.session_state["opt_detail"] = raster_detail(
+        [SZ[s]["pfad"] for s in opt_sz], overrides=ov, replikationen=opt_reps,
+        fortschritt=lambda i, n: bal.progress(i / n, text=f"Lauf {i} von {n}"))
+    bal.empty()
+
+
+def massnahme_txt(r) -> str:
+    teile = [f"Puffer {de(r.puffer_uhrwerk)} Stück" if r.puffer_uhrwerk else "kein Puffer"]
+    if r.sellita_notfall:
+        teile.append("Notfallplan Sellita")
+    if r.luftfracht_notfall:
+        teile.append("Notfallplan Luftfracht")
+    return ", ".join(teile)
+
+
+if "opt_detail" in st.session_state:
+    detail = st.session_state["opt_detail"]
+    st.caption("Die Simulationsergebnisse bleiben gespeichert. Änderst du Kriterien, Priorität oder Mindestwert, "
+               "wird die Rangfolge sofort neu berechnet, ohne neu zu simulieren.")
+    js = optimum_je_szenario(detail, bewertung)
+    r = robuste_empfehlung(detail, bewertung).sort_values("rang")
+    beste = r.iloc[0]
+    if beste.zulaessig:
+        st.success(f"Robuste Empfehlung: **{massnahme_txt(beste)}**. Lieferfähigkeit im schlechtesten Szenario "
+                   f"{de(beste.beta_min * 100, 1)} %, im Mittel {de(beste.beta * 100, 1)} %, "
+                   f"{de(beste.kosten_pro_uhr, 2)} € und {de(beste.co2e_pro_uhr_kg * 1000, 1)} g CO2e je Uhr, "
+                   f"{de(beste.fehlteil_tage, 1)} Tage Montagestillstand im Mittel.")
+    else:
+        st.warning(f"Keine Kombination erfüllt die Mindestanforderung in allen Szenarien. Am nächsten kommt "
+                   f"**{massnahme_txt(beste)}** mit {de(beste.beta_min * 100, 1)} % im schlechtesten Szenario.")
+
+    def spalten(d: pd.DataFrame) -> dict:
+        return {"Lieferfähigkeit [%]": (d.beta * 100).round(1).values,
+                "Kosten [€/Uhr]": d.kosten_pro_uhr.round(2).values,
+                "CO2e [g/Uhr]": (d.co2e_pro_uhr_kg * 1000).round(1).values,
+                "Lieferzeit 95 % [Tage]": d.lieferzeit_p95.round(1).values,
+                "Stillstand [Tage]": d.fehlteil_tage.round(1).values}
+
+    st.markdown("**Optimum je Szenario**")
+    st.dataframe(pd.DataFrame({
+        "Szenario": [f"{z} · {SZ[z]['name']}" if z in SZ else z for z in js.szenario],
+        "Beste Maßnahmen": [massnahme_txt(x) for x in js.itertuples()]} | spalten(js) | {
+        "Ziel erreicht": js.zulaessig.map({True: "✅", False: "❌"}).values,
+        "Gleich wie robuste Empfehlung": ["ja" if (x.puffer_uhrwerk, x.sellita_notfall, x.luftfracht_notfall)
+                                          == (beste.puffer_uhrwerk, beste.sellita_notfall, beste.luftfracht_notfall)
+                                          else "nein" for x in js.itertuples()],
+    }), width="stretch", hide_index=True)
+    st.plotly_chart(viz.pareto_diagramm(r), width="stretch")
+    st.markdown("**Alle Kombinationen über alle Szenarien** (Rang nach deinen Kriterien)")
+    st.dataframe(pd.DataFrame({
+        "Rang": r.rang.values, "Maßnahmen": [massnahme_txt(x) for x in r.itertuples()],
+        "Lieferfähigkeit schlechtestes Szenario [%]": (r.beta_min * 100).round(1).values} | spalten(r) | {
+        "Mindestanforderung überall erfüllt": r.zulaessig.map({True: "✅", False: "❌"}).values,
+    }), width="stretch", hide_index=True)
+    st.download_button("Alle Läufe als CSV", detail.to_csv(index=False).encode("utf-8"),
+                       "optimierung_detail.csv", "text/csv")
+else:
+    st.info("Noch keine Optimierung gerechnet. Kriterien wählen und „Optimierung starten“ drücken.")
 
 with st.expander("Modell und Daten"):
     st.markdown("**Nachschub je Komponente (Bestellpunktverfahren)**  \n"
