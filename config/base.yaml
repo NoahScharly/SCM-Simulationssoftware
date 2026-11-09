@@ -74,14 +74,25 @@ massnahmen:
                                 # Vorlieferant, Knoten oder Kante der Route) und im Nachlauf, nie im Normalbetrieb
   luft_nachlauf_tage: 90        # so lange nach Störungsende darf noch geflogen werden (rund längste WBZ) [A]
   luft_eilzuschlag: 0.25        # Aufschlag auf den Stückpreis für Eilfertigung und Priorisierung [A]
+  ausweichroute: false          # gesperrte Abschnitte umfahren (Bahn statt Binnenschiff, Bremerhaven statt Hamburg);
+                                # ohne diese Maßnahme wartet die Ware, bis der reguläre Weg wieder frei ist
+  saison_bestand: {}            # Saisonbestand: z. B. {monate: [8, 9, 10, 11], extra_tage: 20} hebt den Meldebestand
+                                # aller Komponenten vor der Spitze an (Aufbau ab August wegen langer WBZ)
+  saison_vorproduktion: {}      # z. B. {monate: [10, 11, 12], ziel_tage: 30} höherer Fertigwarenvorrat
 
 handlungsoptionen:              # werden nach dem Start für jedes gewählte Szenario automatisch durchgerechnet
   - id: keine                   # Referenz: nur die eingebauten Reaktionen des Modells
     name: Ohne Maßnahme
     kurz: Ohne Maßnahme
-    beschreibung: Bestellpunktverfahren und automatische Ausweichroute (z. B. Bremerhaven statt Hamburg, Bahn statt
-      Binnenschiff), keine zusätzliche Vorsorge
+    beschreibung: Nur das Bestellpunktverfahren; bei einer Sperre wartet die Ware, bis der reguläre Weg wieder frei
+      ist; keine zusätzliche Vorsorge
     massnahmen: {}
+  - id: ausweichroute
+    name: Ausweichroute (Bahn / Bremerhaven)
+    kurz: Ausweichroute
+    beschreibung: Gesperrte Abschnitte werden umfahren, Bahn Rotterdam-Heilbronn statt Binnenschiff über Kaub,
+      Bremerhaven statt Hamburg; ohne diese Maßnahme wartet die Ware vor der Sperre
+    massnahmen: {ausweichroute: true}
   - id: puffer
     name: Uhrwerk-Puffer +1.000 Stück
     kurz: Mehr Bestand
@@ -103,12 +114,18 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
     kurz: Armband Italien
     beschreibung: Bezugsoption Santa Croce (IT) statt Estancia Velha (BR), teurer, aber Lkw statt Seeweg und kein Zoll
     massnahmen: {armband_italien: true}
+  - id: saisonbestand
+    name: Saisonbestand aufbauen
+    kurz: Saisonbestand
+    beschreibung: Von August bis November liegt der Meldebestand aller Komponenten 20 Tage Bedarf höher, damit vor
+      der Spitze genug Teile im Lager sind (Aufbau früh wegen langer Wiederbeschaffung) [A]
+    massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20}}
 
 entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Abschnitt 1 bis 3), dort änderbar
   anforderungen:                # Stufe 1: Mindestanforderungen (Grenze je Zielkriterium)
     beta: 0.95                  # Lieferfähigkeit mindestens 95 % (Poster: Zielkriterium mit Mindestwert)
     lieferzeit_p95: 3           # 95 % der Kunden spätestens nach 3 Werktagen (= Lieferzusage)
-  prioritaet: [beta, kosten_pro_uhr, co2e_pro_uhr_kg, lieferzeit_p95]   # Stufe 2: oben = wichtigst, ROC-Gewichte
+  prioritaet: [beta, fehlteil_tage, kosten_pro_uhr, co2e_pro_uhr_kg]    # Stufe 2: oben = wichtigst, ROC-Gewichte
 
 bewertung:
   methode: mindestwerte         # mindestwerte | gewichtet | lexikografisch

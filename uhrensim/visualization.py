@@ -123,15 +123,16 @@ def _bestandsdaten(erg: Ergebnis) -> dict[str, Any]:
     fenster = t[t.index >= W]
     xmax = max(((fenster[f"bestand_{k}"] + fenster[f"unterwegs_{k}"]) / bed[k]).max() for k in komps) if komps else 1
     return {"komps": komps, "namen": namen, "bedarf": bed, "tage": t, "bestellungen": best,
-            "melde": [erg.politik[k].meldebestand / bed[k] for k in komps], "xmax": float(xmax) * 1.15}
+            "melde": [erg.politik[k].meldebestand / bed[k] for k in komps], "xmax": float(xmax) * 1.42,
+            "xstatus": float(xmax) * 1.40}
 
 
 def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar | go.Scatter]:
-    """Bestandsbalken zum Zeitpunkt t.
+    """Bestandsbalken zum Zeitpunkt t (Tagesabschluss unmittelbar vor t).
 
-    Zustand und Beschriftung kommen aus demselben Zeitfenster: Gezeigt wird der Tagesabschluss unmittelbar vor t,
-    "bestellt" markiert Bestellungen zwischen dem vorigen Bild und diesem (t - schritt, t]. So springt der helle
-    Balken genau in dem Bild nach rechts, in dem auch "bestellt" steht (vorher konnte das um ein Bild versetzt sein).
+    Statt eines kurz aufblinkenden Hinweises steht rechts je Komponente ein ruhiger Status:
+    "↻ in 12 T" = in etwa 12 Tagen erreicht der helle Balken den Meldebestand, dann wird nachbestellt;
+    "✓ vor 3 T" = vor 3 Tagen wurde nachbestellt (wird 10 Tage lang angezeigt).
     """
     tage = bd["tage"]
     tag = int(min(max(math.ceil(t) - 1, tage.index.min()), tage.index.max()))
@@ -141,20 +142,29 @@ def _bestand_spuren(bd: dict[str, Any], t: float, schritt: float) -> list[go.Bar
     position = [(z[f"bestand_{k}"] + z[f"unterwegs_{k}"]) / bd["bedarf"][k] for k in bd["komps"]]
     stueck = [z[f"bestand_{k}"] for k in bd["komps"]]
     b = bd["bestellungen"]
-    neu = set(b[(b.zeit > t_stand - schritt) & (b.zeit <= t_stand)].komponente)
-    farbe, txt = [], []
-    for k, n, r in zip(bd["komps"], stueck, bestand):
-        bestellt = k in neu
-        farbe.append(ROT if r < 5 else ("#C9A227" if bestellt else BRAUN))
-        txt.append(f"{n:.0f} Stk · {r:.0f} T" + ("  ⟵ bestellt" if bestellt else ""))
+    b = b[b.zeit <= t_stand]
+    letzte = b.groupby("komponente").zeit.max().to_dict() if not b.empty else {}
+    status, status_farbe = [], []
+    for k, p, s in zip(bd["komps"], position, bd["melde"]):
+        seit = t_stand - letzte.get(k, -math.inf)
+        if seit < 10:
+            status.append(f"✓ vor {max(seit, 0):.0f} T")
+            status_farbe.append("#5B7F3A")
+        else:
+            status.append(f"↻ in {max(p - s, 0):.0f} T")
+            status_farbe.append(GRAU)
+    txt = [f"{n:.0f} Stk · {r:.0f} T" for n, r in zip(stueck, bestand)]
     return [
         go.Bar(y=bd["namen"], x=position, orientation="h", name="Lager + unterwegs",
                marker=dict(color="rgba(192,138,85,0.30)", line=dict(width=0)), showlegend=False,
                hovertemplate="%{y}: Lager + bestellt/unterwegs = %{x:.0f} Tage<extra></extra>"),
         go.Bar(y=bd["namen"], x=bestand, orientation="h", name="Im Lager", text=txt,
                textposition="outside", cliponaxis=False, textfont=dict(size=10),
-               marker=dict(color=farbe), showlegend=False,
+               marker=dict(color=[ROT if r < 5 else BRAUN for r in bestand]), showlegend=False,
                hovertemplate="%{y}: im Lager %{x:.0f} Tage<extra></extra>"),
+        go.Scatter(y=bd["namen"], x=[bd["xstatus"]] * len(bd["komps"]), mode="text", text=status,
+                   textposition="middle left", textfont=dict(size=10, color=status_farbe), showlegend=False,
+                   hovertemplate="%{y}: %{text}<extra>↻ nächste Nachbestellung in etwa · ✓ zuletzt bestellt vor</extra>"),
     ]
 
 
@@ -307,8 +317,21 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
             dyn.append(len(fig.data))
             fig.add_trace(spur, row=2, col=2)
         fig.update_layout(barmode="overlay")
-        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage Reichweite", row=2, col=2)
+        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage Reichweite", row=2, col=2, domain=[0.62, 0.885])
         fig.update_yaxes(autorange="reversed", row=2, col=2)
+        for an in fig.layout.annotations:
+            if an.text and an.text.startswith("Bestand in Heilbronn"):
+                an.x = (0.62 + 0.885) / 2
+        fig.add_annotation(
+            xref="paper", yref="paper", x=1.0, y=0.40, xanchor="right", yanchor="top", showarrow=False, align="left",
+            font=dict(size=10, color=BRAUN_DUNKEL), bgcolor="rgba(255,255,255,0.85)", bordercolor="#E3D7C7",
+            borderwidth=1, borderpad=5,
+            text=(f"<b>Legende</b><br><span style='color:{BRAUN}'>■</span> im Lager"
+                  f"<br><span style='color:rgba(192,138,85,0.55)'>■</span> Lager + bestellt<br>   und unterwegs"
+                  f"<br><span style='color:{KUPFER}'><b>|</b></span> Meldebestand:<br>   heller Balken erreicht<br>"
+                  f"   ihn → Nachbestellung<br><span style='color:{ROT}'>■</span> unter 5 Tagen,<br>   Fehlteil droht"
+                  f"<br><span style='color:{GRAU}'>↻ in 12 T</span> nächste<br>   Bestellung in etwa"
+                  f"<br><span style='color:#5B7F3A'>✓ vor 3 T</span> zuletzt<br>   nachbestellt"))
 
     basis_anno = list(fig.layout.annotations)
 

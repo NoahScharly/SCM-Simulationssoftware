@@ -59,6 +59,13 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    ohne Werte nur priorisieren, das kannst du entscheiden." Umsetzung: Gewicht 79 g, Bestandsbalken und
    "bestellt" aus demselben Zeitfenster, Mindestanforderungen plus Drag-and-drop-Priorisierung mit ROC-Gewichten.
 
+13. (09.11.2026, Szenarien und Anzeige) "Das Bestellen blinkt nur auf und irritiert, die Balken sind ja immer an
+   der gleichen Stelle. Was dunkler, heller Balken und rot bedeuten, muss rechts klein hin. Je Szenario nur die
+   relevanten Handlungsoptionen. Niedrigwasser ohne Maßnahme: die Ware über Kaub kommt nicht an, Hamburg ebenso,
+   dazu die besprochenen Ausweichmöglichkeiten. Saisonspitze: Bestand aufbauen; mehr Arbeiter eher nicht."
+   Umsetzung: Statusspalte (↻ / ✓) und Legende, Ausweichroute als eigene Option, relevante Optionen je Szenario,
+   Saisonbestand, Hinweis auf festhängende Sendungen, 2 neue Tests.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
@@ -80,7 +87,10 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Vorlauf Lkw Nagano-Narita 290 km [A], Flug NRT-FRA 9.350 km [A]
 - Hybride Entscheidungsregel: Mindestanforderungen (Lieferzeit-Standard 3 Tage = Lieferzusage) plus
   Rank-Order-Centroid-Gewichte aus der Reihenfolge, Min-Max-Normierung über die zulässigen Optionen
-- Bestandsbalken: Zustand kurz vor dem Bildzeitpunkt, gelb = in diesem Bild nachbestellt, Strich kupferfarben
+- Bestandsbalken: Zustand kurz vor dem Bildzeitpunkt, ruhige Statusspalte statt Aufblinken, Strich kupferfarben
+- Saisonbestand August bis November +20 Tage Bedarf [A] (Varianten mit 30 Tagen und Fertigwaren-Vorproduktion
+  getestet; Vorproduktion allein erzeugte mehr Fehlteile, weil Komponenten früher verbraucht werden)
+- Standard-Priorisierung: Lieferfähigkeit, Montagestillstand, Kosten, CO2e
 
 ## Vorgenommene Änderungen
 
@@ -88,6 +98,6 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 
 ## Fachliche und technische Prüfungen
 
-- 37 automatische Tests (`pytest -q`), davon 11 für Optionsvergleich, Entscheidungsregel und Luftfracht: Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 39 automatische Tests (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

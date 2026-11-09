@@ -107,3 +107,11 @@ def test_luftfracht_nicht_im_normalbetrieb():
     from uhrensim.experiment import fuehre_aus
     z = fuehre_aus(szenario_pfad("S0"), {"massnahmen": {"luftfracht_notfall": True}}, 2)["zusammenfassung"]
     assert z.loc["luftfracht_sendungen", "mittel"] == 0
+
+
+def test_saisonbestand_vermeidet_fehlteile_in_s4():
+    from uhrensim.experiment import fuehre_aus
+    opt = {o["id"]: o for o in lade_optionen()}
+    ohne = fuehre_aus(szenario_pfad("S4"), None, 3)["zusammenfassung"]
+    mit = fuehre_aus(szenario_pfad("S4"), {"massnahmen": opt["saisonbestand"]["massnahmen"]}, 3)["zusammenfassung"]
+    assert mit.loc["fehlteil_tage", "mittel"] < ohne.loc["fehlteil_tage", "mittel"]

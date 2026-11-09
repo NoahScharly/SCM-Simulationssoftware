@@ -81,7 +81,8 @@ def szenarien() -> dict[str, dict]:
             roh = yaml.safe_load(f) or {}
         ergebnis[m.szenario_id] = {"pfad": str(p), "name": m.szenario_name,
                                    "kurz": str(roh.get("kurz", m.szenario_name)),
-                                   "beschreibung": str(roh.get("beschreibung", ""))}
+                                   "beschreibung": str(roh.get("beschreibung", "")),
+                                   "optionen": list(roh.get("relevante_optionen") or [])}
     # Reihenfolge: Basis, Störungen S1, S2, ..., Chancen (C...) zuletzt
     return dict(sorted(ergebnis.items(), key=lambda kv: (kv[0] != "S0", kv[0].startswith("C"), kv[0])))
 
@@ -272,7 +273,15 @@ if st.session_state["lauf"] != schluessel:
             "Links auf **Simulation starten** drücken, um neu zu rechnen.")
 
 detail, erg_alle = vgl["detail"], vgl["ergebnisse"]
-rang_je_sz = empfehlung_je_szenario(detail, anforderungen, prioritaet)
+def relevant(s: str) -> list[str]:
+    """Für das Szenario relevante Handlungsoptionen (Szenariodatei: relevante_optionen), "keine" immer zuerst."""
+    liste = [o for o in (SZ[s]["optionen"] or list(OPT)) if o in OPT]
+    return ["keine"] + [o for o in liste if o != "keine"]
+
+
+# Empfehlung je Szenario nur unter den relevanten Optionen; die robuste Empfehlung nutzt alle Läufe
+detail_rel = detail[[o in relevant(s) for s, o in zip(detail.szenario, detail.option)]]
+rang_je_sz = empfehlung_je_szenario(detail_rel, anforderungen, prioritaet)
 
 
 def anf_text() -> str:
@@ -306,8 +315,8 @@ st.markdown(f'<div class="untertitel"><b>{sid} · {SZ[sid]["name"]}:</b> {SZ[sid
             unsafe_allow_html=True)
 
 oid = st.segmented_control(
-    "Handlungsoption anzeigen (Karte und Kennzahlen wechseln mit)", list(OPT), default="keine",
-    selection_mode="single", key="option",
+    "Handlungsoption anzeigen (Karte und Kennzahlen wechseln mit)", relevant(sid), default="keine",
+    selection_mode="single", key=f"option_{sid}",
     format_func=lambda o: ("★ " if o == empf.option else "") + OPT_KURZ[o]) or "keine"
 zeilen_sz = detail[detail.szenario == sid].set_index("option")
 z = zeilen_sz.loc[oid]
@@ -337,7 +346,8 @@ Montage mit dieser Menge weiterarbeiten? So sind 1.600 Uhrwerke und 160 Zifferbl
 | **Dunkler Balken** | Was physisch im Lager liegt. Daneben steht die Stückzahl und die Reichweite (T = Tage). |
 | **Heller Balken** | Lager **plus** alles, was schon bestellt, in Fertigung oder unterwegs ist (Lagerposition). |
 | **Kupferfarbener Strich** | Meldebestand s, gilt für den **hellen** Balken. Sinkt der **helle** Balken auf den Strich, wird automatisch die Bestellmenge Q nachbestellt („⟵ bestellt“), der helle Balken springt nach rechts. |
-| Farbe | braun = normal · gelb = in diesem Bild nachbestellt (heller Balken springt) · rot = weniger als 5 Tage im Lager, Fehlteil droht |
+| Farbe | braun = normal · rot = weniger als 5 Tage im Lager, Fehlteil droht |
+| **Rechte Spalte** | „↻ in 12 T“: in etwa 12 Tagen erreicht der helle Balken den Strich, dann wird nachbestellt. „✓ vor 3 T“: vor 3 Tagen wurde nachbestellt, der helle Balken ist dabei nach rechts gesprungen. |
 
 **Beispiel Uhrwerk in diesem Lauf:** Bedarf {de(pol_u.bedarf_tag, 1) if pol_u else "-"} Stück pro Tag,
 Wiederbeschaffungszeit {de(pol_u.wbz_tage) if pol_u else "-"} Tage. Meldebestand s = Bedarf in der
@@ -443,7 +453,21 @@ with links:
         hinweis("schlecht", "Ursache: Fehlteile.",
                 f"An durchschnittlich {de(z['fehlteil_tage'], 1)} Arbeitstagen fehlte {namen}, die Montage stand "
                 f"still.")
-    elif spaet >= 1:
+    stau = erg.log[erg.log.ereignis.isin(["warten_sperre", "warten_knoten"])]
+    if not stau.empty:
+        verz = []
+        for sid_, g_ in stau.groupby("objekt_id"):
+            nach_ = erg.log[(erg.log.objekt_id == sid_) & (erg.log.zeit > g_.zeit.max())
+                            & ~erg.log.ereignis.isin(["warten_sperre", "warten_knoten"])]
+            ende_ = nach_.zeit.min() if not nach_.empty else m.horizont
+            verz.append((g_.komponente.iloc[0], ende_ - g_.zeit.min(), g_.ort.iloc[0]))
+        teile_ = ", ".join(sorted({viz.komp_name(m, k) for k, _, _ in verz}))
+        orte_ = ", ".join(sorted({kurzname(m.knoten[o].name) for _, _, o in verz if o in m.knoten}))
+        hinweis("warn" if z["fehlteil_tage"] < 0.5 else "schlecht", "Ware hängt fest:",
+                f"{len(verz)} Sendung(en) ({teile_}) warteten vor der Störung in {orte_}, im Mittel "
+                f"{de(sum(d for _, d, _ in verz) / len(verz))} Tage, längstens {de(max(d for _, d, _ in verz))} Tage."
+                + (" Das Lager hat die Lücke überbrückt." if z["fehlteil_tage"] < 0.5 else ""))
+    if z["fehlteil_tage"] < 0.5 and spaet >= 1:
         kap = m.param["montage"]["kapazitaet_pro_tag"]
         hinweis("warn", "Ursache: Montagekapazität.",
                 f"Alle Teile waren da, aber {de(kap)} Montagen/Tag ({m.param['montage']['mitarbeiter']} "
@@ -538,6 +562,9 @@ for s in sz_ids:
     zs = detail[detail.szenario == s].set_index("option")
     zeile = {"Szenario": f"{s} · {SZ[s]['kurz']}"}
     for o in OPT:
+        if o not in relevant(s):
+            zeile[OPT_KURZ[o]] = "·"
+            continue
         r = zs.loc[o]
         zeichen = "✅" if rang_je_sz[s].set_index("option").loc[o, "zulaessig"] else "❌"
         zusatz = " (nicht ausgelöst)" if o in ("sellita", "luftfracht") and not wirkt(r) else ""

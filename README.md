@@ -134,13 +134,18 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
 jeder Start dieselben Zahlen liefert.
 
-| Handlungsoption | Wirkung | Wann sie wirkt |
+Je Szenario werden nur die relevanten Optionen angezeigt (Szenariodatei, `relevante_optionen`); gerechnet werden
+alle, damit die robuste Empfehlung auch die Kosten einer Vorsorge in Szenarien enthält, in denen sie nicht hilft.
+
+| Handlungsoption | Wirkung | Angezeigt in |
 |---|---|---|
-| Ohne Maßnahme | Bestellpunktverfahren und automatische Ausweichroute | Referenz |
-| Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | immer |
-| Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | nur bei Ausfall Miyota |
-| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | nur bei Versorgungsstörung: beim Wiederanlauf des Lieferanten oder Reichweite < 8 Tage, nie im Normalbetrieb |
-| Lederarmband aus Italien | Lkw statt Seeweg, teurer | immer |
+| Ohne Maßnahme | nur Bestellpunktverfahren; bei Sperre wartet die Ware | allen (Referenz) |
+| Ausweichroute | Bahn statt Binnenschiff über Kaub, Bremerhaven statt Hamburg | S2, S3 |
+| Saisonbestand | Meldebestand aller Komponenten August bis November +20 Tage Bedarf | S4 |
+| Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | S1, S2 |
+| Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | S1 |
+| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1, S2, S3 |
+| Lederarmband aus Italien | Lkw statt Seeweg über Hamburg, teurer | S3 |
 
 | Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |
 |---|---|---|---|---|

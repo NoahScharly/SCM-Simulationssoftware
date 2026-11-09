@@ -231,7 +231,13 @@ class Simulation:
         return var
 
     def _fg_ziel(self, t: float) -> float:
-        return float(self.p["montage"]["fertigwaren_ziel_tage"]) * self.basis_rate * self.nachfragefaktor(t)
+        """Ziel-Fertigwarenbestand. Maßnahme saison_vorproduktion: in den genannten Monaten vor der Spitze wird ein
+        höherer Vorrat aufgebaut (freie Montagekapazität vor November nutzen)."""
+        ziel = float(self.p["montage"]["fertigwaren_ziel_tage"])
+        vp = self.p["massnahmen"].get("saison_vorproduktion") or {}
+        if vp and t >= self.W and self.monat(t) in set(vp.get("monate", [])):
+            ziel = float(vp.get("ziel_tage", ziel))
+        return ziel * self.basis_rate * self.nachfragefaktor(t)
 
     # ================================================================ Protokoll
     def _log(self, ereignis: str, objekt_id: str, objekt_typ: str, ort: str, menge: float = 0.0,
@@ -336,12 +342,22 @@ class Simulation:
         self._bediene_rueckstand()
 
     # ================================================================ Nachschub
+    def _saison_zuschlag(self, komp: str) -> float:
+        """Maßnahme saison_bestand: in den genannten Monaten wird der Meldebestand um extra_tage Bedarf angehoben.
+
+        Weil die Wiederbeschaffung bis zu rund zwei Monate dauert, beginnt der Aufbau vor der Spitze (z. B. ab
+        August für November und Dezember). Danach fällt der Meldebestand zurück, der Vorrat wird abgebaut.
+        """
+        sb = self.p["massnahmen"].get("saison_bestand") or {}
+        if not sb or self.env.now < self.W or self.monat(self.env.now) not in set(sb.get("monate", [])):
+            return 0.0
+        return float(sb.get("extra_tage", 0)) * self.politik[komp].bedarf_tag
     def _pruefe_nachschub(self) -> None:
         for k, pol in self.politik.items():
             if pol.losgroesse <= 0:
                 continue
             position = self.bestand[k] + self.pipeline[k]
-            while position <= pol.meldebestand:
+            while position <= pol.meldebestand + self._saison_zuschlag(k):
                 self.bestelle(k, pol.losgroesse, self.aktive_quelle[k])
                 position += pol.losgroesse
 
@@ -399,7 +415,13 @@ class Simulation:
 
     # ================================================================ Transport
     def _routen(self, lieferant: str, notfall: bool) -> list[Route]:
-        typen = ("notfall",) if notfall else ("regulaer", "ausweich")
+        """Routen eines Lieferanten. Ausweichrouten nur mit Maßnahme 'ausweichroute' (sonst wartet die Ware)."""
+        if notfall:
+            typen: tuple[str, ...] = ("notfall",)
+        elif self.p["massnahmen"].get("ausweichroute", False):
+            typen = ("regulaer", "ausweich")
+        else:
+            typen = ("regulaer",)
         return [r for r in self.m.routen.get(lieferant, []) if r.typ in typen]
 
     def _waehle_route(self, lieferant: str, notfall: bool) -> Route:

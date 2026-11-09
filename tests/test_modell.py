@@ -118,14 +118,23 @@ def test_kapazitaet_eins_bricht_lieferfaehigkeit_ein():
     assert k["beta"] < 0.5
 
 
-def test_niedrigwasser_leitet_auf_bahn_um():
-    m = lade_modell(szenario_pfad("S2"))
+def test_niedrigwasser_mit_ausweichroute_leitet_auf_bahn_um():
+    m = lade_modell(szenario_pfad("S2"), {"massnahmen": {"ausweichroute": True}})
     erg = simuliere(m)
     s = m.stoerungen[0]
     bahn = erg.log[(erg.log.ereignis == "abfahrt") & (erg.log.kante == "e_rtm_hn_bahn")]
     assert ((bahn.zeit >= s.start) & (bahn.zeit < s.ende)).any()
     binnen = erg.log[(erg.log.ereignis == "abfahrt") & (erg.log.kante == "e_rtm_hn_binnen")]
     assert not ((binnen.zeit >= s.start) & (binnen.zeit < s.ende)).any()
+
+
+def test_niedrigwasser_ohne_massnahme_wartet_ware():
+    m = lade_modell(szenario_pfad("S2"))
+    erg = simuliere(m)
+    s = m.stoerungen[0]
+    assert (erg.log.ereignis == "warten_sperre").any()
+    bahn = erg.log[(erg.log.ereignis == "abfahrt") & (erg.log.kante == "e_rtm_hn_bahn")]
+    assert bahn.empty
 
 
 def test_sellita_notfallplan_erst_miyota_dann_sellita_dann_zurueck():
@@ -195,8 +204,8 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
     from uhrensim.visualization import netzkarte
     erg = simuliere(lade_modell(None, KURZ), replikation=0)
     fig = netzkarte(erg, schritt_tage=10)
-    assert len(fig.frames[0].traces) == 8                      # je Karte Sendungen, Störung, Lieferant; 2 Balken
-    assert len(fig.frames[0].data[-1].x) == len(erg.politik)
+    assert len(fig.frames[0].traces) == 9          # je Karte Sendungen, Störung, Lieferant; 2 Balken + Statusspalte
+    assert len(fig.frames[0].data[-2].x) == len(erg.politik)
 
 
 # --------------------------------------------------------------------------- Bezugsoption und Kapital
