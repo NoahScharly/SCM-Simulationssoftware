@@ -204,7 +204,7 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
     from uhrensim.visualization import netzkarte
     erg = simuliere(lade_modell(None, KURZ), replikation=0)
     fig = netzkarte(erg, schritt_tage=10)
-    assert len(fig.frames[0].traces) == 9          # je Karte Sendungen, Störung, Lieferant; 2 Balken + Statusspalte
+    assert len(fig.frames[0].traces) == 11         # je Karte Luftroute, Sendungen, Störung, Lieferant; 3 Balkenspuren
     assert len(fig.frames[0].data[-2].x) == len(erg.politik)
 
 

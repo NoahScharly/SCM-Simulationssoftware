@@ -187,7 +187,19 @@ def _aktiver_lieferant(verlauf: list[tuple[float, str]], t: float) -> str:
     return aktiv
 
 
-def _status_text(erg: Ergebnis, verlauf: dict[str, list[tuple[float, str]]], t: float) -> str:
+def _luftsendungen(erg: Ergebnis, t: float, schritt: float) -> list[dict[str, Any]]:
+    """Luftfracht-Sendungen, die um t herum unterwegs sind (ein Bild Vor- und Nachlauf, damit kurze Flüge sichtbar
+    bleiben, auch wenn der Flug selbst zwischen zwei Bildern liegt)."""
+    aus = []
+    for s in erg.sendungen:
+        if s["typ"] != "notfall" or not s["abschnitte"]:
+            continue
+        if s["abschnitte"][0]["t_ab"] - schritt <= t <= s["t_ankunft"] + schritt:
+            aus.append(s)
+    return aus
+
+
+def _status_text(erg: Ergebnis, verlauf: dict[str, list[tuple[float, str]]], t: float, schritt: float = 3.0) -> str:
     m = erg.modell
     teile = []
     for k, v in verlauf.items():
@@ -204,6 +216,20 @@ def _status_text(erg: Ergebnis, verlauf: dict[str, list[tuple[float, str]]], t: 
                           and s["ziel"] in (primaer, *m.primaerquelle(k).tier2) for s in erg.stoerungsfenster)
             zusatz = f" · <span style='color:{ROT}'>Lieferant ausgefallen</span>" if ausfall else ""
             teile.append(f"<b>{komp_name(m, k)}</b> kommt aus: <b>{name} ({land})</b>{zusatz}")
+    for sd in _luftsendungen(erg, t, schritt):
+        stationen = [m.knoten[sd["lieferant"]].name.split(" (")[0]] + [
+            ("Heilbronn" if m.kanten[a["kante"]].nach == erg.modell.werk else
+             m.knoten[m.kanten[a["kante"]].nach].name.split(" (")[0].replace("Flughafen ", ""))
+            for a in sd["abschnitte"]]
+        status = "angekommen" if t >= sd["t_ankunft"] else f"Ankunft {_datum(sd['t_ankunft'] - m.einschwingen)}"
+        teile.append(f"<span style='color:{ROT}'>✈ <b>Luftfracht</b></span>: {sd['menge']:.0f} × "
+                     f"{komp_name(m, sd['komponente'])} · {' → '.join(stationen)} · {status}")
+    if not erg.log.empty:
+        f = erg.log[(erg.log.ereignis == "fehlteil") & (erg.log.zeit > t - schritt) & (erg.log.zeit <= t)]
+        if not f.empty:
+            fehlt = sorted({k for x in f.komponente.astype(str) for k in x.split(";") if k and k != "nan"})
+            teile.append(f"<span style='color:{ROT}'>⚠ <b>Montage steht still</b></span>: es fehlt "
+                         + ", ".join(komp_name(m, k) for k in fehlt))
     return "<br>".join(teile)
 
 
@@ -284,7 +310,16 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                 ziel = m.knoten[s["ziel"]].name if s["ziel"] in m.knoten else s["ziel"]
                 g_txt.append(f"Störung: {ziel}")
         aktiv = [(k, _aktiver_lieferant(v, t)) for k, v in verlauf.items()]
+        l_lat, l_lon = [], []
+        for sd in _luftsendungen(erg, t, schritt_tage):
+            for a in sd["abschnitte"]:
+                lin = linien.get(a["kante"], _polylinie(erg, a["kante"]))
+                l_lat += list(lin[:, 0]) + [None]
+                l_lon += list(lin[:, 1]) + [None]
         return [
+            go.Scattergeo(lat=l_lat, lon=l_lon, mode="lines", name="Luftfracht unterwegs",
+                          line=dict(width=3.5, color=ROT, dash="dash"), hoverinfo="skip",
+                          showlegend=legende, legendgroup="luft_aktiv"),
             go.Scattergeo(lat=[x["lat"] for x in p], lon=[x["lon"] for x in p], mode="markers", name="Sendungen",
                           marker=dict(size=[8 if x["typ"] != "notfall" else 10 for x in p],
                                       color=[farbe[x["komponente"]] for x in p],
@@ -336,10 +371,11 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
     basis_anno = list(fig.layout.annotations)
 
     def status_anno(t: float) -> list:
-        if not verlauf:
+        text = _status_text(erg, verlauf, t, schritt_tage)
+        if not text:
             return basis_anno
         return basis_anno + [go.layout.Annotation(
-            text=_status_text(erg, verlauf, t), xref="paper", yref="paper", x=0.0, y=1.0, xanchor="left",
+            text=text, xref="paper", yref="paper", x=0.0, y=1.0, xanchor="left",
             yanchor="bottom", showarrow=False, align="left", font=dict(size=12, color=BRAUN_DUNKEL),
             bgcolor="rgba(248,244,236,0.92)", bordercolor="#C9A227", borderwidth=1, borderpad=4)]
 
