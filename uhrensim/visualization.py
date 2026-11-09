@@ -489,6 +489,36 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     return _layout(fig, "Maßnahmen im Zielkonflikt", hoehe=480)
 
 
+def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], ziel_beta: float,
+                      beta_spalte: str = "beta") -> go.Figure:
+    """Zielkonflikt der Handlungsoptionen: Kosten (x) gegen Lieferfähigkeit (y), Punktgröße = CO2e je Uhr.
+
+    Rang 1 (Empfehlung) ist kupferfarben mit dunklem Rand, die gestrichelte Linie ist die Mindest-Lieferfähigkeit.
+    """
+    d = rangfolge.sort_values("kosten_pro_uhr").copy()
+    co2 = d.co2e_pro_uhr_kg * 1000
+    # Beschriftung abwechselnd über und unter dem Punkt, damit nahe Optionen sich nicht überdecken
+    lage = ["top center" if i % 2 == 0 else "bottom center" for i in range(len(d))]
+    groesse = 14 + 26 * (co2 - co2.min()) / ((co2.max() - co2.min()) or 1)
+    farbe = [KUPFER if r == 1 else ("#6B8F4A" if z else "#B0A69C") for r, z in zip(d.rang, d.zulaessig)]
+    fig = go.Figure(go.Scatter(
+        x=d.kosten_pro_uhr, y=d[beta_spalte] * 100, mode="markers+text",
+        text=[("★ " if r == 1 else "") + namen.get(o, o) for o, r in zip(d.option, d.rang)],
+        textposition=lage, textfont=dict(size=11, color=BRAUN_DUNKEL),
+        customdata=co2, marker=dict(size=groesse, color=farbe, line=dict(width=[3 if r == 1 else 0.5 for r in d.rang],
+                                                                          color=BRAUN_DUNKEL)),
+        hovertemplate="%{text}<br>Kosten %{x:.2f} €/Uhr<br>Lieferfähigkeit %{y:.1f} %<br>CO2e %{customdata:.1f} g/Uhr"
+                      "<extra></extra>", showlegend=False))
+    fig.add_hline(y=ziel_beta * 100, line=dict(color="#9B3B2A", dash="dash"),
+                  annotation_text=f"Mindest-Lieferfähigkeit {ziel_beta * 100:.0f} %".replace(".", ","),
+                  annotation_position="bottom right")
+    fig.update_xaxes(title="Kosten je Uhr [€]  (links = günstiger)")
+    fig.update_yaxes(title=("Lieferfähigkeit im schlechtesten Szenario [%]" if beta_spalte == "beta_min"
+                            else "Lieferfähigkeit [%]"),
+                     range=[max(min(float((d[beta_spalte] * 100).min()) - 8, ziel_beta * 100 - 8), 0), 112])
+    return _layout(fig, "Zielkonflikt der Handlungsoptionen (Punktgröße = CO2e je Uhr)", hoehe=440)
+
+
 KOSTENARTEN = {
     "einkauf": "Einkauf Komponenten", "montage": "Montage", "paket": "Paketversand", "transport": "Transport",
     "umschlag": "Umschlag", "zoll": "Zoll", "kapitalbindung": "Kapitalbindung", "lagerplatz": "Lagerplatz",

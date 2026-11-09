@@ -69,6 +69,34 @@ massnahmen:
   luft_ausloeser_tage: 5        # Reichweite, ab der Luftfracht ausgelöst wird
   luft_menge_tage: 15           # Bedarf, der per Luft nachgeliefert wird
 
+handlungsoptionen:              # werden nach dem Start für jedes gewählte Szenario automatisch durchgerechnet
+  - id: keine                   # Referenz: nur die eingebauten Reaktionen des Modells
+    name: Ohne Maßnahme
+    kurz: Ohne Maßnahme
+    beschreibung: Bestellpunktverfahren und automatische Ausweichroute (z. B. Bremerhaven statt Hamburg, Bahn statt
+      Binnenschiff), keine zusätzliche Vorsorge
+    massnahmen: {}
+  - id: puffer
+    name: Uhrwerk-Puffer +1.000 Stück
+    kurz: Mehr Bestand
+    beschreibung: Zusätzlicher Sicherheitsbestand an Uhrwerken in Heilbronn, wirkt immer und bindet immer Kapital
+    massnahmen: {puffer_extra: {uhrwerk: 1000}}
+  - id: sellita
+    name: Notfallplan Sellita (Ersatz-Uhrwerk)
+    kurz: Ersatz-Uhrwerk
+    beschreibung: Fällt Miyota aus, wird nach der Reaktionszeit bei Sellita (CH) bestellt, doppelter Preis, Lkw statt Schiff
+    massnahmen: {sellita_notfall: true}
+  - id: luftfracht
+    name: Notfallplan Luftfracht
+    kurz: Luftfracht
+    beschreibung: Droht ein Fehlteil (Reichweite unter Auslöser), wird der Bedarf per Flugzeug nachgeliefert
+    massnahmen: {luftfracht_notfall: true}
+  - id: armband_italien
+    name: Lederarmband aus Italien
+    kurz: Armband Italien
+    beschreibung: Bezugsoption Santa Croce (IT) statt Estancia Velha (BR), teurer, aber Lkw statt Seeweg und kein Zoll
+    massnahmen: {armband_italien: true}
+
 bewertung:
   methode: mindestwerte         # mindestwerte | gewichtet | lexikografisch
   mindestwerte: {beta: 0.95}

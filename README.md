@@ -15,9 +15,10 @@ Am besten in einer eigenen virtuellen Umgebung (Windows PowerShell; Mac/Linux: `
 python -m venv .venv
 .venv\Scripts\Activate.ps1
 pip install -r requirements.txt
-streamlit run app/app.py          # Dashboard: Karte, Kennzahlen, Einschätzung, Szenariovergleich
+streamlit run app/app.py          # Entscheidungsunterstützung: Fall, Optionen, Empfehlung
 python -m uhrensim -r 20          # Szenariovergleich in der Konsole, CSV in ergebnisse/
-python -m uhrensim --optimierung              # alle Szenarien × alle Maßnahmen
+python -m uhrensim --optionen                 # je Szenario alle Handlungsoptionen + Empfehlung
+python -m uhrensim --optimierung              # alle Szenarien × alle Maßnahmen-Kombinationen
 python -m uhrensim --sensitivitaet -s S1      # One-at-a-time aus base.yaml
 pytest -q                         # Verifikationstests
 ```
@@ -63,6 +64,7 @@ uhrensim/
   simulation.py      SimPy-Prozesse, Ereignisprotokoll
   evaluation.py      Kennzahlen, Resilienz, Pareto-Front, Bewertung
   experiment.py      Replikationen, Konfidenzintervalle, Szenariovergleich, Sensitivität
+  handlungsoptionen.py  Optionen je Szenario vergleichen, Vor- und Nachteile, Empfehlung je Szenario und robust
   optimization.py    Rastersuche: Optimum je Szenario und robuste Empfehlung über alle Szenarien
   visualization.py   animierte Karte, Diagramme, Kennzahlentabelle (Plotly)
   __main__.py        Kommandozeile
@@ -112,11 +114,30 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 - Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
 - Netzwerksicht: Weltkarte, Ausschnitt Europa und animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte), synchron und aus demselben Lauf. Goldener Ring und Statuskasten zeigen, welcher Lieferant das Uhrwerk gerade liefert. Abspielen in halber Geschwindigkeit (240 ms je Bild), ▶▶ doppelt so schnell.
 
-## Konfiguration in drei Schritten
+## Ablauf in der Oberfläche
 
-1. **Produktion:** Uhren pro Jahr. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
-2. **Vorsorge und Notfallpläne:** gelten in allen gewählten Szenarien gleichzeitig. Der Puffer wirkt immer, ein Notfallplan nur, wenn sein Auslöser eintritt.
-3. **Szenarien:** welche Störungen durchgespielt werden. Jedes Szenario läuft mit denselben Maßnahmen und denselben Zufallszahlen.
+1. **Normalbetrieb:** Uhren pro Jahr. Lieferanten, Verkehrsmittel (Kosten, Dauer, CO2e) und Bestände kommen aus
+   der Datenbasis in `config/`. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
+2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S4, C1).
+3. **Automatischer Optionsvergleich:** Nach dem Start wird jedes Szenario mit jeder Handlungsoption aus
+   `base.yaml` (Block `handlungsoptionen`) simuliert, alle mit denselben Zufallszahlen. Neue Optionen werden dort
+   ohne Programmierung ergänzt.
+4. **Fall ansehen:** Szenario wählen, mit dem Schalter zwischen den Optionen wechseln. Karte, Bestandsbalken und
+   Kennzahlen zeigen die gewählte Option, die Differenzen beziehen sich auf "Ohne Maßnahme".
+5. **Empfehlung:** zweistufig und offengelegt. Stufe 1: Mindest-Lieferfähigkeit. Stufe 2: Priorität
+   (Kosten, CO2e oder Lieferzeit). Ergebnis je Szenario und als robuste Empfehlung über alle Szenarien.
+6. **Kombinationen** (Abschnitt 4, für Fortgeschrittene): Rastersuche über alle Maßnahmenkombinationen.
+
+Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
+jeder Start dieselben Zahlen liefert.
+
+| Handlungsoption | Wirkung | Wann sie wirkt |
+|---|---|---|
+| Ohne Maßnahme | Bestellpunktverfahren und automatische Ausweichroute | Referenz |
+| Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | immer |
+| Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | nur bei Ausfall Miyota |
+| Notfallplan Luftfracht | Eilbezug per Flugzeug | nur bei Reichweite < 5 Tage |
+| Lederarmband aus Italien | Lkw statt Seeweg, teurer | immer |
 
 | Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |
 |---|---|---|---|---|

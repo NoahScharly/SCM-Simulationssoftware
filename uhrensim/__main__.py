@@ -8,6 +8,7 @@ Beispiele:
     python -m uhrensim --menge 12000 --kapazitaet 60
     python -m uhrensim --optimierung              # alle Szenarien × alle Maßnahmen, Optimum je Szenario + robust
     python -m uhrensim --sensitivitaet -s S1      # Parameter aus base.yaml (Block sensitivitaet), einzeln variiert
+    python -m uhrensim --optionen                 # je Szenario alle Handlungsoptionen, Empfehlung je Szenario + robust
 """
 
 from __future__ import annotations
@@ -30,6 +31,7 @@ def main() -> None:
     ap.add_argument("--menge", type=int, help="Uhren pro Jahr (0 bis 25.000)")
     ap.add_argument("--kapazitaet", type=int, help="Montagen pro Tag (1 bis 150)")
     ap.add_argument("--optimierung", action="store_true", help="Rastersuche über Maßnahmen je Szenario")
+    ap.add_argument("--optionen", action="store_true", help="Handlungsoptionen je Szenario vergleichen")
     ap.add_argument("--sensitivitaet", action="store_true", help="One-at-a-time-Sensitivität aus base.yaml")
     ap.add_argument("-o", "--ausgabe", default="ergebnisse")
     args = ap.parse_args()
@@ -58,6 +60,25 @@ def main() -> None:
         print(erg["je_szenario"].round(3).to_string(index=False))
         print("\nRobuste Empfehlung über alle Szenarien (Rang 1 oben):")
         print(erg["robust"].round(3).head(5).to_string(index=False))
+        return
+
+    if args.optionen:
+        from .data import szenario_dateien
+        from .handlungsoptionen import empfehlung_je_szenario, robuste_option, vergleiche_optionen
+        basis = lade_modell(None, overrides)
+        ziel_beta = float(basis.param["bewertung"]["mindestwerte"].get("beta", 0.95))
+        prio = ["kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"]
+        v = vergleiche_optionen(pfade or szenario_dateien(), overrides=overrides,
+                                replikationen=args.replikationen or 5,
+                                fortschritt=lambda i, n: print(f"Lauf {i}/{n}", end="\r"))
+        v["detail"].to_csv(ziel / "handlungsoptionen.csv", index=False)
+        print("\nEmpfehlung je Szenario (Mindest-Lieferfähigkeit, dann Kosten):")
+        for sid, r in empfehlung_je_szenario(v["detail"], ziel_beta, prio).items():
+            b = r.iloc[0]
+            print(f"  {sid}: {b.option:16s} beta {b.beta:.3f}  {b.kosten_pro_uhr:.2f} EUR/Uhr")
+        print("\nRobuste Option über alle Szenarien:")
+        print(robuste_option(v["detail"], ziel_beta, prio)[["rang", "option", "beta_min", "kosten_pro_uhr",
+                                                             "co2e_pro_uhr_kg", "zulaessig"]].round(3).to_string(index=False))
         return
 
     if args.sensitivitaet:

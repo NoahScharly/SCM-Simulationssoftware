@@ -41,6 +41,13 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    bindet aber Kapital und das muss auch irgendwie mit in den Vorschlag gerechnet werden. Vielleicht noch
    Lederarmband in Italien komplett."
 
+10. (09.11.2026, Umbau des Ablaufs) "Man braucht als Basis Lieferanten, verschiedene Transportmittel und die
+   gesamten Daten, darauf den Normalbetrieb simulieren. Vor dem Start: welches Szenario soll simuliert werden. Nach
+   dem Start wird der Fall angezeigt, dann mit einem Schalter anzeigen, was die Ausweichsituationen bringen, welche
+   Vor- und Nachteile man hat. Oder es simuliert direkt mit allen Alternativen durch und macht Vorschläge. Seed eher
+   versteckt." Umsetzung: Modul `handlungsoptionen.py`, Optionen in `base.yaml`, App-Ablauf neu, Seed unter
+   Experteneinstellungen, 6 neue Tests.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
@@ -53,6 +60,10 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Notfallplan Sellita: Reaktionszeit 3 Tage, Storno nicht versandter Miyota-Aufträge mit Gutschrift, Rückwechsel nach Wiederanlauf
 - Bezugsoption Lederarmband Italien: Santa Croce sull'Arno, 28 € je Armband, 10 Tage Fertigung, 880 km Lkw [A]
 - Gebundenes Kapital und Kapitalbindung je Uhr als eigene Spalten in der Optimierung
+- Empfehlungslogik zweistufig: Mindest-Lieferfähigkeit, dann Priorität; ohne zulässige Option höchste Lieferfähigkeit
+- Schwellen für Vor- und Nachteile (z. B. 0,5 Pp Lieferfähigkeit, 0,10 € je Uhr), darunter gilt eine Option als
+  "nicht ausgelöst"
+- Puffer-Option mit 1.000 Uhrwerken als einzelne Handlungsoption
 
 ## Vorgenommene Änderungen
 
@@ -60,6 +71,6 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 
 ## Fachliche und technische Prüfungen
 
-- 24 automatische Tests (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 32 automatische Tests (`pytest -q`), davon 6 für den Optionsvergleich: Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]
