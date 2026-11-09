@@ -328,9 +328,33 @@ def lade_modell(
         param=param, szenario_id=str(sz.get("id", "S?")), szenario_name=str(sz.get("name", "")),
         stoerungen=_baue_stoerungen(sz.get("stoerungen", []), einschwingen),
     )
+    modell.kunden = _lade_kunden(ordner, knoten[modell.werk])
     _pruefe_referenzen(modell)
     _pruefe_plausibilitaet(modell)
     return modell
+
+
+def _luftlinie_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
+    r = math.pi / 180
+    a = (math.sin((lat2 - lat1) * r / 2) ** 2
+         + math.cos(lat1 * r) * math.cos(lat2 * r) * math.sin((lon2 - lon1) * r / 2) ** 2)
+    return 2 * 6371.0 * math.asin(math.sqrt(a))
+
+
+def _lade_kunden(ordner: Path, werk) -> list[dict[str, Any]]:
+    """Kundenorte (Städte) mit Einwohnergewicht und Luftlinie ab Werk; leer, wenn keine Datei vorhanden."""
+    pfad = ordner / "kunden.csv"
+    if not pfad.exists():
+        return []
+    kunden = []
+    for z in _lies_csv(pfad):
+        lat, lon = float(z["lat"]), float(z["lon"])
+        kunden.append({"id": z["id"], "name": z["name"], "lat": lat, "lon": lon,
+                       "gewicht": float(z["einwohner_tsd"]),
+                       "km": _luftlinie_km(werk.lat, werk.lon, lat, lon)})
+    if sum(k["gewicht"] for k in kunden) <= 0:
+        raise KonfigurationsFehler("kunden.csv: Summe der Einwohnergewichte muss positiv sein")
+    return kunden
 
 
 def szenario_dateien(konfig_ordner: str | Path = KONFIG_STANDARD) -> list[Path]:

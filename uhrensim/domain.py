@@ -115,6 +115,7 @@ class Modell:
     szenario_name: str = "Basis"
     stoerungen: list[Stoerung] = field(default_factory=list)
     warnungen: list[str] = field(default_factory=list)
+    kunden: list[dict[str, Any]] = field(default_factory=list)  # Zielorte der Pakete (config/kunden.csv)
 
     # ---- abgeleitete Größen -------------------------------------------------
     @property

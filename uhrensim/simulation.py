@@ -31,7 +31,7 @@ import simpy
 from .data import dreieck_mittel
 from .domain import EU_LAENDER, Bezugsquelle, Modell, Route
 
-STROEME = ("nachfrage", "versand", "zoll", "umschlag", "gutquote")
+STROEME = ("nachfrage", "versand", "zoll", "umschlag", "gutquote", "kunden")
 MONATSENDEN = np.cumsum([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 
 
@@ -97,6 +97,11 @@ class Simulation:
         self._aid = 0
         self.log: list[dict[str, Any]] = []
         self.auftraege: list[dict[str, Any]] = []
+        self.kunden = modell.kunden
+        if self.kunden:
+            g = np.array([k["gewicht"] for k in self.kunden], dtype=float)
+            self.kunden_p = g / g.sum()
+            self.kunden_kum = np.cumsum(self.kunden_p)
         self.tage: list[dict[str, Any]] = []
         self.sendungen: list[dict[str, Any]] = []
         self.rueckstand: deque = deque()
@@ -273,8 +278,17 @@ class Simulation:
     def _neuer_auftrag(self) -> None:
         self._aid += 1
         a = {"auftrag_id": f"A{self._aid}", "t_eingang": self.env.now, "t_versand": np.nan, "t_zustellung": np.nan}
+        if self.kunden:
+            if self.det:
+                i = int(np.searchsorted(self.kunden_kum, (self._aid * 0.6180339887) % 1.0, side="right"))
+            else:
+                i = int(self.rng["kunden"].choice(len(self.kunden), p=self.kunden_p))
+            k = self.kunden[min(i, len(self.kunden) - 1)]
+            a.update(kunde=k["id"], lat=k["lat"], lon=k["lon"], km=k["km"])
+        else:
+            a.update(kunde="kunden_de", lat=np.nan, lon=np.nan, km=np.nan)
         self.auftraege.append(a)
-        self._log("auftragseingang", a["auftrag_id"], "kundenauftrag", "kunden_de", 1, neu="offen")
+        self._log("auftragseingang", a["auftrag_id"], "kundenauftrag", a["kunde"], 1, neu="offen")
         if self.fg >= 1:
             self.fg -= 1
             self.env.process(self._versende(a))
@@ -291,12 +305,26 @@ class Simulation:
         a["t_versand"] = self.env.now
         self._log("versand", a["auftrag_id"], "kundenauftrag", self.werk, 1, alt="reserviert", neu="versandt",
                   kosten=float(self.p["kosten"]["paket_eur_uhr"]), kategorie="paket")
-        yield self.env.timeout(self._dreieck("versand", self.p["distribution"]["versand_tage"]))
+        dist = self.p["distribution"]
+        yield self.env.timeout(self._dreieck("versand", self._paketlaufzeit(a)))
         a["t_zustellung"] = self.env.now
         em = self.p["emissionen"]
-        co2 = em["paket_kg"] / 1000 * self.p["distribution"]["last_mile_km"] * em["last_mile_g_tkm"]
-        self._log("zustellung", a["auftrag_id"], "kundenauftrag", "kunden_de", 1, alt="versandt",
+        hauptlauf_km = 0.0 if math.isnan(a["km"]) else a["km"] * float(dist.get("strassenfaktor", 1.3))
+        co2 = em["paket_kg"] / 1000 * (hauptlauf_km * float(dist.get("hauptlauf_g_tkm", 101))
+                                        + dist["last_mile_km"] * em["last_mile_g_tkm"])
+        self._log("zustellung", a["auftrag_id"], "kundenauftrag", a["kunde"], 1, alt="versandt",
                   neu="zugestellt", co2e_g=co2, kategorie="letzte_meile")
+
+    def _paketlaufzeit(self, a: dict[str, Any]) -> list[float]:
+        """Dreieck der Paketlaufzeit nach Entfernungszone (Luftlinie ab Heilbronn)."""
+        dist = self.p["distribution"]
+        zonen = dist.get("versand_zonen") or []
+        if not zonen or math.isnan(a["km"]):
+            return dist["versand_tage"]
+        for z in sorted(zonen, key=lambda z: z["bis_km"]):
+            if a["km"] <= z["bis_km"]:
+                return z["tage"]
+        return zonen[-1]["tage"]
 
     def _bediene_rueckstand(self) -> None:
         while self.fg >= 1 and self.rueckstand:
@@ -652,7 +680,8 @@ class Simulation:
         return Ergebnis(
             modell=self.m, replikation=self.rep, deterministisch=self.det,
             log=pd.DataFrame(self.log), auftraege=pd.DataFrame(self.auftraege,
-                                                               columns=["auftrag_id", "t_eingang", "t_versand", "t_zustellung"]),
+                                                               columns=["auftrag_id", "t_eingang", "t_versand", "t_zustellung",
+                                                                        "kunde", "lat", "lon", "km"]),
             tage=pd.DataFrame(self.tage), sendungen=self.sendungen, politik=self.politik, stoerungsfenster=fenster,
         )
 

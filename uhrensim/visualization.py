@@ -286,6 +286,15 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                                for k in kn],
                         line=dict(width=1.2, color=BRAUN_DUNKEL)),
             text=[k.name for k in kn], hoverinfo="text", showlegend=zeige_legende, legendgroup="standorte"), **pos)
+        if m.kunden:
+            gsum = sum(k["gewicht"] for k in m.kunden)
+            fig.add_trace(go.Scattergeo(
+                lat=[k["lat"] for k in m.kunden], lon=[k["lon"] for k in m.kunden], mode="markers", name="Kundenorte",
+                marker=dict(size=[4 + 14 * math.sqrt(k["gewicht"] / gsum) * 2 for k in m.kunden],
+                            color="rgba(110,140,170,0.35)", line=dict(width=0.6, color="#6E8CAA")),
+                text=[f"{k['name']}: {k['gewicht'] / gsum * 100:.1f} % der Bestellungen, {k['km']:.0f} km Luftlinie"
+                      for k in m.kunden],
+                hoverinfo="text", showlegend=zeige_legende, legendgroup="kunden"), **pos)
     if bd is not None:
         fig.add_trace(go.Scatter(y=bd["namen"], x=bd["melde"], mode="markers", name="Meldebestand",
                                  marker=dict(symbol="line-ns", size=22, line=dict(width=3, color=KUPFER)),
@@ -293,8 +302,28 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                                                "den Strich, wird nachbestellt)<extra></extra>",
                                  showlegend=False), row=2, col=2)
 
+    werk = m.knoten[m.werk]
+    pakete = erg.auftraege.dropna(subset=["t_versand", "t_zustellung", "lat"]) if "lat" in erg.auftraege else None
+
+    def paketpositionen(t: float) -> tuple[list, list, list]:
+        if pakete is None or pakete.empty:
+            return [], [], []
+        ab, an = pakete.t_versand.to_numpy(), pakete.t_zustellung.to_numpy()
+        sel = (ab < t) & (an > t - schritt_tage)
+        d = pakete[sel]
+        if d.empty:
+            return [], [], []
+        mitte = (np.maximum(d.t_versand, t - schritt_tage) + np.minimum(d.t_zustellung, t)) / 2
+        f = ((mitte - d.t_versand) / (d.t_zustellung - d.t_versand).clip(lower=1e-9)).clip(0, 1)
+        lat = werk.lat + f * (d.lat - werk.lat)
+        lon = werk.lon + f * (d.lon - werk.lon)
+        namen = {k["id"]: k["name"] for k in m.kunden}
+        txt = [f"Paket an {namen.get(k, k)}" for k in d.kunde]
+        return list(lat), list(lon), txt
+
     def geo_spuren(t: float, legende: bool) -> list[go.Scattergeo]:
         p = _sendungspositionen(erg, t, linien, schritt_tage)
+        pk_lat, pk_lon, pk_txt = paketpositionen(t)
         g_lat, g_lon, g_txt = [], [], []
         for s in erg.stoerungsfenster:
             if s["start"] <= t < s["ende"]:
@@ -317,6 +346,9 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                 l_lat += list(lin[:, 0]) + [None]
                 l_lon += list(lin[:, 1]) + [None]
         return [
+            go.Scattergeo(lat=pk_lat, lon=pk_lon, mode="markers", name="Pakete an Kunden",
+                          marker=dict(size=5, color="#6E8CAA", symbol="square", line=dict(width=0.5, color="white")),
+                          text=pk_txt, hoverinfo="text", showlegend=legende, legendgroup="pakete"),
             go.Scattergeo(lat=l_lat, lon=l_lon, mode="lines", name="Luftfracht unterwegs",
                           line=dict(width=3.5, color=ROT, dash="dash"), hoverinfo="skip",
                           showlegend=legende, legendgroup="luft_aktiv"),

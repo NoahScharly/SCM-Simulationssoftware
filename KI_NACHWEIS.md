@@ -74,6 +74,7 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - TTR als Eingabe (Störungsdauer plus Transit), TTS aus der Simulation
 - Robuste Empfehlung: zulässig nur, wenn β im schlechtesten Szenario den Mindestwert erreicht
 - Bestandsbalken als Reichweite in Tagen statt Stück
+- Kunden als zufällige deutsche Städte nach Einwohnergewicht, Paketlaufzeit nach Entfernung (Vorgabe N. Scharly: nur online, nur Deutschland)
 - Werksausfall unterbricht die Fertigung (vorher lief sie weiter, nur der Versand war blockiert)
 - Notfallplan Sellita: Reaktionszeit 3 Tage, Storno nicht versandter Miyota-Aufträge mit Gutschrift, Rückwechsel nach Wiederanlauf
 - Bezugsoption Lederarmband Italien: Santa Croce sull'Arno, 28 € je Armband, 10 Tage Fertigung, 880 km Lkw [A]

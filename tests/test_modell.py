@@ -204,7 +204,7 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
     from uhrensim.visualization import netzkarte
     erg = simuliere(lade_modell(None, KURZ), replikation=0)
     fig = netzkarte(erg, schritt_tage=10)
-    assert len(fig.frames[0].traces) == 11         # je Karte Luftroute, Sendungen, Störung, Lieferant; 3 Balkenspuren
+    assert len(fig.frames[0].traces) == 13         # je Karte Pakete, Luftroute, Sendungen, Störung, Lieferant; 3 Balken
     assert len(fig.frames[0].data[-2].x) == len(erg.politik)
 
 
@@ -224,3 +224,17 @@ def test_mehr_bestand_bindet_kapital_und_kostet_zinsen():
     # 1.000 Uhrwerke × 70 € = 70.000 € mehr gebundenes Kapital
     assert mit["kapital_gebunden_eur"] - ohne["kapital_gebunden_eur"] == pytest.approx(70000, rel=0.15)
     assert mit["kapitalbindung_pro_uhr"] > ohne["kapitalbindung_pro_uhr"]
+
+
+# --------------------------------------------------------------------------- Kunden
+def test_kunden_zufaellig_nach_einwohnern_und_laufzeit_nach_entfernung():
+    m = lade_modell()
+    assert len(m.kunden) >= 30 and all(k["km"] < 800 for k in m.kunden)   # alle in Deutschland
+    erg = simuliere(m, 0)
+    a = erg.auftraege.dropna(subset=["t_zustellung"])
+    anteil_berlin = (a.kunde == "k_berlin").mean()
+    erwartet = next(k["gewicht"] for k in m.kunden if k["id"] == "k_berlin") / sum(k["gewicht"] for k in m.kunden)
+    assert abs(anteil_berlin - erwartet) < 0.03                           # Ziehung nach Einwohnergewicht
+    lauf = a.t_zustellung - a.t_versand
+    nah, fern = lauf[a.km <= 250].mean(), lauf[a.km > 450].mean()
+    assert nah < fern                                                     # weiter weg = längere Paketlaufzeit

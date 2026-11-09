@@ -174,3 +174,10 @@ bindet. Beispiel: +1.000 Uhrwerke binden rund 70.000 € mehr und kosten bei 10 
 | `uhrensim/*.py`, `app/app.py`, `tests/*` | G | Architektur und Fachlogik selbst erarbeitet, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI, siehe `KI_NACHWEIS.md` |
 | SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | F | Fremdbibliotheken, siehe `requirements.txt` |
 
+## Kunden und Distribution
+
+- Nur Onlineverkauf, Versand per Paket direkt ab Heilbronn (eine Distributionsstufe).
+- Jede Bestellung geht an eine zufällige Stadt aus `config/kunden.csv` (44 deutsche Großstädte), gewichtet nach Einwohnern; die Stadt steht stellvertretend für ihr Umland.
+- Paketlaufzeit nach Luftlinie ab Heilbronn (`distribution.versand_zonen` in `base.yaml`): bis 250 km 1 bis 1,5 Tage, bis 450 km 1 bis 2 Tage, darüber 1 bis 2,5 Tage (Dreieck).
+- CO2e je Paket: Hauptlauf Lkw (Straßen-km = Luftlinie × 1,3, GLEC Sattelzug 101 g/tkm) plus 30 km letzte Meile (Transporter 840 g/tkm).
+- Karte: Kundenorte als Kreise (Größe = Anteil), Pakete als blaue Quadrate von Heilbronn zum Kunden.

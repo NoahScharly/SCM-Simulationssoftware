@@ -11,7 +11,7 @@ simulation:
 nachfrage:
   uhren_pro_jahr: 5000          # Regler 0 bis 25.000
   monatsfaktoren: {}            # z. B. {11: 1.3, 12: 1.3}; fehlende Monate = 1.0
-  online_anteil: 0.8            # Poster: 80 % online, 20 % Fachhandel
+  online_anteil: 1.0            # nur Onlineverkauf, Versand per Paket direkt ab Heilbronn
 
 montage:
   kapazitaet_pro_tag: auto      # auto = aus Jahresmenge: Mitarbeiter × Uhren je Mitarbeiter; oder feste Zahl
@@ -25,8 +25,16 @@ montage:
 distribution:
   lieferzusage_tage: 3          # Poster: Lieferzeit höchstens 3 Tage
   lieferzeit_einheit: werktage  # werktage | kalendertage (übliche Zusage: Werktage) [A]
-  versand_tage: [1, 1, 2]       # Paketlaufzeit Dreieck (min, modus, max) [A]
-  last_mile_km: 30              # [A]
+  versand_tage: [1, 1, 2]       # Paketlaufzeit Dreieck, nur falls keine Kunden-Datei vorhanden [A]
+  # Kunden: jede Bestellung geht an eine zufällige Stadt aus config/kunden.csv, gewichtet nach Einwohnern.
+  # Die Paketlaufzeit hängt von der Luftlinie ab Heilbronn ab (Dreieck min, modus, max in Tagen) [A]:
+  versand_zonen:
+    - {bis_km: 250, tage: [1, 1, 1.5]}      # Baden-Württemberg, Bayern, Rhein-Main
+    - {bis_km: 450, tage: [1, 1.25, 2]}     # Ruhrgebiet, Sachsen, Hannover
+    - {bis_km: 99999, tage: [1, 1.5, 2.5]}  # Berlin, Hamburg, Küste
+  strassenfaktor: 1.3           # Straßen-km = Luftlinie × 1,3 [A]
+  hauptlauf_g_tkm: 101          # GLEC Sattelzug 34 bis 40 t: Paket-Hauptlauf Heilbronn bis Zustelldepot
+  last_mile_km: 30              # Zustelldepot bis Haustür, Transporter < 3,5 t [A]
 
 transport:
   geschwindigkeit_km_tag: {see: 800, bahn: 400, binnen: 250, lkw: 600, luft: 8000}
