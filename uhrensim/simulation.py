@@ -356,9 +356,35 @@ class Simulation:
         self.env.process(self._lieferant(b, quelle))
         return b
 
+    def _fertigungsende(self, q: Bezugsquelle, start: float, dauer: float) -> float:
+        """Ende der Fertigung, wenn ein Werksausfall die Produktion unterbricht.
+
+        Während eines Ausfalls (Lieferant oder Vorlieferant) ruht die Fertigung und läuft danach weiter.
+        Aufträge, die während des Ausfalls eingehen, beginnen erst nach dem Wiederanlauf.
+        """
+        fenster = sorted((st.start, st.ende) for st in self.m.stoerungen
+                         if st.typ == "knoten_ausfall" and st.ziel in (q.lieferant, *q.tier2))
+        t, rest = start, dauer
+        for a, e in fenster:
+            if e <= t:
+                continue
+            if a > t:
+                arbeit = min(rest, a - t)
+                t += arbeit
+                rest -= arbeit
+                if rest <= 1e-9:
+                    return t
+            t = max(t, e)
+        return t + rest
+
     def _lieferant(self, b: dict[str, Any], q: Bezugsquelle):
         fertigung = 2.0 if b["typ"] == "notfall" else q.fertigung_tage + q.wbz_zuschlag_tage
-        yield self.env.timeout(fertigung)
+        ende = self._fertigungsende(q, self.env.now, fertigung)
+        if ende - self.env.now > fertigung + 1e-9:
+            b["status"] = "wartet"
+            self._log("warten_lieferant", b["id"], "bestellung", q.lieferant, b["menge"],
+                      komponente=b["komponente"], alt="fertigung", neu="wartet")
+        yield self.env.timeout(ende - self.env.now)
         while self.lieferant_unten(q, self.env.now) and not b["storniert"]:
             if b["status"] != "wartet":
                 b["status"] = "wartet"

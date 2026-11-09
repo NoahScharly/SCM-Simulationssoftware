@@ -46,6 +46,7 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - TTR als Eingabe (Störungsdauer plus Transit), TTS aus der Simulation
 - Robuste Empfehlung: zulässig nur, wenn β im schlechtesten Szenario den Mindestwert erreicht
 - Bestandsbalken als Reichweite in Tagen statt Stück
+- Werksausfall unterbricht die Fertigung (vorher lief sie weiter, nur der Versand war blockiert)
 - Notfallplan Sellita: Reaktionszeit 3 Tage, Storno nicht versandter Miyota-Aufträge mit Gutschrift, Rückwechsel nach Wiederanlauf
 
 ## Vorgenommene Änderungen
