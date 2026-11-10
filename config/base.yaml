@@ -58,7 +58,7 @@ kosten:
   montage_kostenmodell: personal   # personal = Fixkosten der Stammbelegschaft je Arbeitstag (auch bei Leerlauf);
                                 # stueck = montage_eur_uhr je montierter Uhr (alter Stand, nur zum Vergleich)
   lohnkosten_eur_h: 49.50       # Arbeitskosten je Stunde Verarbeitendes Gewerbe (Destatis 2026, übernommen aus dem
-                                # Poster P. Maywald) [prüfen]
+                                # Poster P. Maywald)
   stunden_ma_jahr: 1680         # 140 Arbeitsstunden je Person und Monat (P. Maywald) [A]
                                 # -> rund 83.000 € je Mitarbeiter und Jahr
   montage_eur_uhr: 25           # nur bei montage_kostenmodell: stueck [A]
