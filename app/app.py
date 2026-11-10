@@ -760,11 +760,16 @@ with st.expander(f"Kosten im Detail ({sid}, {OPT_KURZ[oid]})"):
     st.plotly_chart(viz.kostenaufteilung(z), width="stretch")
 
 with st.expander("Wie sicher sind die Ergebnisse?"):
+    # Je Szenario werden nur die relevanten Optionen gerechnet: gezeigt werden die Szenarien, in denen es die
+    # gewählte Option gibt
+    mit_option = [s for s in sz_ids if (s, oid) in erg_alle]
     st.markdown(f"Jeder Punkt ist eine Wiederholung mit anderen Zufallszahlen (Option „{OPT_KURZ[oid]}“). Liegen die "
-                "Kästen verschiedener Szenarien weit auseinander, ist der Unterschied echt und kein Zufall.")
+                "Kästen verschiedener Szenarien weit auseinander, ist der Unterschied echt und kein Zufall."
+                + ("" if len(mit_option) == len(sz_ids) else
+                   f" Gezeigt sind die Szenarien, in denen diese Option gerechnet wird: {', '.join(mit_option)}."))
     kz = st.selectbox("Kennzahl", ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
                       format_func=lambda k: viz.BESCHRIFTUNG[k][0])
-    st.plotly_chart(viz.boxplot_vergleich({s: erg_alle[(s, oid)] for s in sz_ids}, kz), width="stretch")
+    st.plotly_chart(viz.boxplot_vergleich({s: erg_alle[(s, oid)] for s in mit_option}, kz), width="stretch")
     st.download_button("Alle Ergebnisse (Szenario × Option) als CSV", detail.to_csv(index=False).encode("utf-8"),
                        "szenarien_optionen.csv", "text/csv")
 
