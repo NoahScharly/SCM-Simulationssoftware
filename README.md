@@ -140,6 +140,7 @@ bricht das Laden mit Hinweis ab.
 - Zollsatz überall 0 % (Freihandels- bzw. Partnerschaftsabkommen mit JP, CH, MU, Mercosur, EU-US-Zollverordnung 2026). Die Zollabfertigung (0,5 bis 2 Tage) bleibt, weil Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer für Drittlandsware immer nötig sind.
 - Fehlmengenkosten: 50 € je verspätetem Auftrag (High-End-Sammleruhr), Sensitivität 20/50/100 €.
 - Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
+- Stillstand mit Kundenwirkung: Arbeitstage, an denen ein Teil fehlt und dadurch Bestellungen warten oder der normale Fertigwarenvorrat unterschritten ist; Fehlteile beim Vorproduzieren zählen nicht.
 - Netzwerksicht: Weltkarte, Ausschnitt Europa und animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte), synchron und aus demselben Lauf. Goldener Ring und Statuskasten zeigen, welcher Lieferant das Uhrwerk gerade liefert. Abspielen im Standardtempo (240 ms je Bild), Auswahlfeld für ½× und 2×. Die Bestandsbalken stehen über die ganze Breite unter den Karten, damit die Teilenamen vollständig lesbar sind.
 
 ## Ablauf in der Oberfläche

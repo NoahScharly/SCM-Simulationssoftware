@@ -37,7 +37,7 @@ BESCHRIFTUNG = {
     "co2e_pro_uhr_kg": ("CO2e je Uhr", "kg"),
     "co2e_inbound_g": ("CO2e Inbound je Uhr", "g"),
     "reichweite_tage": ("Bestandsreichweite Komponenten", "Tage"),
-    "fehlteil_tage": ("Tage mit Fehlteil", "Tage"),
+    "fehlteil_tage": ("Stillstand mit Kundenwirkung", "Tage"),
     "luftfracht_sendungen": ("Luftfracht-Eilsendungen", "Anzahl"),
     "tts_min": ("TTS (kürzeste)", "Tage"),
     "ttr_max": ("TTR (längste)", "Tage"),

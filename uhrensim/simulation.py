@@ -405,8 +405,15 @@ class Simulation:
                     n = min(soll, moeglich)
                     if n < soll:
                         fehlend = [k for k, b in self.bestand.items() if b < soll]
-                        self._log("fehlteil", f"M{tag}", "montage", self.werk, soll - n,
-                                  komponente=";".join(fehlend), neu="stillstand")
+                        # Stillstand mit Kundenwirkung (Entscheidung N. Scharly): nur wenn Bestellungen warten oder der
+                        # normale Fertigwarenvorrat unterschritten ist. Fehlt ein Teil, während genug fertige Uhren
+                        # da sind (z. B. beim Vorproduzieren), merkt das kein Kunde: eigenes Ereignis, zählt nicht.
+                        normal = (float(mo["fertigwaren_ziel_tage"]) * self.basis_rate
+                                  * self.nachfragefaktor(self.env.now))
+                        wirkung = len(self.rueckstand) > 0 or self.fg < normal
+                        self._log("fehlteil" if wirkung else "fehlteil_ohne_wirkung", f"M{tag}", "montage",
+                                  self.werk, soll - n, komponente=";".join(fehlend),
+                                  neu="stillstand" if wirkung else "vorrat_reicht")
                     if n > 0:
                         for k in self.bestand:
                             self.bestand[k] -= n

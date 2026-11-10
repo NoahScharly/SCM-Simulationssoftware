@@ -167,7 +167,7 @@ basis = lade_modell()
 g, mo = basis.param["grenzen"], basis.param["montage"]
 PRO_MA = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
 SEED_STANDARD = int(basis.param["simulation"]["seed"])
-KNAME = {k: v[0] for k, v in KRITERIEN.items()} | {"fehlteil_tage": "Montagestillstand"}   # Stillstand nur Kennzahl
+KNAME = {k: v[0] for k, v in KRITERIEN.items()} | {"fehlteil_tage": "Stillstand mit Kundenwirkung"}   # Stillstand nur Kennzahl
 ANF_STANDARD, PRIO_STANDARD = lade_entscheidungsregel()
 SORT_STIL = """
 .sortable-component {background-color: transparent; padding: 0; border: none;}
@@ -494,8 +494,9 @@ with tab_detail:
          "Emissionen von Transport, Umschlag und Zustellung je Uhr nach GLEC."),
         ("Lieferzeit (95 %)", f"{de(z['lieferzeit_p95'], 1)} Tage", delta("lieferzeit_p95", 1, "Tage"), "inverse",
          "95 % der Kunden haben ihre Uhr spätestens nach so vielen Werktagen."),
-        ("Montagestillstand", f"{de(z['fehlteil_tage'], 1)} Tage", delta("fehlteil_tage", 1, "Tage"), "inverse",
-         "Arbeitstage, an denen mindestens eine Komponente fehlte und nicht montiert werden konnte."),
+        ("Stillstand mit Kundenwirkung", f"{de(z['fehlteil_tage'], 1)} Tage", delta("fehlteil_tage", 1, "Tage"), "inverse",
+         "Arbeitstage, an denen ein Teil fehlte und deshalb Bestellungen warten mussten oder der normale "
+         "Vorrat an fertigen Uhren unterschritten war."),
     ]
     for spalte, (titel, wert, d, farbe, erkl) in zip(st.columns(len(karten)), karten):
         with spalte:
@@ -524,7 +525,9 @@ with tab_detail:
 
     **Lieferzeit (95 %)** = 95-%-Quantil der Werktage zwischen Bestellung und Zustellung.
 
-    **Montagestillstand** = Anzahl Arbeitstage mit mindestens einem Fehlteil.
+    **Stillstand mit Kundenwirkung** = Arbeitstage, an denen mindestens ein Teil fehlte **und** dadurch Bestellungen
+    warten oder der normale Vorrat an fertigen Uhren unterschritten ist. Fehlt ein Teil, während genug fertige Uhren
+    im Lager liegen (z. B. beim Vorproduzieren), zählt der Tag nicht, weil kein Kunde etwas davon merkt.
     """)
 
     # --------------------------------------------------------------------------- Einschätzung
@@ -668,7 +671,7 @@ with tab_detail:
             "Punkte": round(r.punkte, 2) if r.zulaessig and prioritaet else None,
             "Lieferfähigkeit [%]": round(r.beta * 100, 1), "Kosten [€/Uhr]": round(r.kosten_pro_uhr, 2),
             "CO2e [g/Uhr]": round(r.co2e_pro_uhr_kg * 1000, 1), "Lieferzeit 95 % [Tage]": round(r.lieferzeit_p95, 1),
-            "Stillstand [Tage]": round(r.fehlteil_tage, 1),
+            "Stillstand mit Kundenwirkung [Tage]": round(r.fehlteil_tage, 1),
             "Vorteile": "nicht ausgelöst" if nicht else (" · ".join(vor) or "-" if r.option != "keine" else "Referenz"),
             "Nachteile": "" if nicht else " · ".join(nach),
         })

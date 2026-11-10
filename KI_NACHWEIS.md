@@ -174,3 +174,7 @@ Optionen je Szenario rechnen und parallel auf mehreren Kernen (gleiche Ergebniss
 dass in der Spitze die Montage der Engpass ist, nicht die Teile; Bandbreite bleibt bei einem Wert je Szenario;
 dominierende Optionen (z. B. Ausweichroute in S2) bleiben bewusst als klare Fälle stehen.
 Annahmen [A]: Vorproduktion Juli bis Dezember mit 40 Tagen Fertigwarenvorrat.
+Ergänzung: Kennzahl „Montagestillstand“ in „Stillstand mit Kundenwirkung“ geändert (Entscheidung N. Scharly). Ein Tag
+zählt nur, wenn ein Teil fehlt und dadurch Bestellungen warten oder der normale Fertigwarenvorrat unterschritten ist;
+Fehlteile beim Vorproduzieren werden als eigenes Ereignis protokolliert und nicht gezählt. Kombi-Option
+„Vorproduktion + Aufstocken“ entfernt.

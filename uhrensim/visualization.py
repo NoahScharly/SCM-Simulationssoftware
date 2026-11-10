@@ -598,7 +598,7 @@ ZIEL_ACHSEN = {
     "kosten_pro_uhr": ("Kosten je Uhr", 1.0, "€", -1),
     "co2e_pro_uhr_kg": ("CO2e je Uhr", 1000.0, "g", -1),
     "lieferzeit_p95": ("Lieferzeit (95 %)", 1.0, "Tage", -1),
-    "fehlteil_tage": ("Montagestillstand", 1.0, "Tage", -1),
+    "fehlteil_tage": ("Stillstand mit Kundenwirkung", 1.0, "Tage", -1),
     "kapital_gebunden_eur": ("Gebundenes Kapital", 1.0, "€", -1),
 }
 
