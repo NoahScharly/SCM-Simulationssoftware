@@ -31,7 +31,7 @@ import simpy
 from .data import dreieck_mittel
 from .domain import EU_LAENDER, Bezugsquelle, Modell, Route
 
-STROEME = ("nachfrage", "versand", "zoll", "umschlag", "gutquote", "kunden")
+STROEME = ("nachfrage", "versand", "zoll", "umschlag", "gutquote", "kunden", "startbestand")
 MONATSENDEN = np.cumsum([31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31])
 
 
@@ -108,7 +108,12 @@ class Simulation:
         self.rueckstand: deque = deque()
 
         self.politik = {k: self._bestellpolitik(k) for k in modell.komponenten}
-        self.bestand = {k: float(math.ceil(pol.anfangsbestand)) for k, pol in self.politik.items()}
+        # Startbestand je Replikation zufällig zwischen Meldebestand und Meldebestand + Losgröße. Sonst bestellen alle
+        # Replikationen im selben Takt, und eine Störung trifft immer dieselbe Stelle im Bestellzyklus (bei Losgrößen
+        # von 100 bis 200 Tagen Bedarf z. B. nie eine Sendung). Deterministischer Lauf: voller Bestand wie bisher.
+        u = {k: (1.0 if deterministisch else float(self.rng["startbestand"].random())) for k in self.politik}
+        self.bestand = {k: float(math.ceil(pol.meldebestand + u[k] * pol.losgroesse))
+                        for k, pol in self.politik.items()}
         self.pipeline = {k: 0.0 for k in modell.komponenten}
         self.offen: dict[str, list[dict[str, Any]]] = {k: [] for k in modell.komponenten}
         self.aktive_quelle = {k: modell.primaerquelle(k) for k in modell.komponenten}

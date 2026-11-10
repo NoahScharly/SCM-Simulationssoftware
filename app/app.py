@@ -432,7 +432,9 @@ def delta(spalte: str, faktor: float = 1.0, einheit: str = "", nachkomma: int = 
     if d is None or pd.isna(d):
         return None
     d *= faktor
-    return f"{'+' if d >= 0 else ''}{de(d, nachkomma)} {einheit} {ref_txt}"
+    if round(d, nachkomma) == 0:   # gerundet keine Änderung: neutral anzeigen, nicht rot oder grün
+        return f"±{de(0.0, nachkomma)} {einheit} {ref_txt}"
+    return f"{'+' if d > 0 else ''}{de(d, nachkomma)} {einheit} {ref_txt}"
 
 
 karten = [
@@ -450,7 +452,7 @@ karten = [
 ]
 for spalte, (titel, wert, d, farbe, erkl) in zip(st.columns(len(karten)), karten):
     with spalte:
-        st.metric(titel, wert, d, delta_color=farbe)
+        st.metric(titel, wert, d, delta_color="off" if d and d.startswith("±") else farbe)
         st.markdown(f'<div class="erkl">{erkl}</div>', unsafe_allow_html=True)
 
 with st.expander("Wie werden diese Zahlen berechnet?"):
