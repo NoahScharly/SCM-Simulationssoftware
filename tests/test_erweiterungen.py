@@ -1,4 +1,4 @@
-# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Ferdinand Lautenbach (F), einzelner Test Philipp Maywald (P), markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Tests der Erweiterungen von Version 2: p*, SPOF, Bandbreite, Szenario S5."""
 
 import math
@@ -58,6 +58,7 @@ def test_spof(modell):
     assert "Ausweichroute" in spof.loc["e_rtm_hn_binnen", "abgesichert_durch"]
 
 
+# Urheberschaft dieses Tests: Philipp Maywald (P)
 def test_szenario_s5_und_bandbreiten():
     m = lade_modell(szenario_pfad("S5"))
     assert m.stoerungen[0].typ == "nachfrage" and m.stoerungen[0].faktor == pytest.approx(0.7)

@@ -9,7 +9,7 @@ Die Angaben je Person sind aus der Erinnerung zusammengestellt und nicht mehr im
 
 | Person | Verantwortlicher Bereich | Wofür die KI genutzt wurde | Eigene Vorgaben, Prüfung und Korrekturen |
 |---|---|---|---|
-| Ferdinand Lautenbach (F) | Optionsvergleich, Kennzahlen, Netzanalyse | (selbst ergänzen) | (selbst ergänzen) |
-| Noah Scharly (N) | Visualisierung, Domänenmodell, Simulation Routen, Umleitung und Lieferantenausfall, Tests dazu | Hilfestellung bei der Nutzung der Bibliotheken; Kommentierung des Codes; Debugging; Vorschläge zur Konzeption und Gestaltung des Codes; Fragen, wie sich Inhalte am besten visualisieren lassen und wie Diagramme und Karte richtig dargestellt werden | (selbst ergänzen) |
-| Philipp Maywald (P) | Simulation Nachfrage und Montage, Optimierung, Tests | (selbst ergänzen) | (selbst ergänzen) |
+| Ferdinand Lautenbach (F) | Rangfolge und Empfehlung, Kennzahlen, Netzanalyse | (selbst ergänzen) | (selbst ergänzen) |
+| Noah Scharly (N) | Visualisierung, Simulation Routen, Umleitung und Lieferantenausfall, Tests dazu | Hilfestellung bei der Nutzung der Bibliotheken; Kommentierung des Codes; Debugging; Vorschläge zur Konzeption und Gestaltung des Codes; Fragen, wie sich Inhalte am besten visualisieren lassen und wie Diagramme und Karte richtig dargestellt werden | (selbst ergänzen) |
+| Philipp Maywald (P) | Simulation Nachfrage und Montage, Optionsvergleich, Optimierung, Tests | (selbst ergänzen) | (selbst ergänzen) |
 | Benedict Hufgard (B) | Simulation Nachschub, Transport und Reservequelle, Laden und Prüfung | (selbst ergänzen) | (selbst ergänzen) |

@@ -216,17 +216,16 @@ Die Commits liefen gesammelt über ein Konto und sagen deshalb nichts über die 
 | Datei / Modul | Verantwortlich | Inhalt |
 |---|---|---|
 | `uhrensim/visualization.py` | N | animierte Karte, Bestandsansicht, Diagramme, Tabellen |
-| `uhrensim/domain.py` | N | Domänenmodell (Knoten, Kante, Route, Bezugsquelle, Störung, Modell) |
-| `uhrensim/handlungsoptionen.py` | F | Optionsvergleich, Rangfolge mit Relevanzschwellen, Empfehlung, Break-even p*, Bandbreite |
+| `uhrensim/handlungsoptionen.py` | F und P | geteilt, Abschnitte markiert: P Optionen laden und alle Szenarien mit allen Optionen parallel durchrechnen; F Rangfolge mit Relevanzschwellen, Empfehlung, Break-even p*, Bandbreite |
 | `uhrensim/evaluation.py` | F | Kennzahlen, Resilienz, CO2e getrennt nach Beschaffung und letzter Meile, Pareto |
 | `uhrensim/netzanalyse.py` | F | Single Points of Failure |
-| `tests/test_erweiterungen.py` | F | Tests zu p*, SPOF, Bandbreite, S5 |
+| `tests/test_erweiterungen.py` | F und P | Tests zu p*, SPOF, Bandbreite (F); Test zu S5 (P), markiert |
 | `uhrensim/simulation.py` | B, P und N | geteilt, Abschnitte im Code markiert: B Nachschub, Bestellungen, Transportprozess, Reservequelle, Zufallsströme, Startbestand, Störungen, Lauf; P Nachfrage, Versand, Montage, Personal, Aushilfe, Kurzarbeit, Tagesabschluss; N Routenwahl und Umleitung, Luftfracht-Brücke, Notfallplan Sellita bei Uhrwerk-Ausfall |
 | `uhrensim/optimization.py` | P | Rastersuche über Maßnahmen-Kombinationen |
 | `tests/test_modell.py` | P und N | Verifikation, Stresstest mit Mengenbilanz (P); Tests zu Ausweichroute, Umleitung, Notfallplan Sellita und Synchronität von Karte und Bestandsbalken (N), je Test markiert |
 | `tests/test_handlungsoptionen.py` | P und N | Tests des Optionsvergleichs (P); Tests zu Notfallplan und Luftfracht (N), je Test markiert |
 | `uhrensim/data.py` | B | Laden, Feldnamen- und Plausibilitätsprüfung, Konfigurations-Hash |
-| `app/app.py`, `uhrensim/experiment.py`, `uhrensim/__main__.py`, `uhrensim/__init__.py` | G | Oberfläche, Experimente, Kommandozeile |
+| `app/app.py`, `uhrensim/domain.py`, `uhrensim/experiment.py`, `uhrensim/__main__.py`, `uhrensim/__init__.py` | G | Oberfläche, Domänenmodell, Experimente, Kommandozeile |
 | `config/*` | G | Datenbasis, Annahmen mit [A] markiert |
 | SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | Fremd | Fremdbibliotheken, siehe `requirements.txt` |
 

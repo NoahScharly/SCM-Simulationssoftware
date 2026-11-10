@@ -1,4 +1,5 @@
-# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: geteilt zwischen Ferdinand Lautenbach (F) und Philipp Maywald (P), je Abschnitt markiert;
+# Ohne Markierung bis zum ersten Abschnitt (Importe, Konstanten, Entscheidungsregel laden): Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Handlungsoptionen je Szenario automatisch vergleichen und eine Empfehlung ableiten (Modul handlungsoptionen).
 
 
@@ -46,6 +47,7 @@ def lade_entscheidungsregel(konfig_ordner: str | Path = KONFIG_STANDARD) -> tupl
     return anf, [k for k in prio if k in KRITERIEN]
 
 
+# ---- Urheberschaft dieses Abschnitts: Philipp Maywald (P) (Optionen laden, alle Szenarien mit allen Optionen parallel durchrechnen)
 def lade_optionen(konfig_ordner: str | Path = KONFIG_STANDARD) -> list[dict[str, Any]]:
     """Handlungsoptionen aus base.yaml. Die Referenz "keine" steht immer zuerst."""
     roh = lade_modell(None, None, konfig_ordner).param.get("handlungsoptionen") or []
@@ -186,6 +188,7 @@ def vergleiche_optionen(
     return {"detail": pd.DataFrame(zeilen), "ergebnisse": ergebnisse, "optionen": optionen}
 
 
+# ---- Urheberschaft dieses Abschnitts: Ferdinand Lautenbach (F) (Zielkriterien, Relevanzschwellen, Rangfolge, Empfehlung, Break-even p*, Bandbreite)
 # Zielkriterien, aus denen in der Oberfläche gewählt und priorisiert wird: Name, Einheit, Richtung (+1 = mehr ist besser)
 KRITERIEN: dict[str, tuple[str, str, int]] = {
     "beta": ("Lieferfähigkeit", "%", +1),
