@@ -1,7 +1,5 @@
 """Netzanalyse: Single Points of Failure (Modul netzanalyse).
 
-Kennzeichnung: G (Fachlogik aus den Gruppenpostern, Ausarbeitung N. Scharly, Code mit Claude Opus 5.5 umgesetzt),
-siehe KI_NACHWEIS.md.
 
 Single Point of Failure (SPOF, Idee Gruppenposter):
     Ein Element des regulären Lieferwegs (Lieferant, Vorlieferant, Hafen, Strecke) ist ein SPOF, wenn es auf
