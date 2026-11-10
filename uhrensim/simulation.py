@@ -1,7 +1,5 @@
 """Ereignisdiskrete Simulation der Supply Chain mit SimPy (Modul simulation).
 
-Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
-
 Prozesse
 --------
 - Nachfrage:      Kundenaufträge als Poisson-Prozess, je Tag Saison- und Szenariofaktor
