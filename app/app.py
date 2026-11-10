@@ -3,7 +3,6 @@
 Ablauf: 1 Normalbetrieb und Störungen wählen, 2 Simulation rechnet je Szenario alle Handlungsoptionen,
 3 Fall mit Karte und Kennzahlen, Schalter je Option, 4 Vergleich mit Vor- und Nachteilen und Empfehlung.
 
-Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
 Start:  streamlit run app/app.py
 """
