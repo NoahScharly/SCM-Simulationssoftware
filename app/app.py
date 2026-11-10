@@ -10,8 +10,11 @@ Start:  streamlit run app/app.py
 
 from __future__ import annotations
 
+import gzip
+import hashlib
 import json
 import math
+import pickle
 import sys
 import tempfile
 from pathlib import Path
@@ -26,7 +29,8 @@ from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import (KonfigurationsFehler, kombiniere_szenarien, lade_modell, lagerhaltungssatz,  # noqa: E402
                            montage_bedarf, szenario_dateien)
 from uhrensim.netzanalyse import ausschluss_regeln, element_name, single_points_of_failure  # noqa: E402
-from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
+from uhrensim.handlungsoptionen import (KRITERIEN, anzahl_prozesse, empfehlung_je_szenario,  # noqa: E402
+                                        lade_entscheidungsregel,
                                         bandbreite, bandbreite_definition, break_even, markiere_ausschluss,
                                         p_text,
                                         lade_optionen, roc_gewichte, vergleiche_optionen,
@@ -117,14 +121,64 @@ def _ergebnisspeicher() -> dict:
     return {}
 
 
+CACHE_ORDNER = Path(__file__).resolve().parent.parent / ".cache" / "ergebnisse"
+CACHE_MAX_DATEIEN = 4   # je Datei rund 50 MB (komprimiert)
+
+
+@st.cache_resource(show_spinner=False)
+def _code_und_daten_hash() -> str:
+    """Fingerabdruck von config/ und uhrensim/: Ändert sich Datenbasis oder Code, wird neu gerechnet."""
+    wurzel = Path(__file__).resolve().parent.parent
+    h = hashlib.sha256()
+    for p in sorted([*(wurzel / "config").rglob("*"), *(wurzel / "uhrensim").glob("*.py")]):
+        if p.is_file():
+            h.update(str(p.relative_to(wurzel)).encode())
+            h.update(p.read_bytes())
+    return h.hexdigest()
+
+
+def _cache_datei(schl: str, ids: tuple[str, ...]) -> Path:
+    h = hashlib.sha256(_code_und_daten_hash().encode())
+    h.update(schl.encode())
+    for s in ids:   # Inhalt der Szenariodateien (auch verknüpfte Szenarien im Temp-Ordner)
+        h.update(Path(SZ[s]["pfad"]).read_bytes())
+    return CACHE_ORDNER / f"{h.hexdigest()[:24]}.pkl.gz"
+
+
 def rechne(overrides_json: str, ids: tuple[str, ...], reps: int, fortschritt=None) -> dict:
-    """Alle gewählten Szenarien × alle Handlungsoptionen."""
+    """Alle gewählten Szenarien × alle Handlungsoptionen.
+
+    Zwei Zwischenspeicher: im Arbeitsspeicher (solange die App läuft) und auf der Festplatte (.cache/), damit nach
+    einem Neustart der App gleiche Einstellungen nicht neu simuliert werden. Der Festplatten-Cache gilt nur, solange
+    config/ und uhrensim/ unverändert sind. Die Ergebnisse sind wegen des festen Seeds ohnehin reproduzierbar.
+    """
     speicher = _ergebnisspeicher()
     schl = json.dumps([overrides_json, ids, reps])
     if schl not in speicher:
-        sz = SZ   # enthält auch verknüpfte Szenarien aus der Seitenleiste
-        speicher[schl] = vergleiche_optionen([sz[s]["pfad"] for s in ids], OPTIONEN, json.loads(overrides_json),
-                                             reps, fortschritt)
+        datei = _cache_datei(schl, ids)
+        ergebnis = None
+        if datei.exists():
+            try:
+                with gzip.open(datei, "rb") as f:
+                    ergebnis = pickle.load(f)
+            except Exception:   # beschädigt oder alte Version: neu rechnen
+                ergebnis = None
+        if ergebnis is None:
+            sz = SZ   # enthält auch verknüpfte Szenarien aus der Seitenleiste
+            ergebnis = vergleiche_optionen([sz[s]["pfad"] for s in ids], OPTIONEN, json.loads(overrides_json),
+                                           reps, fortschritt)
+            try:
+                CACHE_ORDNER.mkdir(parents=True, exist_ok=True)
+                tmp = datei.with_suffix(".tmp")
+                with gzip.open(tmp, "wb", compresslevel=1) as f:
+                    pickle.dump(ergebnis, f, protocol=pickle.HIGHEST_PROTOCOL)
+                tmp.replace(datei)
+                alte = sorted(CACHE_ORDNER.glob("*.pkl.gz"), key=lambda p: p.stat().st_mtime)
+                for p in alte[:-CACHE_MAX_DATEIEN]:
+                    p.unlink(missing_ok=True)
+            except OSError:
+                pass   # ohne Schreibrechte einfach ohne Festplatten-Cache weiter
+        speicher[schl] = ergebnis
         while len(speicher) > 4:
             speicher.pop(next(iter(speicher)))
     return speicher[schl]
@@ -266,7 +320,10 @@ with st.sidebar:
         seed = (st.number_input("Seed", value=SEED_STANDARD, step=1) if eigener_seed else SEED_STANDARD)
 
     n_laeufe = (1 + len(auswahl)) * len(OPTIONEN) * reps
-    st.caption(f"{de(n_laeufe)} Simulationsläufe, etwa {de(max(n_laeufe * SEK_PER_LAUF / 60, 0.1), 1)} Minuten.")
+    kerne = anzahl_prozesse()
+    st.caption(f"{de(n_laeufe)} Simulationsläufe auf {kerne} CPU-Kern{'en' if kerne > 1 else ''}, etwa "
+               f"{de(max(n_laeufe * SEK_PER_LAUF / kerne / 60, 0.1), 1)} Minuten. Schon einmal gerechnete "
+               f"Einstellungen kommen sofort aus dem Zwischenspeicher.")
     starten = st.button("Simulation starten", type="primary", width="stretch")
 
 overrides = {

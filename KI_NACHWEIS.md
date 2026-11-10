@@ -153,6 +153,10 @@ Cars-Lizenzedition geführt. Mit KI umgesetzt: Titel und Texte, Farbschema im Re
 Gelb, Zielflaggen-Streifen), bewusst ohne Logos oder Figuren des Lizenzgebers. Fehlmengenkosten 50 € statt 20 € je
 verspätetem Auftrag, weil Sammlerkunden empfindlicher auf Verspätung reagieren [A], Sensitivität 20/50/100 €.
 
+### Laufzeit beim Start (mit KI umgesetzt)
+
+Ohne Änderung an der Fachlogik: (1) Werktage der Lieferzeit vektorisiert statt Schleife je Auftrag und Tag (evaluation.lieferzeiten), (2) Läufe je Szenario und Option parallel auf allen CPU-Kernen (handlungsoptionen.rechne_parallel, abschaltbar mit UHRENSIM_PROZESSE=1), (3) Ergebnis-Zwischenspeicher auf der Festplatte (.cache/), gültig solange config/ und uhrensim/ unverändert sind. Geprüft: Ergebnistabelle aller 59 Kombinationen bitgenau identisch zur Rechnung vorher, alle Tests grün.
+
 ## Vorgenommene Änderungen
 
 [hier eigene Änderungen eintragen]

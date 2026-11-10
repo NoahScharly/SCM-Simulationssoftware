@@ -55,14 +55,24 @@ def lieferzeiten(erg: Ergebnis, t_eingang: np.ndarray, t_ende: np.ndarray) -> np
     if p["distribution"].get("lieferzeit_einheit", "werktage") != "werktage":
         return roh
     W, n = erg.modell.einschwingen, int(p["montage"]["arbeitstage_pro_woche"])
-    abzug = np.zeros_like(roh)
-    for i, (te, tz) in enumerate(zip(t_eingang, t_ende)):
-        if not np.isfinite(tz):
-            continue
-        d0, d1 = int(math.floor(te)), int(math.floor(tz))
-        if not ist_arbeitstag(d0, W, n):
-            abzug[i] += min(math.ceil(te + 1e-12), tz) - te
-        abzug[i] += sum(1 for d in range(d0 + 1, d1) if not ist_arbeitstag(d, W, n))
+    te = np.asarray(t_eingang, dtype=float)
+    tz = np.asarray(t_ende, dtype=float)
+    abzug = np.zeros_like(roh, dtype=float)
+    ok = np.isfinite(tz) & np.isfinite(te)
+    if not ok.any():
+        return roh - abzug
+    # Vektorisiert (gleiches Ergebnis wie die frühere Schleife je Auftrag und Tag):
+    # frei[d] = 1, wenn Tag d kein Arbeitstag ist; kum[x] = Anzahl freier Tage in [0, x)
+    d0 = np.floor(te[ok]).astype(np.int64)
+    d1 = np.floor(tz[ok]).astype(np.int64)
+    tage = np.arange(max(int(d1.max()), int(d0.max())) + 2)
+    frei = ((tage - int(W) + 4) % 7 >= n).astype(np.int64)
+    kum = np.concatenate(([0], np.cumsum(frei)))
+    # angebrochener Eingangstag, falls kein Arbeitstag
+    teil = np.where(frei[d0] == 1, np.minimum(np.ceil(te[ok] + 1e-12), tz[ok]) - te[ok], 0.0)
+    # volle freie Tage strikt zwischen Eingangs- und Zustelltag
+    voll = np.where(d1 > d0 + 1, kum[np.maximum(d1, d0 + 1)] - kum[d0 + 1], 0)
+    abzug[ok] = teil + voll
     return roh - abzug
 
 

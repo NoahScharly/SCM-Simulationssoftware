@@ -22,6 +22,9 @@ from __future__ import annotations
 
 import copy
 import math
+import os
+from concurrent.futures import ProcessPoolExecutor, as_completed
+from concurrent.futures.process import BrokenProcessPool
 from pathlib import Path
 from typing import Any, Callable
 
@@ -86,6 +89,47 @@ def _optionen_fuer(szenario: str | Path | dict, optionen: list[dict[str, Any]]) 
     return [o for o in optionen if o["id"] == REFERENZ or o["id"] in gewuenscht]
 
 
+def anzahl_prozesse() -> int:
+    """Anzahl paralleler Prozesse: Umgebungsvariable UHRENSIM_PROZESSE, sonst alle CPU-Kerne (1 = nacheinander)."""
+    wert = os.environ.get("UHRENSIM_PROZESSE", "").strip()
+    if wert.isdigit() and int(wert) > 0:
+        return int(wert)
+    return max(1, os.cpu_count() or 1)
+
+
+def _job(args: tuple) -> dict[str, Any]:
+    """Ein Auftrag für einen Arbeitsprozess (muss auf Modulebene stehen, damit er übertragbar ist)."""
+    szenario, overrides, replikationen = args
+    return fuehre_aus(szenario, overrides, replikationen)
+
+
+def rechne_parallel(jobs: list[tuple], fortschritt: Callable[[int, int], None] | None = None) -> list[dict[str, Any]]:
+    """Führt fuehre_aus für alle Aufträge aus, auf mehrere CPU-Kerne verteilt.
+
+    Die Ergebnisse sind identisch zur Rechnung nacheinander: Jeder Lauf zieht seine Zufallszahlen nur aus Seed und
+    Replikationsnummer (Common Random Numbers), die Reihenfolge der Rechnung spielt keine Rolle. Klappt das Starten
+    der Prozesse nicht (z. B. eingeschränkte Umgebung), wird automatisch nacheinander gerechnet.
+    """
+    n, gesamt = anzahl_prozesse(), len(jobs)
+    ergebnisse: list[dict[str, Any] | None] = [None] * gesamt
+    if n > 1 and gesamt > 1:
+        try:
+            with ProcessPoolExecutor(max_workers=min(n, gesamt)) as pool:
+                zukunft = {pool.submit(_job, j): i for i, j in enumerate(jobs)}
+                for fertig, f in enumerate(as_completed(zukunft), start=1):
+                    ergebnisse[zukunft[f]] = f.result()
+                    if fortschritt:
+                        fortschritt(fertig, gesamt)
+            return ergebnisse  # type: ignore[return-value]
+        except (OSError, BrokenProcessPool, PermissionError):
+            ergebnisse = [None] * gesamt   # Rückfall: nacheinander
+    for i, j in enumerate(jobs):
+        ergebnisse[i] = _job(j)
+        if fortschritt:
+            fortschritt(i + 1, gesamt)
+    return ergebnisse  # type: ignore[return-value]
+
+
 def vergleiche_optionen(
     szenarien: list[str | Path],
     optionen: list[dict[str, Any]] | None = None,
@@ -96,6 +140,8 @@ def vergleiche_optionen(
 ) -> dict[str, Any]:
     """Simuliert jede Option auf jedem Szenario (mit nur_relevante nur die in der Szenariodatei genannten).
 
+    Die Läufe werden auf alle CPU-Kerne verteilt (rechne_parallel), das Ergebnis ist dasselbe wie nacheinander.
+
     Liefert:
         detail:      eine Zeile je (Szenario, Option) mit Mittelwerten, KI und gepaarten Differenzen zu "Ohne Maßnahme"
         ergebnisse:  {(szenario_id, option_id): Rückgabe von fuehre_aus} für Karte und Diagramme
@@ -103,15 +149,12 @@ def vergleiche_optionen(
     """
     optionen = optionen or lade_optionen()
     je_szenario = [_optionen_fuer(pfad, optionen) if nur_relevante else optionen for pfad in szenarien]
-    gesamt, i = sum(len(o) for o in je_szenario), 0
+    paare = [(pfad, opt) for pfad, opts in zip(szenarien, je_szenario) for opt in opts]
+    laeufe = rechne_parallel([(str(pfad), _overrides_mit(overrides, opt), replikationen) for pfad, opt in paare],
+                             fortschritt)
     ergebnisse: dict[tuple[str, str], dict[str, Any]] = {}
-    for pfad, opts in zip(szenarien, je_szenario):
-        for opt in opts:
-            e = fuehre_aus(pfad, _overrides_mit(overrides, opt), replikationen)
-            ergebnisse[(e["szenario_id"], opt["id"])] = e
-            i += 1
-            if fortschritt:
-                fortschritt(i, gesamt)
+    for (_, opt), e in zip(paare, laeufe):
+        ergebnisse[(e["szenario_id"], opt["id"])] = e
 
     zeilen = []
     for (sid, oid), e in ergebnisse.items():
@@ -400,22 +443,20 @@ def bandbreite(
     pfad, werte = defi
     with open(szenario, encoding="utf-8") as f:
         roh = yaml.safe_load(f) or {}
-    gesamt, i = len(werte) * len(optionen), 0
+    jobs = [(_setze_pfad(roh, pfad, w), _overrides_mit(overrides, opt), replikationen)
+            for w in werte for opt in optionen]
+    alle = iter(rechne_parallel(jobs, fortschritt))   # Reihenfolge wie jobs: erst Wert, dann Option
     teile = []
     for w in werte:
-        sz = _setze_pfad(roh, pfad, w)
         zeilen = []
         for opt in optionen:
-            e = fuehre_aus(sz, _overrides_mit(overrides, opt), replikationen)
+            e = next(alle)
             z = e["zusammenfassung"]
             zeile = {"szenario": e["szenario_id"], "option": opt["id"], "wert": w,
                      "knoten_genutzt": ";".join(sorted(genutzte_knoten(e["beispiellauf"])))}
             for kz in z.index:
                 zeile[kz] = float(z.loc[kz, "mittel"])
             zeilen.append(zeile)
-            i += 1
-            if fortschritt:
-                fortschritt(i, gesamt)
         d = pd.DataFrame(zeilen)
         if ausschluss is not None:
             d = markiere_ausschluss(d, *ausschluss)
