@@ -1,6 +1,6 @@
 """Tests für den automatischen Vergleich der Handlungsoptionen.
 
-Kennzeichnung: G (Testfälle N. Scharly, Code mit Claude Opus 5.5 umgesetzt), siehe KI_NACHWEIS.md.
+
 """
 
 import pandas as pd
