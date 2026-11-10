@@ -2,7 +2,6 @@ lieferant,route_id,prioritaet,typ,kanten
 miyota_nagano,r_uhrwerk_basis,1,regulaer,e_nag_yok;e_yok_rtm_kap;e_rtm_hn_binnen
 miyota_nagano,r_uhrwerk_bahn,2,ausweich,e_nag_yok;e_yok_rtm_kap;e_rtm_hn_bahn
 miyota_nagano,r_uhrwerk_luft,9,notfall,e_nag_nrt;e_nrt_fra_luft;e_fra_hn
-santacroce_armband,r_band_italien,1,regulaer,e_scr_hn
 sellita_lcf,r_sellita,1,regulaer,e_lcf_hn
 rochester_glas,r_glas_basis,1,regulaer,e_roc_nyc;e_nyc_ham;e_ham_hn_bahn
 rochester_glas,r_glas_bhv,2,ausweich,e_roc_nyc;e_nyc_bhv;e_bhv_hn_bahn
@@ -15,4 +14,3 @@ portlouis_zeiger,r_zeiger_bahn,2,ausweich,e_ptl_rtm_kap;e_rtm_hn_bahn
 portlouis_zeiger,r_zeiger_luft,9,notfall,e_ptl_fra_luft;e_fra_hn
 clichy_zifferblatt,r_zifferblatt,1,regulaer,e_cli_hn
 biel_gehaeuse,r_gehaeuse,1,regulaer,e_bie_hn
-conegliano_schliesse,r_schliesse,1,regulaer,e_con_hn

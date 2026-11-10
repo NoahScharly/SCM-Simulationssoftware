@@ -118,3 +118,29 @@ def test_saisonbestand_vermeidet_fehlteile_in_s4():
     ohne = fuehre_aus(szenario_pfad("S4"), None, 3)["zusammenfassung"]
     mit = fuehre_aus(szenario_pfad("S4"), {"massnahmen": opt["saisonbestand"]["massnahmen"]}, 3)["zusammenfassung"]
     assert mit.loc["fehlteil_tage", "mittel"] < ohne.loc["fehlteil_tage", "mittel"]
+
+
+def test_gleichstand_entscheiden_die_kosten_nicht_die_listenreihenfolge():
+    """Nur Lieferfähigkeit gewählt, drei Optionen mit 100 %: die günstigste gewinnt, als gleichauf markiert."""
+    df = pd.DataFrame({"option": ["teuer", "mittel", "billig"], "beta": [1.0, 1.0, 1.0],
+                       "kosten_pro_uhr": [260.0, 255.0, 250.0], "co2e_pro_uhr_kg": [0.2, 0.06, 0.06],
+                       "lieferzeit_p95": [2.0, 2.0, 2.0]})
+    r = rangiere(df, {}, ["beta"])
+    assert r.iloc[0].option == "billig" and bool(r.iloc[0].gleichauf)
+
+
+def test_unterschiede_unter_relevanzschwelle_entscheiden_nicht():
+    """0,30 € Kostenvorteil zählt nicht gegen 30 g weniger CO2e, auch wenn Kosten zuerst kommen."""
+    df = pd.DataFrame({"option": ["luft", "see"], "beta": [1.0, 1.0], "kosten_pro_uhr": [246.0, 246.3],
+                       "co2e_pro_uhr_kg": [0.09, 0.06], "lieferzeit_p95": [2.0, 2.0]})
+    assert rangiere(df, {}, ["kosten_pro_uhr", "co2e_pro_uhr_kg"]).iloc[0].option == "see"
+
+
+def test_prioritaet_kippt_die_empfehlung():
+    """Echter Zielkonflikt: je nach Priorität eine andere Empfehlung."""
+    from uhrensim.handlungsoptionen import empfehlung_je_profil
+    df = pd.DataFrame({"szenario": ["S3"] * 3, "option": ["keine", "ausweichroute", "luftfracht"],
+                       "beta": [0.94, 0.99, 1.0], "kosten_pro_uhr": [248.5, 246.2, 246.3],
+                       "co2e_pro_uhr_kg": [0.060, 0.060, 0.089], "lieferzeit_p95": [3.6, 2.3, 2.1]})
+    e = empfehlung_je_profil(df, {"beta": 0.95, "lieferzeit_p95": 3}).iloc[0]
+    assert e["Lieferfähigkeit zuerst"] == "luftfracht" and e["CO2e zuerst"] == "ausweichroute" and e["kippt"]

@@ -14,8 +14,6 @@ e_ham_hn_bahn,hamburg,heilbronn,bahn,700,1,10.1,1,,"52.37,9.73;50.11,8.68",GLEC 
 e_bhv_hn_bahn,bremerhaven,heilbronn,bahn,690,1,10.1,1,,"52.37,9.73;50.11,8.68",Ausweichhafen S3
 e_cli_hn,clichy_zifferblatt,heilbronn,lkw,600,1,210,1,,,"GLEC Lkw 7,5-20 t"
 e_bie_hn,biel_gehaeuse,heilbronn,lkw,300,1,210,1,,,"GLEC Lkw 7,5-20 t"
-e_con_hn,conegliano_schliesse,heilbronn,lkw,750,1,210,1,,,"GLEC Lkw 7,5-20 t"
-e_scr_hn,santacroce_armband,heilbronn,lkw,880,1,210,1,,"44.50,11.34;45.44,10.99;47.27,11.39;48.14,11.58","km [A] über Brenner; GLEC Lkw 7,5-20 t"
 e_lcf_hn,sellita_lcf,heilbronn,lkw,330,1,210,1,,,"GLEC Lkw 7,5-20 t"
 e_nag_nrt,miyota_nagano,narita,lkw,290,1,256,1,,,Vorlauf Luftfracht; km [A]; GLEC Lkw wie e_nag_yok
 e_nrt_fra_luft,narita,frankfurt,luft,11250,1,799,1,,"36.0,128.0;40.0,116.0;43.5,87.0;43.0,70.0;41.5,50.0;41.0,40.0;44.5,22.0","Notfallweg; ohne russischen Luftraum (Sperrung seit 2022): Südroute über China und Zentralasien, Großkreis 9.370 km, mit Umweg rund 11.250 km [A]; Alternative Polroute je nach Wind (Finnair: 2 bis 4 h länger); GLEC Luftfracht Langstrecke"

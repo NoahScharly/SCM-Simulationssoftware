@@ -148,3 +148,19 @@ verspätetem Auftrag, weil Sammlerkunden empfindlicher auf Verspätung reagieren
 - 47 automatische Tests (Version 2, vorher 39) (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]
+
+### Nachtrag 10.11.2026 (abends): Armband, Personal, Gewichtung, S5
+
+Vorgehen: Claude prüft und schlägt vor, N. Scharly entscheidet, erst dann Umsetzung.
+Entscheidungen N. Scharly: Schließe kein eigener Lieferant mehr, Lederarmband komplett mit Schließe aus Estancia
+Velha für 26 € (18 + 6 + 2 € [A]), Italien entfernt; Montagepersonal in halben Stellen (4,5 statt 5 bei 5.000 Uhren)
+mit Handlungsoption „Teilzeit aufstocken“ für Nachfragespitzen; Montagestillstand kein Zielkriterium mehr,
+gebundenes Kapital optional; S5 mit den Optionen Bestand anpassen und Kurzarbeit statt Puffer und Saisonbestand,
+Beschreibung ohne Namensnennung.
+Mit KI geprüft und umgesetzt: Test der Gewichtung über alle Szenarien und mehrere Prioritätsprofile. Befunde:
+Gleichstände wurden nach Listenreihenfolge entschieden, Kostenunterschiede ab 10 Cent zählten voll, S3 hatte keinen
+Zielkonflikt, weil Schiffe auf See nicht nach Bremerhaven umgeleitet wurden. Umgesetzt: Relevanzschwellen
+(1 €/Uhr, 0,5 Pp, 5 g CO2e/Uhr, 0,5 Tage), Gleichstand über Kosten, Umleitung auf See mit Ausweichroute
+(150 km, 0,5 Tage [A]), S3 auf 21 Tage, Block „Was ändert die Priorität?“, Tests.
+Annahmen [A]: Reaktionszeit Bestand anpassen 7 Tage, Kurzarbeit 14 Tage, Remanenzkosten 25 %.
+

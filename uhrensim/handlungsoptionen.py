@@ -114,9 +114,17 @@ KRITERIEN: dict[str, tuple[str, str, int]] = {
     "kosten_pro_uhr": ("Kosten je Uhr", "€", -1),
     "co2e_pro_uhr_kg": ("CO2e je Uhr", "g", -1),
     "lieferzeit_p95": ("Lieferzeit (95 %)", "Tage", -1),
-    "fehlteil_tage": ("Montagestillstand", "Tage", -1),
-    "kapital_gebunden_eur": ("Gebundenes Kapital", "€", -1),
+    "kapital_gebunden_eur": ("Gebundenes Kapital", "€", -1),   # optional, Standard aus (Liquidität)
 }
+# Montagestillstand ist kein Zielkriterium mehr (Entscheidung N. Scharly): Seine Folgen stecken schon in
+# Lieferfähigkeit und Kosten, als eigenes Kriterium würde er doppelt zählen. Er bleibt als Kennzahl sichtbar.
+
+# Relevanzschwellen der Rangfolge: Unterschiede darunter gelten als gleichwertig (Rauschen oder praktisch ohne
+# Bedeutung) und entscheiden die Rangfolge nicht. Entscheidung N. Scharly nach Prüfung der Gewichtung.
+RELEVANZ = {"beta": 0.005, "kosten_pro_uhr": 1.0, "co2e_pro_uhr_kg": 0.005, "lieferzeit_p95": 0.5,
+            "kapital_gebunden_eur": 5000.0}
+# Reihenfolge, nach der Gleichstände aufgelöst werden, wenn alle gewählten Kriterien gleichwertig sind
+GLEICHSTAND_FOLGE = ["kosten_pro_uhr", "beta", "co2e_pro_uhr_kg", "lieferzeit_p95", "kapital_gebunden_eur"]
 
 
 def richtung(kz: str) -> int:
@@ -166,18 +174,59 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         x = out[kz].astype(float)
         bx = basis[kz].astype(float)
         bester, schlechtester = (bx.max(), bx.min()) if richtung(kz) > 0 else (bx.min(), bx.max())
-        # Mindestspanne = Schwelle, ab der ein Unterschied als echt gilt. Sonst würde z. B. ein Unterschied von
-        # 0,03 Prozentpunkten Lieferfähigkeit (Zufallsrauschen) auf die volle Spanne 0 bis 1 gestreckt.
-        spanne = max(abs(schlechtester - bester), SCHWELLEN.get(kz, 0.0))
-        norm = ((x - bester).abs() / spanne) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
+        schwelle = RELEVANZ.get(kz, SCHWELLEN.get(kz, 0.0))
+        # Wer weniger als die Relevanzschwelle vom Besten entfernt ist, gilt als gleich gut (0). Sonst Abstand zum
+        # Besten relativ zur Spanne der zulässigen Optionen (mindestens die Schwelle).
+        abst = (x - bester).abs()
+        spanne = max(abs(schlechtester - bester), schwelle)
+        norm = (abst / spanne).where(abst >= schwelle, 0.0) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
         out[f"norm_{kz}"] = norm
         punkte += w * norm
-    out["punkte"] = punkte
+    out["punkte"] = punkte.round(9)
     out["pareto"] = pareto_front(out, list(gewichte)) if gewichte else False
-    out = out.sort_values(["zulaessig", "abstand_anforderung", "punkte"], ascending=[False, True, True])
+    # Gleichstand: gleiche Punkte (alle gewählten Kriterien gleichwertig). Dann entscheiden weitere Kriterien in
+    # fester Folge (zuerst Kosten), damit nie die Reihenfolge der Liste den Ausschlag gibt.
+    folge = [k for k in GLEICHSTAND_FOLGE if k in out]
+    hilfs = []
+    for k in folge:
+        out[f"_gs_{k}"] = out[k].astype(float) * -richtung(k)    # kleiner = besser
+        hilfs.append(f"_gs_{k}")
+    out = out.sort_values(["zulaessig", "abstand_anforderung", "punkte", *hilfs],
+                          ascending=[False, True, True, *[True] * len(hilfs)])
+    out = out.drop(columns=hilfs)
     out["rang"] = range(1, len(out) + 1)
+    erster = out.iloc[0] if len(out) else None
+    out["gleichauf"] = False
+    if erster is not None and bool(erster.zulaessig) and prioritaet:
+        out["gleichauf"] = (out.zulaessig & (out.punkte - erster.punkte).abs().lt(1e-9)
+                            & out.rang.gt(1)) | False
+        if out.gleichauf.any():
+            out.loc[out.rang == 1, "gleichauf"] = True
     out.attrs["gewichte"] = gewichte
     return out
+
+
+PROFILE: dict[str, list[str]] = {
+    "Lieferfähigkeit zuerst": ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
+    "Kosten zuerst": ["kosten_pro_uhr", "beta", "co2e_pro_uhr_kg", "lieferzeit_p95"],
+    "CO2e zuerst": ["co2e_pro_uhr_kg", "beta", "kosten_pro_uhr", "lieferzeit_p95"],
+}
+
+
+def empfehlung_je_profil(detail: pd.DataFrame, anforderungen: dict[str, float],
+                         profile: dict[str, list[str]] | None = None) -> pd.DataFrame:
+    """Empfehlung je Szenario unter mehreren Prioritätsprofilen: zeigt, ob und wie die Priorität entscheidet."""
+    profile = profile or PROFILE
+    zeilen = []
+    for sid, g in detail.groupby("szenario", sort=False):
+        zeile: dict[str, Any] = {"szenario": sid}
+        for name, prio in profile.items():
+            r = rangiere(g, anforderungen, prio)
+            zeile[name] = r.iloc[0].option
+            zeile[f"{name}_gleichauf"] = bool(r.iloc[0].gleichauf)
+        zeile["kippt"] = len({zeile[n] for n in profile}) > 1
+        zeilen.append(zeile)
+    return pd.DataFrame(zeilen)
 
 
 def empfehlung_je_szenario(detail: pd.DataFrame, anforderungen: dict[str, float],

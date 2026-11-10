@@ -17,6 +17,8 @@ montage:
   kapazitaet_pro_tag: auto      # auto = aus Jahresmenge: Mitarbeiter × Uhren je Mitarbeiter; oder feste Zahl
   uhren_pro_mitarbeiter_tag: 5  # Festlegung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle mit zugekauften
                                 # Werken, ca. 5 Uhren je Uhrmacher und Tag; Sensitivität 2/3/5/7
+  stellen_raster: 0.5           # Stellen werden auf halbe Stellen aufgerundet (Teilzeit), Entscheidung N. Scharly:
+                                # 5.000 Uhren brauchen 4,04 Stellen, besetzt 4,5 statt 5 volle; 1.0 = nur Vollzeit
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # fest: 1 % Ausschuss, ohne Zufall (Bruchteile werden übertragen) [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]
@@ -39,6 +41,8 @@ distribution:
 transport:
   geschwindigkeit_km_tag: {see: 800, bahn: 400, binnen: 250, lkw: 600, luft: 8000}
   umschlag_tage: {see: [1, 2, 4], bahn: [0.5, 1, 2], binnen: [0.5, 1, 2], lkw: [0, 0.5, 1], luft: [1, 1.5, 3]}
+  umleitung_km: 150             # Schiff unterwegs, Zielhafen gesperrt: Umweg zum Ausweichhafen (Elbe-Weser) [A]
+  umleitung_tage: 0.5           # Umplanung und Anlaufen des Ausweichhafens [A]
   zoll_tage: [0.5, 1, 2]        # Zollabfertigung Drittland, Dreieck [A]. Zollsatz überall 0 % (EPA Japan, FHA Schweiz,
                                 # Interim-EPA Mauritius, Mercosur vorläufig ab 1.5.2026, EU-US-Zollverordnung 2026),
                                 # Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer bleiben aber nötig
@@ -85,10 +89,6 @@ massnahmen:
                                       # Wochenbedarf bei 5.000 Uhren/Jahr [A]
   notfall_bereitschaft_eur_jahr: 4000 # Qualifizierung, Musterfreigabe, Rahmenvertrag; fällt auch ohne Ausfall an
                                       # (Wert und Idee aus dem Konzept B. Hufgard) [A]
-  armband_italien: false        # Bezugsoption: Lederarmband komplett aus Italien (Santa Croce, Leder aus der Toskana)
-                                # statt Estancia Velha (Brasilien). Teurer, aber kurzer Lkw-Weg, kein Zoll, kein Seeweg.
-                                # Keine Handlungsoption mehr: Bei gestörtem Hamburg fehlt das Saphirglas trotzdem, ein
-                                # zweites Armband löst das Problem also nicht. Bleibt nur als Bezugsquelle im Netz.
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 8        # Reichweite, ab der Luftfracht ausgelöst wird; muss über der Luft-WBZ liegen
                                 # (2 Tage Eilfertigung + Lkw + Flug + Zoll + Umschlag = rund 6 bis 7 Tage)
@@ -102,9 +102,15 @@ massnahmen:
                                 # ohne diese Maßnahme wartet die Ware, bis der reguläre Weg wieder frei ist
   aushilfe: {}                  # Aushilfe bei Montagerückstand (Idee P. Maywald), z. B.
                                 # {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}
+  # Teilzeit aufstocken = Aushilfe-Mechanik mit eigener Teilzeitkraft: {mitarbeiter: 0.5, aufschlag: 0, ...}
   saison_bestand: {}            # Saisonbestand: z. B. {monate: [8, 9, 10, 11], extra_tage: 20} hebt den Meldebestand
                                 # aller Komponenten vor der Spitze an (Aufbau ab August wegen langer WBZ)
-  saison_vorproduktion: {}      # z. B. {monate: [10, 11, 12], ziel_tage: 30} höherer Fertigwarenvorrat
+  saison_vorproduktion: {}
+  bestand_anpassen: {}          # Nachfrageeinbruch: Meldebestand und Bestellmenge folgen der gesunkenen Nachfrage, z. B.
+                                # {reaktion_tage: 7}; Einbruch und Erholung werden erst nach so vielen Tagen erkannt [A]
+  kurzarbeit: {}                # Nachfrageeinbruch: Arbeitszeit der Stammbelegschaft sinkt mit der Nachfrage, z. B.
+                                # {reaktion_tage: 14, remanenz: 0.25}; Remanenzkosten = Anteil der Personalkosten,
+                                # der für ausgefallene Stunden trotzdem anfällt (Sozialversicherung, Urlaub) [A]      # z. B. {monate: [10, 11, 12], ziel_tage: 30} höherer Fertigwarenvorrat
 
 handlungsoptionen:              # werden nach dem Start für jedes gewählte Szenario automatisch durchgerechnet
   - id: keine                   # Referenz: nur die eingebauten Reaktionen des Modells
@@ -144,6 +150,13 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
       (Zeitarbeit, 30 % teurer als eigenes Personal) für mindestens 10 Arbeitstage und bleibt, bis der Rückstand
       aufgeholt ist (Idee P. Maywald) [A]
     massnahmen: {aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
+  - id: aufstocken
+    name: Teilzeit aufstocken
+    kurz: Teilzeit aufstocken
+    beschreibung: Liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, geht die halbe Stelle
+      für mindestens 10 Arbeitstage auf Vollzeit (eigene Mitarbeiterin, kein Zeitarbeitsaufschlag), bis der Rückstand
+      aufgeholt ist; nur sinnvoll, solange die Grundbesetzung eine Teilzeitstelle enthält
+    massnahmen: {aushilfe: {mitarbeiter: 0.5, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.0}}
   - id: saisonbestand
     name: Saisonbestand aufbauen
     kurz: Saisonbestand
@@ -157,6 +170,20 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
       starken Spitze fehlt sonst jeweils das andere [A]
     massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20},
                  aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
+  - id: bestand_absenken
+    name: Bestand an Nachfrage anpassen
+    kurz: Bestand absenken
+    beschreibung: Wird der Einbruch erkannt (nach 7 Tagen), sinken Meldebestand und Bestellmengen aller Komponenten
+      im selben Verhältnis wie die Nachfrage. Spart gebundenes Kapital; Risiko, die Erholung wird ebenfalls erst
+      nach 7 Tagen erkannt
+    massnahmen: {bestand_anpassen: {reaktion_tage: 7}}
+  - id: kurzarbeit
+    name: Kurzarbeit in der Montage
+    kurz: Kurzarbeit
+    beschreibung: Wird der Einbruch erkannt (nach 14 Tagen, Antrag und Abstimmung), arbeitet die Montage nur
+      entsprechend der Nachfrage; für ausgefallene Stunden bleiben 25 % der Personalkosten (Remanenzkosten).
+      Risiko, nach der Erholung fehlt 14 Tage lang Montagekapazität
+    massnahmen: {kurzarbeit: {reaktion_tage: 14, remanenz: 0.25}}
 
 entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Abschnitt 1 bis 3), dort änderbar
   anforderungen:                # Stufe 1: Mindestanforderungen (Grenze je Zielkriterium)

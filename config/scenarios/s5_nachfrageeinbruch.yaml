@@ -1,15 +1,15 @@
 id: S5
 name: Nachfrageeinbruch -30 % für 60 Tage
 kurz: Nachfrageeinbruch
-beschreibung: Nach einem Imageschaden (Skandalstufe 2 nach P. Maywald, z. B. Vorwurf Kinderarbeit oder Umweltverschmutzung
-  bei einem Lieferanten) bricht die Nachfrage ab Tag 150 für 60 Tage um 30 % ein. Testet die Gegenrichtung zu den
-  übrigen Szenarien, also Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen (Werte [A])
-relevante_optionen: [keine, puffer, saisonbestand]   # zeigt, was zusätzlicher Bestand kostet, wenn er nicht gebraucht wird
+beschreibung: "Nach einem Imageschaden, etwa durch Vorwürfe gegen einen Lieferanten wegen Kinderarbeit oder
+  Umweltverschmutzung, bricht die Nachfrage ab Tag 150 für 60 Tage um 30 % ein. Das Szenario prüft die Gegenrichtung
+  zu den übrigen Störungen: Statt Fehlmengen entstehen Überbestand, gebundenes Kapital und ungenutzte
+  Montagekapazität."
+relevante_optionen: [keine, bestand_absenken, kurzarbeit]   # Anpassung an die gesunkene Nachfrage
 stoerungen:
   - typ: nachfrage
     faktor: 0.7
     start_tag: 150
     dauer_tage: 60
-sensitivitaet:                  # Bandbreite nach den Skandalstufen von P. Maywald: Stufe 1 -15 %, Stufe 2 -30 %,
-                                # Stufe 3 -50 % (dort eigentlich dauerhaft, hier für dieselben 60 Tage)
+sensitivitaet:                  # Bandbreite nach Schwere des Imageschadens: leicht -15 %, mittel -30 %, schwer -50 %
   stoerungen.0.faktor: [0.85, 0.7, 0.5]

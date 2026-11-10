@@ -568,7 +568,6 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     def label(r):
         teile = [f"Puffer {r.puffer_uhrwerk}"]
         if r.sellita_notfall: teile.append("Sellita")
-        if getattr(r, "armband_italien", False): teile.append("Armband IT")
         if r.luftfracht_notfall: teile.append("Luft")
         return ", ".join(teile)
     for zul, farbe, name in ((False, "#B0A69C", "unzulässig (Mindestwert verfehlt)"), (True, KUPFER, "zulässig")):

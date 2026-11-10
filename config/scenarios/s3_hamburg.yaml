@@ -1,12 +1,13 @@
 id: S3
-name: Hafen Hamburg 14 Tage gestört
+name: Hafen Hamburg 21 Tage gestört
 kurz: Hamburg gestört
-beschreibung: Hamburg ab Tag 60 für 14 Tage geschlossen, Saphirglas und Lederarmband kommen nicht an (Poster S3)
+beschreibung: Hamburg ab Tag 60 für 21 Tage geschlossen, Saphirglas und Lederarmband kommen nicht an (Poster S3, auf
+  drei Wochen verlängert, damit Ausweichroute und Luftfracht einen echten Zielkonflikt zeigen)
 relevante_optionen: [keine, ausweichroute, luftfracht]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: knoten_ausfall
     ziel: hamburg
     start_tag: 60
-    dauer_tage: 14
+    dauer_tage: 21
 sensitivitaet:                  # Bandbreite der Schließdauer [A]
-  stoerungen.0.dauer_tage: [7, 14, 28]
+  stoerungen.0.dauer_tage: [14, 21, 28]

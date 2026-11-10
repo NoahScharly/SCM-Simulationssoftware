@@ -21,7 +21,7 @@ from .domain import Modell
 
 # Welche Maßnahme (base.yaml, Block massnahmen) einen zusätzlichen Weg freischaltet
 MASSNAHME_FUER_ROUTENTYP = {"ausweich": "ausweichroute", "notfall": "luftfracht_notfall"}
-MASSNAHME_FUER_ROLLE = {"alternativ": "sellita_notfall", "option": "armband_italien"}
+MASSNAHME_FUER_ROLLE = {"alternativ": "sellita_notfall"}
 
 
 def _wege(m: Modell, komponente: str) -> list[dict[str, Any]]:

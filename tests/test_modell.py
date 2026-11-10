@@ -163,8 +163,10 @@ def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
 
 def test_montage_wird_aus_jahresmenge_ausgelegt():
     m = lade_modell(overrides={"nachfrage": {"uhren_pro_jahr": 5000}})
-    assert m.param["montage"]["mitarbeiter"] == 5          # 5000 / (250 × 0,99) = 20,2 Montagen -> 5 × 5
-    assert m.param["montage"]["kapazitaet_pro_tag"] == 25
+    assert m.param["montage"]["mitarbeiter"] == 4.5        # 5000 / (250 × 0,99) = 20,2 Montagen = 4,04 Stellen -> 4,5
+    assert m.param["montage"]["kapazitaet_pro_tag"] == 22.5
+    voll = lade_modell(overrides={"montage": {"stellen_raster": 1.0}})
+    assert voll.param["montage"]["mitarbeiter"] == 5       # nur Vollzeit: 5 Stellen
     assert not m.warnungen or all("Montagekapazität" not in w for w in m.warnungen)
 
 
@@ -211,15 +213,6 @@ def test_bestandsbalken_laufen_synchron_zur_karte():
 
 
 # --------------------------------------------------------------------------- Bezugsoption und Kapital
-def test_armband_italien_ersetzt_brasilien_ohne_zoll():
-    m = lade_modell(None, {"massnahmen": {"armband_italien": True}})
-    assert m.primaerquelle("armband").lieferant == "santacroce_armband"
-    erg = simuliere(m, 0)
-    band = erg.log[erg.log.komponente == "armband"]
-    assert not (band.ort == "estancia_leder").any()
-    assert not (band.ereignis == "zollfreigabe").any()
-
-
 def test_mehr_bestand_bindet_kapital_und_kostet_zinsen():
     ohne = kennzahlen(simuliere(lade_modell(None, KURZ), 0))
     mit = kennzahlen(simuliere(lade_modell(None, KURZ | {"massnahmen": {"puffer_extra": {"uhrwerk": 1000}}}), 0))
@@ -319,3 +312,42 @@ def test_co2_letzte_meile_getrennt():
     k = kennzahlen(simuliere(lade_modell(), 0))
     assert k["co2e_inbound_g"] + k["co2e_letzte_meile_g"] == pytest.approx(k["co2e_pro_uhr_kg"] * 1000)
 
+
+
+def test_armband_komplett_aus_brasilien_ohne_schliesse():
+    """Entscheidung N. Scharly: Schließe kommt mit dem Armband aus Estancia Velha, Italien ist entfernt."""
+    m = lade_modell()
+    assert "schliesse" not in m.komponenten
+    assert [q.lieferant for q in m.quellen["armband"]] == ["estancia_leder"]
+    assert m.primaerquelle("armband").preis_eur == pytest.approx(26.0)
+    assert not any("santacroce" in k or "conegliano" in k for k in m.knoten)
+
+
+def test_ausweichroute_leitet_schiffe_auf_see_um():
+    """Hamburg gesperrt: mit Ausweichroute laufen Schiffe, die schon unterwegs sind, Bremerhaven an."""
+    ohne = simuliere(lade_modell(szenario_pfad("S3")), 0)
+    mit = simuliere(lade_modell(szenario_pfad("S3"), {"massnahmen": {"ausweichroute": True}}), 0)
+    um = mit.log[(mit.log.ereignis == "umleitung") & (mit.log.neu == "bremerhaven")]
+    assert len(um) > 0
+    assert not ((ohne.log.ereignis == "umleitung") & (ohne.log.neu == "bremerhaven")).any()
+    assert kennzahlen(mit)["beta"] >= kennzahlen(ohne)["beta"]
+
+
+def test_kurzarbeit_senkt_personalkosten_im_einbruch():
+    ohne = kennzahlen(simuliere(lade_modell(szenario_pfad("S5")), 0))
+    erg = simuliere(lade_modell(szenario_pfad("S5"), {"massnahmen": {"kurzarbeit": {"reaktion_tage": 14,
+                                                                                     "remanenz": 0.25}}}), 0)
+    mit = kennzahlen(erg)
+    assert mit["kosten_montage"] < ohne["kosten_montage"]
+    assert (erg.log.ereignis == "kurzarbeit").any()
+    # im Normalbetrieb wirkt Kurzarbeit nicht
+    n0 = kennzahlen(simuliere(lade_modell(None), 0))
+    n1 = kennzahlen(simuliere(lade_modell(None, {"massnahmen": {"kurzarbeit": {"reaktion_tage": 14}}}), 0))
+    assert n1["kosten_montage"] == pytest.approx(n0["kosten_montage"])
+
+
+def test_bestand_anpassen_senkt_kapital_im_einbruch():
+    ohne = kennzahlen(simuliere(lade_modell(szenario_pfad("S5")), 0))
+    mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S5"), {"massnahmen": {"bestand_anpassen":
+                                                                                  {"reaktion_tage": 7}}}), 0))
+    assert mit["kapital_gebunden_eur"] < ohne["kapital_gebunden_eur"]

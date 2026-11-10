@@ -25,7 +25,8 @@ from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import (KonfigurationsFehler, lade_modell, lagerhaltungssatz, montage_bedarf,  # noqa: E402
                            szenario_dateien)
 from uhrensim.netzanalyse import element_name, single_points_of_failure  # noqa: E402
-from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
+from uhrensim.handlungsoptionen import (KRITERIEN, PROFILE, RELEVANZ, empfehlung_je_profil,  # noqa: E402
+                                        empfehlung_je_szenario, lade_entscheidungsregel,
                                         bandbreite, bandbreite_definition, break_even,
                                         p_text,
                                         lade_optionen, roc_gewichte, vergleiche_optionen,
@@ -79,7 +80,7 @@ def montage_text(m) -> str:
     if str(k.get("montage_kostenmodell", "stueck")) != "personal":
         return f"Montage: {de(k['montage_eur_uhr'])} € je montierter Uhr."
     jahr = float(k["lohnkosten_eur_h"]) * float(k["stunden_ma_jahr"])
-    return (f"Montage: {de(mo.get('mitarbeiter', 0))} Mitarbeiter × {de(k['stunden_ma_jahr'])} h × "
+    return (f"Montage: {de(float(mo.get('mitarbeiter', 0)), 1)} Stellen × {de(k['stunden_ma_jahr'])} h × "
             f"{de(k['lohnkosten_eur_h'], 2)} €/h = {de(jahr * float(mo.get('mitarbeiter', 0)))} € im Jahr, fällig auch "
             f"an Tagen ohne Montage (Fixkosten).")
 
@@ -165,11 +166,12 @@ with st.sidebar:
                       int(basis.param["nachfrage"]["uhren_pro_jahr"]), step=250,
                       help="Geplante Jahresmenge. Montagekapazität und Mitarbeiterzahl werden daraus abgeleitet. "
                            "Lieferanten, Verkehrsmittel, Kosten und CO2e kommen aus der Datenbasis (config/).")
-    mb = montage_bedarf(menge, g["arbeitstage_pro_jahr"], float(mo["gutquote"]), PRO_MA)
+    mb = montage_bedarf(menge, g["arbeitstage_pro_jahr"], float(mo["gutquote"]), PRO_MA,
+                        float(mo.get("stellen_raster", 1.0)))
     auslastung = mb["montagen_noetig"] / mb["kapazitaet_pro_tag"] if mb["kapazitaet_pro_tag"] else 0
     st.markdown(
         f'<div class="kasten">Nötig: <b>{de(mb["montagen_noetig"], 1)} Montagen pro Tag</b><br>'
-        f'Dafür: <b>{mb["mitarbeiter"]} Mitarbeiter</b> × {de(PRO_MA)} Uhren = '
+        f'Dafür: <b>{de(mb["mitarbeiter"], 1)} Stellen</b> (halbe Stellen möglich) × {de(PRO_MA)} Uhren = '
         f'<b>{de(mb["kapazitaet_pro_tag"])} Montagen/Tag</b><br>'
         f'<span style="color:#5E6168">Auslastung {de(auslastung * 100)} % · {g["arbeitstage_pro_jahr"]} '
         f'Arbeitstage · {de(float(mo["gutquote"]) * 100)} % Gutquote</span></div>',
@@ -200,7 +202,8 @@ with st.sidebar:
     st.markdown("**Priorisierung** (oben = am wichtigsten)")
     gewaehlt = st.pills("Kriterien", list(KRITERIEN), default=PRIO_STANDARD, selection_mode="multi",
                         format_func=KNAME.get, label_visibility="collapsed", key="prio_auswahl",
-                        help="Welche Zielkriterien sollen in die Empfehlung eingehen?") or []
+                        help="Welche Zielkriterien sollen in die Empfehlung eingehen? Gebundenes Kapital ist optional "
+                             "(Liquidität); seine Zinskosten stecken schon in den Kosten je Uhr.") or []
     alt = [k for k in st.session_state.get("prio_reihenfolge", PRIO_STANDARD) if k in gewaehlt]
     start = alt + [k for k in gewaehlt if k not in alt]
     if sort_items is not None and start:
@@ -246,7 +249,7 @@ schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
 st.title("High-End Cars-Uhr · Supply Chain Heilbronn")
 st.markdown('<div class="zielflagge"></div>', unsafe_allow_html=True)
 st.markdown(f'<div class="untertitel">Simulationsgestützte Entscheidungsunterstützung · Automatikuhr in Lizenzedition · {de(menge)} Uhren pro Jahr · '
-            f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Basis + {len(ids) - 1} Störungen × '
+            f'{de(mb["mitarbeiter"], 1)} Stellen in der Montage · Basis + {len(ids) - 1} Störungen × '
             f'{len(OPTIONEN)} Handlungsoptionen</div>', unsafe_allow_html=True)
 
 if menge == 0:
@@ -531,8 +534,8 @@ with links:
     if z["fehlteil_tage"] < 0.5 and spaet >= 1:
         kap = m.param["montage"]["kapazitaet_pro_tag"]
         hinweis("warn", "Ursache: Montagekapazität.",
-                f"Alle Teile waren da, aber {de(kap)} Montagen/Tag ({m.param['montage']['mitarbeiter']} "
-                f"Mitarbeiter) reichen in Nachfragespitzen nicht.")
+                f"Alle Teile waren da, aber {de(kap)} Montagen/Tag ({de(float(m.param['montage']['mitarbeiter']), 1)} "
+                f"Stellen) reichen in Nachfragespitzen nicht.")
 
     res = e["resilienz"]
     if not res.empty:
@@ -605,13 +608,17 @@ st.markdown(f"### 2 · Handlungsoptionen für {sid} im Vergleich")
 st.markdown("Alle Optionen wurden automatisch mit denselben Zufallszahlen simuliert, Vergleichsmaßstab ist "
             "„Ohne Maßnahme“ im selben Szenario. Rangfolge: **Stufe 1** Mindestanforderungen "
             f"({anf_text()}), **Stufe 2** Priorisierung ({prio_text()}). Punkte = gewichteter Abstand zur jeweils "
-            "besten zulässigen Option, 0 = überall die beste.")
+            "besten zulässigen Option, 0 = überall die beste. Unterschiede unter der Relevanzschwelle "
+            f"(Kosten {de(RELEVANZ['kosten_pro_uhr'])} €/Uhr, Lieferfähigkeit {de(RELEVANZ['beta'] * 100, 1)} Pp, "
+            f"CO2e {de(RELEVANZ['co2e_pro_uhr_kg'] * 1000)} g/Uhr, Lieferzeit {de(RELEVANZ['lieferzeit_p95'], 1)} Tage) "
+            "gelten als gleichwertig. Bei Gleichstand (**=**) entscheiden die Kosten, dann die übrigen Kriterien.")
 tab_opt = []
 for r in rang.itertuples():
     vor, nach = vor_und_nachteile(rang.loc[r.Index])
     nicht = r.option != "keine" and not wirkt(rang.loc[r.Index])
     tab_opt.append({
-        "Rang": r.rang, "Option": ("★ " if r.rang == 1 else "") + OPT[r.option]["name"],
+        "Rang": f"{r.rang}" + (" =" if r.gleichauf else ""),
+        "Option": ("★ " if r.rang == 1 else "") + OPT[r.option]["name"],
         "Anforderungen": "✅" if r.zulaessig else f"❌ {r.verletzt}",
         "Lohnt sich? (Break-even p*)": p_stern(sid, r.option) if r.option != "keine" and sid != "S0" else "",
         "Punkte": round(r.punkte, 2) if r.zulaessig and prioritaet else None,
@@ -710,11 +717,28 @@ for s in sz_ids:
             continue
         r = zs.loc[o]
         zeichen = "✅" if rang_je_sz[s].set_index("option").loc[o, "zulaessig"] else "❌"
-        zusatz = " (nicht ausgelöst)" if o in ("sellita", "luftfracht", "aushilfe") and not wirkt(r) else ""
+        zusatz = (" (nicht ausgelöst)" if o in ("sellita", "luftfracht", "aushilfe", "aufstocken", "kurzarbeit",
+                                                 "bestand_absenken") and not wirkt(r) else "")
         zeile[OPT_KURZ[o]] = f"{zeichen} {de(r.beta * 100, 1)} % · {de(r.kosten_pro_uhr, 2)} €{zusatz}"
     zeile["Empfehlung"] = "★ " + OPT_KURZ[rang_je_sz[s].iloc[0].option]
     matrix.append(zeile)
 st.dataframe(pd.DataFrame(matrix), hide_index=True, width="stretch")
+
+st.markdown("#### Was ändert die Priorität?")
+st.markdown("Dieselben Simulationsergebnisse, nur anders gewichtet: die Empfehlung je Szenario, wenn Lieferfähigkeit, "
+            "Kosten oder CO2e an erster Stelle stehen (Mindestanforderungen wie links eingestellt). Wo sich die "
+            "Empfehlung unterscheidet, entscheidet eure Priorität. Wo sie gleich bleibt, ist eine Option in allem "
+            "besser oder als einzige zulässig.")
+profil = empfehlung_je_profil(detail_rel[detail_rel.szenario != "S0"], anforderungen)
+if not profil.empty:
+    tab_pr = []
+    for _, r in profil.iterrows():
+        zeile = {"Szenario": f"{r['szenario']} · {SZ[r['szenario']]['kurz']}"}
+        for name in PROFILE:
+            zeile[name] = OPT_KURZ[r[name]] + (" (gleichauf)" if r[f"{name}_gleichauf"] else "")
+        zeile["Priorität entscheidet?"] = "ja" if r["kippt"] else "nein"
+        tab_pr.append(zeile)
+    st.dataframe(pd.DataFrame(tab_pr), hide_index=True, width="stretch")
 
 
 # --------------------------------------------------------------------------- Details

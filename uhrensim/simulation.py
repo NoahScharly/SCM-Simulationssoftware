@@ -369,9 +369,17 @@ class Simulation:
             tag = int(math.floor(self.env.now))
             if self.ist_arbeitstag(tag):
                 bedarf = self._fg_ziel(self.env.now) + len(self.rueckstand) - self.fg - self.fg_wip
+                # Maßnahme Kurzarbeit: bei erkannt gesunkener Nachfrage arbeitet die Stammbelegschaft nur den Anteil f;
+                # für ausgefallene Stunden bleiben Remanenzkosten (Sozialversicherung, Urlaub) [A]
+                ka = self.p["massnahmen"].get("kurzarbeit") or {}
+                f_ka = self._erkannter_faktor(float(ka.get("reaktion_tage", 14))) if ka and tag >= self.W else 1.0
+                kap_stamm = float(mo["kapazitaet_pro_tag"]) * f_ka
                 if personal:
-                    self._log("personal", f"P{tag}", "montage", self.werk, stamm, kosten=stamm * tagessatz,
+                    satz = f_ka + (1.0 - f_ka) * float(ka.get("remanenz", 0.25)) if ka else 1.0
+                    self._log("personal", f"P{tag}", "montage", self.werk, stamm, kosten=stamm * tagessatz * satz,
                               kategorie="montage")
+                    if f_ka < 1.0:
+                        self._log("kurzarbeit", f"K{tag}", "montage", self.werk, stamm * (1.0 - f_ka))
                 if au:
                     tagesbedarf = max(self.basis_rate * self.nachfragefaktor(self.env.now), 1e-9)
                     # Aushilfe nur, wenn die Montage der Engpass ist: keine laufende Versorgungsstörung und Teile
@@ -436,14 +444,32 @@ class Simulation:
         if not sb or self.env.now < self.W or self.monat(self.env.now) not in set(sb.get("monate", [])):
             return 0.0
         return float(sb.get("extra_tage", 0)) * self.politik[komp].bedarf_tag
+
+    def _erkannter_faktor(self, reaktion_tage: float) -> float:
+        """Nachfragefaktor, wie ihn das Unternehmen mit Verzögerung wahrnimmt (nur Rückgänge, höchstens 1).
+
+        Der Einbruch wird erst nach 'reaktion_tage' erkannt, und die Erholung ebenso spät. Das ist das Risiko der
+        Anpassungsmaßnahmen: Kommt die Nachfrage zurück, ist das Unternehmen noch einige Tage zu knapp aufgestellt.
+        """
+        return min(1.0, self.nachfragefaktor(self.env.now - float(reaktion_tage)))
+
+    def _anpassungsfaktor(self) -> float:
+        """Maßnahme bestand_anpassen: Meldebestand und Bestellmenge folgen der erkannt gesunkenen Nachfrage."""
+        ba = self.p["massnahmen"].get("bestand_anpassen") or {}
+        if not ba or self.env.now < self.W:
+            return 1.0
+        return self._erkannter_faktor(float(ba.get("reaktion_tage", 7)))
+
     def _pruefe_nachschub(self) -> None:
+        f = self._anpassungsfaktor()
         for k, pol in self.politik.items():
             if pol.losgroesse <= 0:
                 continue
             position = self.bestand[k] + self.pipeline[k]
-            while position <= pol.meldebestand + self._saison_zuschlag(k):
-                self.bestelle(k, pol.losgroesse, self.aktive_quelle[k])
-                position += pol.losgroesse
+            los = max(1.0, math.ceil(pol.losgroesse * f))
+            while position <= pol.meldebestand * f + self._saison_zuschlag(k):
+                self.bestelle(k, los, self.aktive_quelle[k])
+                position += los
 
     def bestelle(self, komp: str, menge: float, quelle: Bezugsquelle, typ: str = "regulaer") -> dict[str, Any]:
         self._sid += 1
@@ -542,6 +568,19 @@ class Simulation:
                         return rest
         return None
 
+    def _umleitung_unterwegs(self, lieferant: str, k: Any, notfall: bool) -> list[str] | None:
+        """Schiff ist unterwegs, der Zielhafen ist gesperrt: gleiches Verkehrsmittel, anderer Zielhafen einer
+        erlaubten Route (z. B. Bremerhaven statt Hamburg), Rest der Route muss frei sein. Nur mit Ausweichroute."""
+        t = self.env.now
+        for r in self._routen(lieferant, notfall):
+            for j, kid2 in enumerate(r.kanten):
+                k2 = self.m.kanten[kid2]
+                if k2.von == k.von and k2.nach != k.nach and k2.modus == k.modus:
+                    rest = list(r.kanten[j:])
+                    if not self.knoten_unten(k2.nach, t) and all(self.kante_nutzbar(x, t) for x in rest[1:]):
+                        return rest
+        return None
+
     def _transport(self, b: dict[str, Any], q: Bezugsquelle):
         komp, menge = b["komponente"], b["menge"]
         masse_t = menge * self.m.komponenten[komp].gewicht_g * self.vf / 1e6
@@ -575,6 +614,21 @@ class Simulation:
                       co2e_g=masse_t * k.km * k.co2e_g_tkm)
             t0 = self.env.now
             yield self.env.timeout(dauer)
+            umleitung = (self._umleitung_unterwegs(q.lieferant, k, notfall)
+                         if self.knoten_unten(k.nach, self.env.now) and self.p["massnahmen"].get("ausweichroute")
+                         else None)
+            if umleitung:
+                # Umleitung auf See: zusätzliche Strecke zum Ausweichhafen, Kosten und CO2e dafür [A]
+                k_neu = self.m.kanten[umleitung[0]]
+                extra_km = float(self.p["transport"].get("umleitung_km", 150))
+                self._log("umleitung", b["id"], "sendung", k.von, menge, komponente=komp, alt=kid, neu=k_neu.nach,
+                          kante=umleitung[0], kategorie="transport",
+                          kosten=masse_t * extra_km * kosten["transport_eur_tkm"][k.modus],
+                          co2e_g=masse_t * extra_km * k.co2e_g_tkm)
+                yield self.env.timeout(extra_km / self.speed[k.modus] + float(
+                    self.p["transport"].get("umleitung_tage", 0.5)))
+                kid, k = umleitung[0], k_neu
+                kanten, i = umleitung, 0
             while self.knoten_unten(k.nach, self.env.now):
                 self._log("warten_knoten", b["id"], "sendung", k.nach, menge, komponente=komp)
                 yield self.env.timeout(max(0.01, self.naechste_freigabe(self.env.now) - self.env.now))

@@ -37,8 +37,8 @@ dort eine Zahl, wo sie belegt ist:
 | Break-even-Wahrscheinlichkeit p* je Handlungsoption: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). Die Software fragt keine Eintrittswahrscheinlichkeit ab, sondern zeigt, ab welcher sich die Vorsorge lohnt | Poster B (Entscheidungsregel p · vermiedener Schaden > Mehrkosten) | `handlungsoptionen.break_even`, Oberfläche Abschnitt 1 und 2 |
 | Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Poster B (Szenarien mit Band) | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
 | Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | Poster B (SPOF-Liste) | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
-| Szenario S5 Nachfrageeinbruch -30 % für 60 Tage (Skandalstufe 2), Bandbreite Stufe 1 bis 3 (-15/-30/-50 %): testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen | Poster C (Nachfrageschock, Skandalstufen) | `config/scenarios/s5_nachfrageeinbruch.yaml` |
-| Montagepersonal als Fixkosten: Mitarbeiter × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage. Erst dadurch kostet ein Nachfrageeinbruch spürbar | Konzept C (Lohnkosten, 140 h je Monat) | `kosten.montage_kostenmodell`, `simulation._montage` |
+| Szenario S5 Nachfrageeinbruch -30 % für 60 Tage nach einem Imageschaden, Bandbreite -15/-30/-50 %: testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen; Handlungsoptionen Bestand an Nachfrage anpassen und Kurzarbeit | Poster C (Nachfrageschock, Skandalstufen) | `config/scenarios/s5_nachfrageeinbruch.yaml`, `massnahmen.bestand_anpassen`, `massnahmen.kurzarbeit` |
+| Montagepersonal als Fixkosten: Stellen × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage, Stellen auf halbe Stellen aufgerundet (4,5 bei 5.000 Uhren). Erst dadurch kostet ein Nachfrageeinbruch spürbar | Konzept C (Lohnkosten, 140 h je Monat) | `kosten.montage_kostenmodell`, `simulation._montage` |
 | Handlungsoption Aushilfe: liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt Zeitarbeit dazu | Konzept C (Aushilfe bei Rückstand) | `massnahmen.aushilfe`, Optionen in S4 |
 | Stresstest: alle Szenarien × alle Optionen × 500 und 25.000 Uhren, Mengenbilanz je Komponente geht auf | Konzept C (Stresstest, Mengenbilanz) | `tests/test_modell.py` |
 | Reservequelle realistisch: Sellita fertigt erst nach 14 Tagen Hochlauf, höchstens 150 Stück je Woche, und der Notfallplan kostet 4.000 € im Jahr Bereitschaft, auch ohne Ausfall | Konzept D (Reserve mit Hochlauf, Kapazität, Freigabekosten) | `massnahmen.notfall_*`, `simulation._reserve_ende` |
@@ -48,20 +48,21 @@ dort eine Zahl, wo sie belegt ist:
 | Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
 | CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
 
-Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
-Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.
+Außerdem: Unterschiede unterhalb einer Relevanzschwelle (Kosten 1 €/Uhr, Lieferfähigkeit 0,5 Prozentpunkte, CO2e
+5 g/Uhr, Lieferzeit 0,5 Tage) gelten als gleichwertig und entscheiden die Rangfolge nicht. Bei Gleichstand
+entscheiden die Kosten, dann die übrigen Kriterien, nie die Reihenfolge der Liste.
 
 ## Was das Modell abbildet
 
 | Bereich | Umsetzung |
 |---|---|
-| Netz | Gerichteter Graph: 7 Tier-1-Lieferanten, 4 Tier-2, Häfen, Flughafen, Werk Heilbronn, Kunden |
+| Netz | Gerichteter Graph: 6 Tier-1-Lieferanten (Armband mit Schließe aus einer Hand) und Sellita als Notfallplan, 4 Tier-2, Häfen, Flughafen, Werk Heilbronn, Kunden |
 | Transport | Seeschiff, Bahn, Binnenschiff, Lkw, Luftfracht (Notfall); Fahrplan je Kante, Umschlag, Zoll an der EU-Grenze |
 | Nachschub | Bestellpunktverfahren (s, Q) je Komponente, Sicherheitsbestand aus Nachfrage- und Lieferzeitstreuung, Losgröße nach EOQ |
 | Montage | Kapazität aus Jahresmenge abgeleitet (Mitarbeiter × 5 Uhren/Tag), Gutquote, Fertigwarenlager mit Zielreichweite |
 | Nachfrage | Poisson-Prozess, Saisonfaktoren, Lieferzusage in Werktagen |
 | Störungen | 5 generische Typen: `knoten_ausfall`, `kanten_sperre`, `korridor`, `nachfrage`, `kosten` |
-| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht: nach Lieferantenausfall Brückenlieferung per Flugzeug beim Wiederanlauf (Eilfertigung 2 Tage, 25 % Eilzuschlag [A], Lkw Nagano-Narita, Flug nach Frankfurt), sonst bei Versorgungsstörung und Reichweite < 8 Tage; Bezugsoption Lederarmband komplett aus Italien (Santa Croce, Lkw über den Brenner, kein Zoll) |
+| Vorsorge und Notfallpläne | Uhrwerk-Puffer (wirkt immer); Notfallplan Sellita: bei Ausfall von Miyota nach 3 Tagen Bestellung bei Sellita SW300-1 (La Chaux-de-Fonds), Storno nicht versandter Miyota-Aufträge, nach Wiederanlauf zurück; Notfallplan Luftfracht: nach Lieferantenausfall Brückenlieferung per Flugzeug beim Wiederanlauf (Eilfertigung 2 Tage, 25 % Eilzuschlag [A], Lkw Nagano-Narita, Flug nach Frankfurt), sonst bei Versorgungsstörung und Reichweite < 8 Tage |
 | Kennzahlen | Kosten je Uhr, Lieferfähigkeit β, Lieferzeit (Mittel, 95-%-Quantil), CO2e je Uhr, TTS/TTR, Bestandsreichweite |
 | Zufall | Getrennte Zufallsströme je Quelle (SeedSequence), gleiche Ströme in allen Szenarien (Common Random Numbers) |
 
@@ -70,7 +71,7 @@ Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nut
 | Parameter | Bereich | Regel |
 |---|---|---|
 | Uhren pro Jahr | 0 bis 25.000 | Nachfragerate = Menge ÷ 365 |
-| Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Mitarbeiter = aufgerundet nötig ÷ 5; Kapazität = Mitarbeiter × 5 |
+| Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Stellen = nötig ÷ 5, auf halbe Stellen aufgerundet; Kapazität = Stellen × 5 |
 | Wiederbeschaffungszeit | automatisch | Fertigung + Transit + Umschlag + Zoll der besten Route; dauerhafte Routenänderungen eines Szenarios werden übernommen |
 
 ## Ordnerstruktur
@@ -135,7 +136,7 @@ bricht das Laden mit Hinweis ab.
 ## Wichtige Modellannahmen und Grenzen
 
 - Werte mit `[A]` in den Konfigurationsdateien sind Annahmen und in der Sensitivitätsanalyse zu prüfen.
-- Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 5 Uhrmacher × 5 = 25 Montagen/Tag (Auslastung 81 %). Annahme 5 Uhren je Uhrmacher und Tag (Handarbeit mit zugekauften Werken: Einschalen, Zeiger, Armband, Endkontrolle), Sensitivität 2/3/5/7.
+- Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 4,04 Stellen, besetzt mit 4,5 Stellen (halbe Stellen möglich) × 5 = 22,5 Montagen/Tag (Auslastung 90 %). Montagekosten damit rund 76 € je Uhr (4,5 × 1.680 h × 49,50 €). Mit `montage.stellen_raster: 1.0` nur volle Stellen. Annahme 5 Uhren je Uhrmacher und Tag (Handarbeit mit zugekauften Werken: Einschalen, Zeiger, Armband, Endkontrolle), Sensitivität 2/3/5/7.
 - Zollsatz überall 0 % (Freihandels- bzw. Partnerschaftsabkommen mit JP, CH, MU, Mercosur, EU-US-Zollverordnung 2026). Die Zollabfertigung (0,5 bis 2 Tage) bleibt, weil Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer für Drittlandsware immer nötig sind.
 - Fehlmengenkosten: 50 € je verspätetem Auftrag (High-End-Sammleruhr), Sensitivität 20/50/100 €.
 - Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
@@ -145,7 +146,7 @@ bricht das Laden mit Hinweis ab.
 
 1. **Normalbetrieb:** Uhren pro Jahr. Lieferanten, Verkehrsmittel (Kosten, Dauer, CO2e) und Bestände kommen aus
    der Datenbasis in `config/`. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
-2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S4).
+2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S5).
 3. **Automatischer Optionsvergleich:** Nach dem Start wird jedes Szenario mit jeder Handlungsoption aus
    `base.yaml` (Block `handlungsoptionen`) simuliert, alle mit denselben Zufallszahlen. Neue Optionen werden dort
    ohne Programmierung ergänzt.
@@ -157,6 +158,10 @@ bricht das Laden mit Hinweis ab.
    (Barron und Barrett 1996), z. B. bei vier Kriterien 52 / 27 / 15 / 6 %. Standardwerte in `base.yaml`, Block
    `entscheidung`. Ergebnis: eine Empfehlung je Szenario. Zielkonflikte in zwei Diagrammen mit frei wählbaren
    Achsen (Standard Kosten gegen Lieferfähigkeit und Kosten gegen CO2e), Pareto-optimale Optionen grün.
+   Zielkriterien: Lieferfähigkeit, Kosten, CO2e, Lieferzeit und optional gebundenes Kapital (Liquidität).
+   Montagestillstand ist nur Kennzahl, weil seine Folgen schon in Lieferfähigkeit und Kosten stecken.
+6. **Was ändert die Priorität?** Unter dem Gesamtbild: Empfehlung je Szenario, wenn Lieferfähigkeit, Kosten oder
+   CO2e an erster Stelle stehen. Zeigt, in welchen Szenarien die Priorität die Entscheidung kippt.
 
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
 jeder Start dieselben Zahlen liefert.
@@ -167,19 +172,22 @@ alle (für die Matrix und die Kommandozeile).
 | Handlungsoption | Wirkung | Angezeigt in |
 |---|---|---|
 | Ohne Maßnahme | nur Bestellpunktverfahren; bei Sperre wartet die Ware | allen (Referenz) |
-| Ausweichroute | Bahn statt Binnenschiff über Kaub, Bremerhaven statt Hamburg | S2, S3 |
+| Ausweichroute | Bahn statt Binnenschiff über Kaub, Bremerhaven statt Hamburg; Schiffe, die schon unterwegs sind, laufen Bremerhaven an (150 km Umweg, 0,5 Tage) | S2, S3 |
 | Saisonbestand | Meldebestand aller Komponenten August bis November +20 Tage Bedarf | S4 |
+| Teilzeit aufstocken | die halbe Stelle geht bei Montagerückstand auf Vollzeit, ohne Aufschlag | S4 |
+| Aushilfe | Zeitarbeit bei Montagerückstand, 30 % teurer | S4 |
+| Bestand an Nachfrage anpassen | Meldebestand und Bestellmengen sinken mit der erkannten Nachfrage (Reaktion 7 Tage) | S5 |
+| Kurzarbeit | Montage arbeitet nur entsprechend der Nachfrage, 25 % Remanenzkosten (Reaktion 14 Tage) | S5 |
 | Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | S1, S2 |
 | Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | S1 |
-| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1 |
-| Lederarmband aus Italien | Lkw statt Seeweg über Hamburg, teurer | S3 |
+| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1, S3 |
 
 | Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |
 |---|---|---|---|---|
 | S0 Basis | Normalbetrieb | wirkt | nicht ausgelöst | nur bei Fehlteil |
 | S1 Uhrwerk-Ausfall | Miyota liefert ab Tag 120 für 60 Tage nicht | wirkt | **ausgelöst** (Tag 123 bis 180) | Uhrwerk nicht (Lieferant steht), andere Teile bei Bedarf |
 | S2 Niedrigwasser | Binnenschiff über Kaub gesperrt, Umleitung Bahn | wirkt | nicht ausgelöst | nur bei Fehlteil |
-| S3 Hamburg gestört | Hafen 14 Tage zu, Ausweichen Bremerhaven | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| S3 Hamburg gestört | Hafen 21 Tage zu, Ausweichen Bremerhaven | wirkt | nicht ausgelöst | nur bei Fehlteil |
 | S4 Saisonspitze | Nachfrage Nov/Dez +30 % | wirkt | nicht ausgelöst | nur bei Fehlteil |
 - Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.

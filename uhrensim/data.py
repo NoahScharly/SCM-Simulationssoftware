@@ -239,14 +239,17 @@ def _pruefe_referenzen(m: Modell) -> None:
                 raise KonfigurationsFehler(f"Störung: unbekannte Kante '{kid}'")
 
 
-def montage_bedarf(menge: float, arbeitstage: float, gutquote: float, uhren_pro_mitarbeiter: float) -> dict:
-    """Montagen pro Tag und Mitarbeiter, die eine Jahresmenge mindestens braucht.
+def montage_bedarf(menge: float, arbeitstage: float, gutquote: float, uhren_pro_mitarbeiter: float,
+                   stellen_raster: float = 0.5) -> dict:
+    """Montagen pro Tag und Stellen (Vollzeitäquivalente), die eine Jahresmenge mindestens braucht.
 
-    Nötige Montagen/Tag = Jahresmenge / (Arbeitstage × Gutquote). Mitarbeiter werden ganz eingestellt,
-    die tatsächliche Kapazität ist deshalb Mitarbeiter × Uhren je Mitarbeiter und Tag.
+    Nötige Montagen/Tag = Jahresmenge / (Arbeitstage × Gutquote). Stellen werden auf das Raster aufgerundet
+    (Standard halbe Stellen, also Teilzeit möglich; 1.0 = nur volle Stellen). Die tatsächliche Kapazität ist
+    Stellen × Uhren je Mitarbeiter und Tag. Beispiel 5.000 Uhren: 20,2 Montagen/Tag, 4,04 Stellen nötig, 4,5 besetzt.
     """
     noetig = menge / (arbeitstage * gutquote) if menge > 0 else 0.0
-    mitarbeiter = max(1, math.ceil(noetig / uhren_pro_mitarbeiter - 1e-9)) if menge > 0 else 1
+    r = float(stellen_raster) if stellen_raster and stellen_raster > 0 else 1.0
+    mitarbeiter = max(r, math.ceil(noetig / uhren_pro_mitarbeiter / r - 1e-9) * r) if menge > 0 else r
     return {"montagen_noetig": noetig, "mitarbeiter": mitarbeiter,
             "kapazitaet_pro_tag": mitarbeiter * uhren_pro_mitarbeiter}
 
@@ -257,12 +260,13 @@ def _montage_auslegen(m: Modell) -> None:
     pro_ma = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
     if str(mo.get("kapazitaet_pro_tag", "auto")).lower() == "auto":
         bedarf = montage_bedarf(float(m.param["nachfrage"]["uhren_pro_jahr"]), g["arbeitstage_pro_jahr"],
-                                float(mo["gutquote"]), pro_ma)
+                                float(mo["gutquote"]), pro_ma, float(mo.get("stellen_raster", 1.0)))
         mo["kapazitaet_pro_tag"] = float(bedarf["kapazitaet_pro_tag"])
         mo["mitarbeiter"] = bedarf["mitarbeiter"]
     else:
         mo["kapazitaet_pro_tag"] = float(mo["kapazitaet_pro_tag"])
-        mo["mitarbeiter"] = math.ceil(mo["kapazitaet_pro_tag"] / pro_ma)
+        r = float(mo.get("stellen_raster", 1.0)) or 1.0
+        mo["mitarbeiter"] = math.ceil(mo["kapazitaet_pro_tag"] / pro_ma / r - 1e-9) * r
 
 
 def _pruefe_plausibilitaet(m: Modell) -> None:
@@ -308,18 +312,6 @@ def _pruefe_plausibilitaet(m: Modell) -> None:
             f"Einschwingphase {m.einschwingen:.0f} Tage ist kürzer als die längste WBZ ({laengste:.0f} Tage)")
 
 
-def _waehle_bezugsquelle(quellen: dict[str, list[Bezugsquelle]], komp: str, lieferant: str) -> None:
-    """Macht eine Option zum Primärlieferanten; der bisherige Primärlieferant wird zur Option."""
-    neu = next((q for q in quellen.get(komp, []) if q.lieferant == lieferant and q.rolle == "option"), None)
-    if neu is None:
-        raise KonfigurationsFehler(f"'{lieferant}' ist keine Bezugsoption für {komp}")
-    for q in quellen[komp]:
-        if q.rolle == "primaer":
-            q.rolle = "option"
-    neu.rolle = "primaer"
-    quellen[komp].sort(key=lambda q: 0 if q.rolle == "primaer" else 1)
-
-
 # --------------------------------------------------------------------------- Hauptfunktion
 def lade_modell(
     szenario: str | Path | dict | None = None,
@@ -346,10 +338,6 @@ def lade_modell(
     wbz_wunsch = overrides.pop("wbz", {}) or {}
     pruefe_schluessel(param, overrides)
     param = tief_zusammenfuehren(param, overrides)
-
-    # Bezugsoption: Lederarmband komplett aus Italien statt Brasilien
-    if (param.get("massnahmen") or {}).get("armband_italien"):
-        _waehle_bezugsquelle(quellen, "armband", "santacroce_armband")
 
     for komp, tage in wbz_wunsch.items():
         if komp not in quellen:
