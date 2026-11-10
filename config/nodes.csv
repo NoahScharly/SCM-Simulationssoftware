@@ -23,3 +23,14 @@ frankfurt,Flughafen Frankfurt,flughafen,,DE,50.03,8.57,1,[A] Notfallweg
 narita,Flughafen Tokio-Narita,flughafen,,JP,35.77,140.39,0,[A] Notfallweg Uhrwerk (Nagano hat keinen Frachtflughafen)
 heilbronn,Montage und Lager Heilbronn,werk,,DE,49.14,9.22,0,Poster
 kunden_de,Kunden Deutschland,kunde,,DE,51.00,10.30,0,Poster
+portland_glas,Portland (Saphirglas Oregon),lieferant,tier1,US,45.52,-122.68,0,Option Portland [A]
+dongguan_glas,Dongguan (Saphirglas China),lieferant,tier1,CN,22.98,113.75,0,Option China [A]
+haifa_zifferblatt,Haifa (Zifferblatt Israel),lieferant,tier1,IL,32.79,34.99,0,Option Israel [A]
+tokyo_zifferblatt,Tokio Saitama (Zifferblatt Japan),lieferant,tier1,JP,35.90,139.65,0,Option Japan [A]
+barcelona_zeiger,Barcelona (Zeiger Spanien),lieferant,tier1,ES,41.39,2.17,0,Option Spanien [A]
+fes_armband,Fès (Lederarmband Marokko),lieferant,tier1,MA,34.03,-5.00,0,Option Afrika (Marokko vermutet) [A]
+eta_grenchen,Grenchen (Uhrwerk ETA Schweiz),lieferant,tier1,CH,47.19,7.40,0,Option Schweiz [A]
+portland_hafen,Hafen Portland,hafen,,US,45.63,-122.75,0,[A]
+shenzhen_hafen,Hafen Shenzhen Yantian,hafen,,CN,22.57,114.28,0,[A]
+haifa_hafen,Hafen Haifa,hafen,,IL,32.82,35.00,0,[A]
+tanger_hafen,Hafen Tanger Med,hafen,,MA,35.89,-5.50,0,[A]

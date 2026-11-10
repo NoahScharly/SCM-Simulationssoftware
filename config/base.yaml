@@ -89,6 +89,10 @@ massnahmen:
                                 # statt Estancia Velha (Brasilien). Teurer, aber kurzer Lkw-Weg, kein Zoll, kein Seeweg.
                                 # Keine Handlungsoption mehr: Bei gestörtem Hamburg fehlt das Saphirglas trotzdem, ein
                                 # zweites Armband löst das Problem also nicht. Bleibt nur als Bezugsquelle im Netz.
+  bezug: {}                     # Bezugsquellen wechseln: {komponente: lieferant}, der Lieferant muss in suppliers.csv
+                                # Rolle "option" haben, z. B. {saphirglas: portland_glas}. Der bisherige Primärlieferant
+                                # wird zur Option. Fällt der neue Lieferant aus, gibt es keinen Ersatz außer den
+                                # übrigen Maßnahmen (Single Sourcing bleibt Single Sourcing).
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 8        # Reichweite, ab der Luftfracht ausgelöst wird; muss über der Luft-WBZ liegen
                                 # (2 Tage Eilfertigung + Lkw + Flug + Zoll + Umschlag = rund 6 bis 7 Tage)
@@ -157,6 +161,74 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
       starken Spitze fehlt sonst jeweils das andere [A]
     massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20},
                  aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
+
+  - id: glas_portland
+    name: Saphirglas aus Portland (Panama)
+    kurz: Glas Portland
+    beschreibung: Saphirglas kommt aus Oregon über den Panamakanal nach Rotterdam statt aus Rochester über Hamburg;
+      teurer, aber ohne Hamburg und ohne Atlantik-Nordroute; neues Risiko Panamakanal [A]
+    massnahmen: {bezug: {saphirglas: portland_glas}}
+  - id: glas_china
+    name: Saphirglas aus China (Suez)
+    kurz: Glas China
+    beschreibung: Saphirglas aus Dongguan über Suez nach Rotterdam; mit Abstand günstigster Preis, aber lange
+      Seestrecke, Suezkanal als Engpass und Land China (Ausschlussregel möglich) [A]
+    massnahmen: {bezug: {saphirglas: dongguan_glas}}
+  - id: glas_china_kap
+    name: Saphirglas aus China mit Kap-Umweg
+    kurz: Glas China + Kap
+    beschreibung: Wie Saphirglas aus China, zusätzlich darf bei gesperrtem Suezkanal um das Kap gefahren werden
+      (rund 3.200 km und etwa 10 Tage länger); günstig und trotzdem gegen Suez abgesichert [A]
+    massnahmen: {bezug: {saphirglas: dongguan_glas}, ausweichroute: true}
+  - id: glas_portland_luft
+    name: Saphirglas aus Portland mit Luftfracht-Notfallplan
+    kurz: Glas Portland + Luft
+    beschreibung: Wie Saphirglas aus Portland, zusätzlich Brücke per Flugzeug nach einer Panama-Sperre (Eilfertigung mit
+      Aufschlag) [A]
+    massnahmen: {bezug: {saphirglas: portland_glas}, luftfracht_notfall: true}
+  - id: dial_israel
+    name: Zifferblatt aus Israel (Haifa)
+    kurz: Zifferblatt Israel
+    beschreibung: Zifferblatt aus Haifa über das Mittelmeer nach Rotterdam statt Lkw aus Clichy; günstiger, aber
+      Land Israel (Ausschlussregel möglich) und Mittelmeer [A]
+    massnahmen: {bezug: {zifferblatt: haifa_zifferblatt}}
+  - id: dial_japan
+    name: Zifferblatt aus Japan (Tokio)
+    kurz: Zifferblatt Japan
+    beschreibung: Günstigeres Zifferblatt aus Tokio mit 25 Tagen Fertigung, geht über Yokohama und das Kap, also den
+      gleichen Weg wie das Uhrwerk von Miyota; bündelt das Risiko auf eine Route [A]
+    massnahmen: {bezug: {zifferblatt: tokyo_zifferblatt}}
+  - id: zeiger_spanien
+    name: Zeiger aus Spanien (Nearshoring)
+    kurz: Zeiger Spanien
+    beschreibung: Zeiger per Lkw aus Katalonien statt per Schiff aus Mauritius; kurze Wiederbeschaffung, wenig CO2e,
+      kein Zoll, unabhängig von Kap, Rotterdam und Rhein [A]
+    massnahmen: {bezug: {zeiger: barcelona_zeiger}}
+  - id: band_marokko
+    name: Armband aus Marokko (Fès)
+    kurz: Armband Marokko
+    beschreibung: Lederarmband aus Fès über Tanger Med und Rotterdam statt aus Brasilien über Hamburg; günstiger als
+      Italien, kürzerer Seeweg als Brasilien, Hamburg umgangen (Standort Afrika vermutet) [A]
+    massnahmen: {bezug: {armband: fes_armband}}
+  - id: uhrwerk_schweiz
+    name: Uhrwerk komplett aus der Schweiz (ETA)
+    kurz: Uhrwerk Schweiz
+    beschreibung: Das Uhrwerk kommt dauerhaft von ETA in Grenchen per Lkw statt von Miyota per Schiff; deutlich
+      teurer, aber kein Seeweg, kein Miyota-Risiko, kaum CO2e. Gegenstück zum Notfallplan Sellita (dort Kontingent und
+      Bereitschaftskosten, hier dauerhaft höhere Stückkosten) [A]
+    massnahmen: {bezug: {uhrwerk: eta_grenchen}}
+  - id: nearshoring
+    name: Nearshoring Europa (Schweiz, Spanien, Italien)
+    kurz: Nearshoring
+    beschreibung: Uhrwerk aus der Schweiz, Zeiger aus Spanien, Armband aus Italien; alles per Lkw, nur Saphirglas
+      bleibt auf See; teuer, aber sehr robust und CO2e-arm [A]
+    massnahmen: {bezug: {uhrwerk: eta_grenchen, zeiger: barcelona_zeiger, armband: santacroce_armband}}
+  - id: fernost_kosten
+    name: Kostenführer Fernost (China, Japan, Marokko)
+    kurz: Fernost günstig
+    beschreibung: Saphirglas aus China, Zifferblatt aus Japan, Armband aus Marokko; niedrigste Stückkosten, aber alles
+      auf langen Seewegen über Suez, Kap und Rotterdam [A]
+    massnahmen: {bezug: {saphirglas: dongguan_glas, zifferblatt: tokyo_zifferblatt, armband: fes_armband}}
 
 entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Abschnitt 1 bis 3), dort änderbar
   anforderungen:                # Stufe 1: Mindestanforderungen (Grenze je Zielkriterium)

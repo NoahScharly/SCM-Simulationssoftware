@@ -2,7 +2,7 @@ id: S2
 name: Rhein-Niedrigwasser 50 Tage
 kurz: Niedrigwasser
 beschreibung: Binnenschiff über Kaub ab Tag 200 für 50 Tage gesperrt, Uhrwerk und Zeiger kommen nicht nach Heilbronn (Poster S2)
-relevante_optionen: [keine, ausweichroute, puffer]   # in der Oberfläche angezeigte Handlungsoptionen
+relevante_optionen: [keine, ausweichroute, puffer, zeiger_spanien, band_marokko, uhrwerk_schweiz, nearshoring, fernost_kosten]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: kanten_sperre
     ziel: e_rtm_hn_binnen

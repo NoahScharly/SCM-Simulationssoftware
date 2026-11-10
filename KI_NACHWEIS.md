@@ -132,6 +132,20 @@ Nachtrag 10.11.2026 (Prompt sinngemäß: „Szenarien verknüpfen“): mit KI um
 (Datenebene und Seitenleiste). Montagekonzepte nach B. Hufgard wurden testweise eingebaut und auf Entscheidung von
 N. Scharly wieder entfernt.
 
+### Zusätzliche Bezugsquellen (10.11.2026)
+
+System: Claude Sonnet 5.5 (Anthropic), Claude Code, 10.11.2026.
+Wesentlicher Prompt (sinngemäß): Besondere Standorte aus der Lieferkette von Philipp (Israel, Portland, Spanien,
+Afrika) und weitere (China, Japan, Schweiz) strikt in die bestehenden Parameter einarbeiten, damit die zusätzlichen
+Lieferanten bei Zielkriteriumswechsel, Ausfällen und Regeländerungen (China rein/raus, Israel rein/raus) neue
+Zielkonflikte erzeugen.
+Umgesetzt mit KI: verallgemeinerte Umschaltung `massnahmen.bezug`, 7 neue Lieferanten mit Häfen, Kanten und Routen,
+10 neue Handlungsoptionen, Szenarien S6 (Suez/Nahost) und S7 (Panama), Filter auf relevante Optionen je Szenario,
+SPOF-Absicherung durch Bezugsoptionen, `tests/test_bezugsquellen.py`.
+Annahmen [A]: Die Posterdaten von Philipp lagen der KI nicht vor. Zuordnung der Standorte zu Komponenten, alle Preise,
+Fertigungszeiten, Kilometer, Emissionsfaktoren der neuen Strecken und die Dauer von S6 und S7 sind Annahmen. Der Standort
+in Afrika (Marokko) ist vermutet. Zu prüfen und aus dem Poster zu korrigieren durch N. Scharly.
+
 ### Produkt: High-End Cars-Uhr (Entscheidung der Gruppe, 10.11.2026)
 
 Netz, Teile und Preise bleiben die der Automatikuhr (800 bis 1.200 €), das Produkt wird als fiktive
@@ -145,6 +159,6 @@ verspätetem Auftrag, weil Sammlerkunden empfindlicher auf Verspätung reagieren
 
 ## Fachliche und technische Prüfungen
 
-- 47 automatische Tests (Version 2, vorher 39) (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 76 automatische Tests (Version 2.1, vorher 60) (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

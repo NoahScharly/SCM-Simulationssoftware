@@ -26,6 +26,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 import pandas as pd
+import yaml
 
 from .data import KONFIG_STANDARD, lade_modell
 from .evaluation import RICHTUNG, pareto_front
@@ -68,14 +69,32 @@ def _overrides_mit(overrides: dict[str, Any] | None, option: dict[str, Any]) -> 
     return ov
 
 
+def _optionen_fuer(szenario: str | Path | dict, optionen: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Nur die für das Szenario relevanten Optionen (Szenariodatei: relevante_optionen) plus die Referenz.
+
+    Ohne Eintrag werden alle Optionen gerechnet. So wächst die Rechenzeit nicht mit jeder neuen Bezugsquelle
+    für jedes Szenario, sondern nur dort, wo die Option eine Rolle spielt.
+    """
+    if isinstance(szenario, dict):
+        roh = szenario
+    else:
+        with open(szenario, encoding="utf-8") as f:
+            roh = yaml.safe_load(f) or {}
+    gewuenscht = list(roh.get("relevante_optionen") or [])
+    if not gewuenscht:
+        return optionen
+    return [o for o in optionen if o["id"] == REFERENZ or o["id"] in gewuenscht]
+
+
 def vergleiche_optionen(
     szenarien: list[str | Path],
     optionen: list[dict[str, Any]] | None = None,
     overrides: dict[str, Any] | None = None,
     replikationen: int | None = None,
     fortschritt: Callable[[int, int], None] | None = None,
+    nur_relevante: bool = True,
 ) -> dict[str, Any]:
-    """Simuliert jede Option auf jedem Szenario.
+    """Simuliert jede Option auf jedem Szenario (mit nur_relevante nur die in der Szenariodatei genannten).
 
     Liefert:
         detail:      eine Zeile je (Szenario, Option) mit Mittelwerten, KI und gepaarten Differenzen zu "Ohne Maßnahme"
@@ -83,10 +102,11 @@ def vergleiche_optionen(
         optionen:    die verwendeten Optionen
     """
     optionen = optionen or lade_optionen()
-    gesamt, i = len(szenarien) * len(optionen), 0
+    je_szenario = [_optionen_fuer(pfad, optionen) if nur_relevante else optionen for pfad in szenarien]
+    gesamt, i = sum(len(o) for o in je_szenario), 0
     ergebnisse: dict[tuple[str, str], dict[str, Any]] = {}
-    for pfad in szenarien:
-        for opt in optionen:
+    for pfad, opts in zip(szenarien, je_szenario):
+        for opt in opts:
             e = fuehre_aus(pfad, _overrides_mit(overrides, opt), replikationen)
             ergebnisse[(e["szenario_id"], opt["id"])] = e
             i += 1

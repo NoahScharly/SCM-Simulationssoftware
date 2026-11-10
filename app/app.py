@@ -751,7 +751,7 @@ for s in sz_ids:
     zs = detail[detail.szenario == s].set_index("option")
     zeile = {"Szenario": f"{s} · {SZ[s]['kurz']}"}
     for o in OPT:
-        if o not in relevant(s):
+        if o not in relevant(s) or o not in zs.index:
             zeile[OPT_KURZ[o]] = "·"
             continue
         r = zs.loc[o]
@@ -781,7 +781,7 @@ with st.expander("Wie sicher sind die Ergebnisse?"):
                 "Kästen verschiedener Szenarien weit auseinander, ist der Unterschied echt und kein Zufall.")
     kz = st.selectbox("Kennzahl", ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
                       format_func=lambda k: viz.BESCHRIFTUNG[k][0])
-    st.plotly_chart(viz.boxplot_vergleich({s: erg_alle[(s, oid)] for s in sz_ids}, kz), width="stretch")
+    st.plotly_chart(viz.boxplot_vergleich({s: erg_alle[(s, oid)] for s in sz_ids if (s, oid) in erg_alle}, kz), width="stretch")
     st.download_button("Alle Ergebnisse (Szenario × Option) als CSV", detail.to_csv(index=False).encode("utf-8"),
                        "szenarien_optionen.csv", "text/csv")
 

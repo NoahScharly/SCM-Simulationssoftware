@@ -53,6 +53,30 @@ dort eine Zahl, wo sie belegt ist:
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
 Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.
 
+## Version 2.1: zusätzliche Bezugsquellen (Portland, Spanien, Marokko, Israel, China, Japan, Schweiz)
+
+Zusätzliche Standorte sind **wählbare Bezugsquellen** (Rolle `option` in `config/suppliers.csv`), keine Zusatzlast im
+Normalbetrieb. Eine Handlungsoption schaltet sie per `massnahmen.bezug: {komponente: lieferant}` ein; der bisherige
+Primärlieferant wird zur Option (`data._waehle_bezugsquelle`). Dadurch ändert sich die Rangfolge mit dem Zielkriterium,
+mit Störungen und mit den Ausschlussregeln:
+
+| Option | Quelle (Annahme [A]) | Wirkt gut bei | Wirkt schlecht bei |
+|---|---|---|---|
+| Glas Portland | Oregon, Panamakanal nach Rotterdam, 13,50 € | S3 Hamburg (umgeht Hamburg) | S7 Panama-Sperre |
+| Glas China | Dongguan, Suez nach Rotterdam, 7 € | Kosten, S3, S7 | S6 Suez/Nahost, Ausschluss CN |
+| Glas China + Kap | wie China, bei Sperre Umweg um das Kap | S6 | Ausschluss CN |
+| Zifferblatt Israel | Haifa, Mittelmeer, 7,50 € | Kosten | S6 (Haifa zu), Ausschluss IL |
+| Zifferblatt Japan | Tokio, Kap, 8 €, 25 Tage Fertigung | Kosten | gleiche Route wie Miyota (Klumpenrisiko) |
+| Zeiger Spanien | Katalonien, Lkw, 5,50 € | S2 Niedrigwasser, CO2e | Preis nur wenig besser |
+| Armband Marokko | Fès, Tanger Med, 12,50 € | Kosten, Hamburg-Unabhängigkeit | Rhein (S2) |
+| Uhrwerk Schweiz | ETA Grenchen, Lkw, 110 € | S1 Uhrwerk-Ausfall, CO2e | Stückkosten +40 € |
+| Nearshoring | Schweiz, Spanien, Italien zusammen | CO2e, Robustheit | Kosten |
+| Fernost günstig | China, Japan, Marokko zusammen | Kosten im Normalbetrieb | S6, Ausschluss CN |
+
+Neue Szenarien: **S6** Suezkanal 90 Tage und Hafen Haifa 75 Tage gesperrt, **S7** Panamakanal 60 Tage gesperrt.
+Rechenzeit: Je Szenario werden nur die dort in `relevante_optionen` genannten Optionen simuliert (plus "keine").
+Standortdaten, Preise und Fertigungszeiten sind Annahmen [A] und mit den Gruppenpostern abzugleichen.
+
 ## Was das Modell abbildet
 
 | Bereich | Umsetzung |
