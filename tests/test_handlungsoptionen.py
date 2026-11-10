@@ -145,3 +145,14 @@ def test_prioritaet_kippt_die_empfehlung():
                        "co2e_pro_uhr_kg": [0.060, 0.060, 0.089], "lieferzeit_p95": [3.6, 2.3, 2.1]})
     e = empfehlung_je_profil(df, {"beta": 0.95, "lieferzeit_p95": 3}).iloc[0]
     assert e["Lieferfähigkeit zuerst"] == "luftfracht" and e["CO2e zuerst"] == "ausweichroute" and e["kippt"]
+
+
+def test_kapital_zuerst_kippt_s1_vom_puffer_weg():
+    """S1: Puffer ist günstig, bindet aber am meisten Kapital; mit Kapital zuerst gewinnt eine andere Option."""
+    from uhrensim.handlungsoptionen import empfehlung_je_profil
+    df = pd.DataFrame({"szenario": ["S1"] * 4, "option": ["keine", "puffer", "sellita", "luftfracht"],
+                       "beta": [0.58, 1.0, 1.0, 1.0], "kosten_pro_uhr": [270.1, 247.6, 260.6, 248.5],
+                       "co2e_pro_uhr_kg": [0.058, 0.060, 0.055, 0.233], "lieferzeit_p95": [27.2, 2.1, 2.1, 2.1],
+                       "kapital_gebunden_eur": [89600, 153800, 108100, 103600]})
+    e = empfehlung_je_profil(df, {"beta": 0.95, "lieferzeit_p95": 3}).iloc[0]
+    assert e["Kosten zuerst"] == "puffer" and e["Kapital zuerst"] != "puffer" and e["kippt"]

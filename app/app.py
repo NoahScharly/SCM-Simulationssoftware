@@ -726,7 +726,7 @@ st.dataframe(pd.DataFrame(matrix), hide_index=True, width="stretch")
 
 st.markdown("#### Was ändert die Priorität?")
 st.markdown("Dieselben Simulationsergebnisse, nur anders gewichtet: die Empfehlung je Szenario, wenn Lieferfähigkeit, "
-            "Kosten oder CO2e an erster Stelle stehen (Mindestanforderungen wie links eingestellt). Wo sich die "
+            "Kosten, CO2e oder gebundenes Kapital an erster Stelle stehen (Mindestanforderungen wie links eingestellt). Wo sich die "
             "Empfehlung unterscheidet, entscheidet eure Priorität. Wo sie gleich bleibt, ist eine Option in allem "
             "besser oder als einzige zulässig.")
 profil = empfehlung_je_profil(detail_rel[detail_rel.szenario != "S0"], anforderungen)

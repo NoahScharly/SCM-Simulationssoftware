@@ -160,8 +160,8 @@ bricht das Laden mit Hinweis ab.
    Achsen (Standard Kosten gegen Lieferfähigkeit und Kosten gegen CO2e), Pareto-optimale Optionen grün.
    Zielkriterien: Lieferfähigkeit, Kosten, CO2e, Lieferzeit und optional gebundenes Kapital (Liquidität).
    Montagestillstand ist nur Kennzahl, weil seine Folgen schon in Lieferfähigkeit und Kosten stecken.
-6. **Was ändert die Priorität?** Unter dem Gesamtbild: Empfehlung je Szenario, wenn Lieferfähigkeit, Kosten oder
-   CO2e an erster Stelle stehen. Zeigt, in welchen Szenarien die Priorität die Entscheidung kippt.
+6. **Was ändert die Priorität?** Unter dem Gesamtbild: Empfehlung je Szenario, wenn Lieferfähigkeit, Kosten,
+   CO2e oder gebundenes Kapital an erster Stelle stehen. Zeigt, in welchen Szenarien die Priorität die Entscheidung kippt.
 
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
 jeder Start dieselben Zahlen liefert.

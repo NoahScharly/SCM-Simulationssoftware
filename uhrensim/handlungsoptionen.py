@@ -210,6 +210,7 @@ PROFILE: dict[str, list[str]] = {
     "Lieferfähigkeit zuerst": ["beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95"],
     "Kosten zuerst": ["kosten_pro_uhr", "beta", "co2e_pro_uhr_kg", "lieferzeit_p95"],
     "CO2e zuerst": ["co2e_pro_uhr_kg", "beta", "kosten_pro_uhr", "lieferzeit_p95"],
+    "Kapital zuerst": ["kapital_gebunden_eur", "beta", "kosten_pro_uhr", "co2e_pro_uhr_kg"],
 }
 
 
@@ -221,6 +222,7 @@ def empfehlung_je_profil(detail: pd.DataFrame, anforderungen: dict[str, float],
     for sid, g in detail.groupby("szenario", sort=False):
         zeile: dict[str, Any] = {"szenario": sid}
         for name, prio in profile.items():
+            prio = [k for k in prio if k in g]              # Profile mit fehlender Kennzahl rechnen ohne sie
             r = rangiere(g, anforderungen, prio)
             zeile[name] = r.iloc[0].option
             zeile[f"{name}_gleichauf"] = bool(r.iloc[0].gleichauf)
