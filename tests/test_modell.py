@@ -26,7 +26,7 @@ def test_basis_laedt_und_ist_plausibel():
 
 
 def test_alle_szenarien_laden():
-    for sid in ("S0", "S1", "S2", "S3", "S4", "S6", "S7"):
+    for sid in ("S0", "S1", "S2", "S3", "S4"):
         assert lade_modell(szenario_pfad(sid)).szenario_id == sid
 
 

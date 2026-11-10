@@ -26,7 +26,7 @@ from .domain import Modell
 
 # Welche Maßnahme (base.yaml, Block massnahmen) einen zusätzlichen Weg freischaltet
 MASSNAHME_FUER_ROUTENTYP = {"ausweich": "ausweichroute", "notfall": "luftfracht_notfall"}
-MASSNAHME_FUER_ROLLE = {"alternativ": "sellita_notfall"}   # Bezugsoptionen: Schlüssel "bezug:<lieferant>"
+MASSNAHME_FUER_ROLLE = {"alternativ": "sellita_notfall", "option": "armband_italien"}
 
 
 def _wege(m: Modell, komponente: str) -> list[dict[str, Any]]:
@@ -38,8 +38,7 @@ def _wege(m: Modell, komponente: str) -> list[dict[str, Any]]:
             for kid in r.kanten:
                 k = m.kanten[kid]
                 knoten += [k.von, k.nach]
-            massnahme = (f"bezug:{q.lieferant}" if q.rolle == "option" else MASSNAHME_FUER_ROLLE.get(q.rolle)) \
-                or MASSNAHME_FUER_ROUTENTYP.get(r.typ)
+            massnahme = MASSNAHME_FUER_ROLLE.get(q.rolle) or MASSNAHME_FUER_ROUTENTYP.get(r.typ)
             wege.append({"quelle": q, "route": r, "knoten": set(knoten), "kanten": set(r.kanten),
                          "regulaer": q.rolle == "primaer" and r.typ == "regulaer", "massnahme": massnahme})
     return wege
@@ -53,13 +52,8 @@ def single_points_of_failure(m: Modell, optionen: Iterable[dict[str, Any]] = ())
     """
     name_fuer_massnahme: dict[str, str] = {}
     for o in optionen:
-        for key, wert in (o.get("massnahmen") or {}).items():
-            name = o.get("kurz") or o.get("name") or o["id"]
-            if key == "bezug":   # je Lieferant der Option, die erste (Einzel-)Option zählt
-                for lief in (wert or {}).values():
-                    name_fuer_massnahme.setdefault(f"bezug:{lief}", name)
-            else:
-                name_fuer_massnahme.setdefault(key, name)
+        for key in (o.get("massnahmen") or {}):
+            name_fuer_massnahme.setdefault(key, o.get("kurz") or o.get("name") or o["id"])
     werk = m.werk
     zeilen = []
     for komp in m.komponenten:

@@ -391,12 +391,9 @@ def lade_modell(
     pruefe_schluessel(param, overrides)
     param = tief_zusammenfuehren(param, overrides)
 
-    # Bezugsoptionen: Lederarmband komplett aus Italien statt Brasilien (Altschalter armband_italien) und
-    # allgemein massnahmen.bezug {komponente: lieferant}, z. B. {saphirglas: portland_glas}
+    # Bezugsoption: Lederarmband komplett aus Italien statt Brasilien
     if (param.get("massnahmen") or {}).get("armband_italien"):
         _waehle_bezugsquelle(quellen, "armband", "santacroce_armband")
-    for komp, lief in ((param.get("massnahmen") or {}).get("bezug") or {}).items():
-        _waehle_bezugsquelle(quellen, str(komp), str(lief))
 
     for komp, tage in wbz_wunsch.items():
         if komp not in quellen:

@@ -72,9 +72,7 @@ def test_spof(modell):
     spof = single_points_of_failure(modell, lade_optionen())
     spof = spof[spof.komponente == "uhrwerk"].set_index("element").combine_first(
         spof[spof.komponente == "saphirglas"].set_index("element"))
-    # Rochester ist kein SPOF mehr: Portland und China sind Bezugsoptionen für Saphirglas
-    assert not bool(spof.loc["rochester_glas", "spof"])
-    assert "Glas Portland" in spof.loc["rochester_glas", "abgesichert_durch"]
+    assert bool(spof.loc["rochester_glas", "spof"])          # einziger Saphirglas-Lieferant
     assert not bool(spof.loc["miyota_nagano", "spof"])       # Ersatz-Uhrwerk Sellita
     assert "Ersatz-Uhrwerk" in spof.loc["miyota_nagano", "abgesichert_durch"]
     assert "Ausweichroute" in spof.loc["e_rtm_hn_binnen", "abgesichert_durch"]

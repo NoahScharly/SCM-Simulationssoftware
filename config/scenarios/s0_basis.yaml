@@ -2,5 +2,5 @@ id: S0
 name: Basis
 kurz: Basis
 beschreibung: Normalbetrieb, Kap-Route, ab Rotterdam Binnenschiff, ab Hamburg Bahn
-relevante_optionen: [keine, glas_portland, glas_china, dial_israel, dial_japan, zeiger_spanien, band_marokko, uhrwerk_schweiz, nearshoring, fernost_kosten, glas_china_kap, glas_portland_luft]   # in der Oberfläche angezeigte Handlungsoptionen
+relevante_optionen: [keine]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen: []

@@ -68,7 +68,7 @@ def test_vor_und_nachteile_und_wirkung():
 @pytest.fixture(scope="module")
 def vergleich():
     opt = [o for o in lade_optionen() if o["id"] in (REFERENZ, "sellita")]
-    return vergleiche_optionen([szenario_pfad("S0"), szenario_pfad("S1")], opt, replikationen=2, nur_relevante=False)
+    return vergleiche_optionen([szenario_pfad("S0"), szenario_pfad("S1")], opt, replikationen=2)
 
 
 def test_notfallplan_wirkt_nur_bei_ausloeser(vergleich):

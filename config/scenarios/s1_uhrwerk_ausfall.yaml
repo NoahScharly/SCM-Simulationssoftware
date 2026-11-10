@@ -2,7 +2,7 @@ id: S1
 name: Ausfall Uhrwerk 60 Tage
 kurz: Uhrwerk-Ausfall
 beschreibung: Einziger Uhrwerk-Lieferant liefert ab Tag 120 für 60 Tage nicht (Poster S1)
-relevante_optionen: [keine, puffer, sellita, luftfracht, uhrwerk_schweiz, nearshoring, fernost_kosten, dial_japan]   # in der Oberfläche angezeigte Handlungsoptionen
+relevante_optionen: [keine, puffer, sellita, luftfracht]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: knoten_ausfall
     ziel: miyota_nagano
