@@ -125,9 +125,19 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
     beschreibung: Gesperrte Abschnitte werden umfahren, Bahn Rotterdam-Heilbronn statt Binnenschiff über Kaub,
       Bremerhaven statt Hamburg; ohne diese Maßnahme wartet die Ware vor der Sperre
     massnahmen: {ausweichroute: true}
-  - id: puffer
+  - id: puffer_500
+    name: Uhrwerk-Puffer +500 Stück
+    kurz: Puffer 500
+    beschreibung: Zusätzlicher Sicherheitsbestand an Uhrwerken in Heilbronn, wirkt immer und bindet immer Kapital
+    massnahmen: {puffer_extra: {uhrwerk: 500}}
+  - id: puffer_750
+    name: Uhrwerk-Puffer +750 Stück
+    kurz: Puffer 750
+    beschreibung: Zusätzlicher Sicherheitsbestand an Uhrwerken in Heilbronn, wirkt immer und bindet immer Kapital
+    massnahmen: {puffer_extra: {uhrwerk: 750}}
+  - id: puffer_1000
     name: Uhrwerk-Puffer +1.000 Stück
-    kurz: Mehr Bestand
+    kurz: Puffer 1.000
     beschreibung: Zusätzlicher Sicherheitsbestand an Uhrwerken in Heilbronn, wirkt immer und bindet immer Kapital
     massnahmen: {puffer_extra: {uhrwerk: 1000}}
   - id: sellita

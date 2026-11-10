@@ -178,7 +178,7 @@ alle (für die Matrix und die Kommandozeile).
 | Aushilfe | Zeitarbeit bei Montagerückstand, 30 % teurer | S4 |
 | Bestand an Nachfrage anpassen | Meldebestand und Bestellmengen sinken mit der erkannten Nachfrage (Reaktion 7 Tage) | S5 |
 | Kurzarbeit | Montage arbeitet nur entsprechend der Nachfrage, 25 % Remanenzkosten (Reaktion 14 Tage) | S5 |
-| Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | S1, S2 |
+| Uhrwerk-Puffer +500 / +750 / +1.000 | mehr Sicherheitsbestand, bindet Kapital; drei Stufen zeigen, wie viel Puffer genug ist (S1: 500 knapp, 750 reicht, 1.000 Überversicherung) | S1, S2 |
 | Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | S1 |
 | Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1, S3 |
 
