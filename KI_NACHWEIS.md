@@ -71,6 +71,12 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    Standardkriterium, robuste Empfehlung und Kombinationsabschnitt aus der Oberfläche entfernt, zwei Zielkonflikt-
    Diagramme mit frei wählbaren Achsen und Pareto-Markierung.
 
+15. (10.11.2026, Quellenprüfung der Präsentation) "Deckt das allen Inhalt aus der Präsi ab? Checke es nochmal
+   genau." Umsetzung nur in der Präsentation: Folienaussagen gegen Skript, Aufgabenstellung, Literatur und Software
+   abgeglichen, Kurzbelege je Folie ergänzt, Zahlen an die Datenbasis angeglichen (CO2e-Spannen je Verkehrsmittel,
+   Zoll 0,5/1/2 Tage, Luftbrücke 779 Uhrwerke), fehlende Quellen ergänzt (Aufgabenstellung, Poster, Searoutes,
+   Destatis, Simchi-Levi et al. 2014, AnyLogic). Software unverändert.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
