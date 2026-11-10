@@ -5,9 +5,11 @@ genutzt, um Code nach unseren Vorgaben zu erzeugen, Fehler zu suchen und Tests z
 Datenbasis, Entwurfsentscheidungen sowie Prüfung und Korrektur der Ergebnisse lagen bei der Gruppe.
 Wer welchen Teil verantwortet, steht im README (Kennzeichnung der Urheberschaft) und in der ersten Zeile jeder Datei.
 
-| Person | Verantwortlicher Bereich | Eigene Vorgaben, Prüfung und Korrekturen |
-|---|---|---|
-| Ferdinand Lautenbach (F) | Optionsvergleich, Kennzahlen, Netzanalyse | (selbst ergänzen) |
-| Noah Scharly (N) | Visualisierung, Domänenmodell | (selbst ergänzen) |
-| Philipp Maywald (P) | Simulation Nachfrage und Montage, Optimierung, Tests | (selbst ergänzen) |
-| Benedict Hufgard (B) | Simulation Beschaffung und Reserve, Laden und Prüfung | (selbst ergänzen) |
+Die Angaben je Person sind aus der Erinnerung zusammengestellt und nicht mehr im Detail rekonstruierbar.
+
+| Person | Verantwortlicher Bereich | Wofür die KI genutzt wurde | Eigene Vorgaben, Prüfung und Korrekturen |
+|---|---|---|---|
+| Ferdinand Lautenbach (F) | Optionsvergleich, Kennzahlen, Netzanalyse | (selbst ergänzen) | (selbst ergänzen) |
+| Noah Scharly (N) | Visualisierung, Domänenmodell | Hilfestellung bei der Nutzung der Bibliotheken; Kommentierung des Codes; Debugging; Vorschläge zur Konzeption und Gestaltung des Codes; Fragen, wie sich Inhalte am besten visualisieren lassen und wie Diagramme und Karte richtig dargestellt werden | (selbst ergänzen) |
+| Philipp Maywald (P) | Simulation Nachfrage und Montage, Optimierung, Tests | (selbst ergänzen) | (selbst ergänzen) |
+| Benedict Hufgard (B) | Simulation Beschaffung und Reserve, Laden und Prüfung | (selbst ergänzen) | (selbst ergänzen) |
