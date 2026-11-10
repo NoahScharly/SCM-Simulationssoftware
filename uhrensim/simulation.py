@@ -120,12 +120,6 @@ class Simulation:
         self.luft_offen = {k: False for k in modell.komponenten}
         self.reserve_bereit_ab: dict[str, float] = {}   # Reservequelle fertigt erst nach dem Hochlauf
         self.reserve_frei_ab: dict[str, float] = {}     # ab wann ihre Kapazität wieder frei ist
-        # Montagekonzept (Idee B. Hufgard, Auftragsentkopplungspunkt): fertiguhren | koepfe | einzelteile
-        self.konzept = str(self.p["massnahmen"].get("montagekonzept", "fertiguhren") or "fertiguhren")
-        if self.konzept not in ("fertiguhren", "koepfe", "einzelteile"):
-            raise ValueError(f"unbekanntes Montagekonzept '{self.konzept}'")
-        self.band = str(self.p["montage"].get("variantenteil", "armband"))
-        self.kopf_teile = [k for k in modell.komponenten if not (self.konzept == "koepfe" and k == self.band)]
         self.fg = float(math.ceil(self._fg_ziel(0.0)))
         self.fg_wip = 0.0
 
@@ -252,8 +246,6 @@ class Simulation:
     def _fg_ziel(self, t: float) -> float:
         """Ziel-Fertigwarenbestand. Maßnahme saison_vorproduktion: in den genannten Monaten vor der Spitze wird ein
         höherer Vorrat aufgebaut (freie Montagekapazität vor November nutzen)."""
-        if getattr(self, "konzept", "fertiguhren") == "einzelteile":
-            return 0.0   # Montage auf Bestellung: kein Vorrat an fertigen Uhren
         ziel = float(self.p["montage"]["fertigwaren_ziel_tage"])
         vp = self.p["massnahmen"].get("saison_vorproduktion") or {}
         if vp and t >= self.W and self.monat(t) in set(vp.get("monate", [])):
@@ -305,8 +297,9 @@ class Simulation:
             a.update(kunde="kunden_de", lat=np.nan, lon=np.nan, km=np.nan)
         self.auftraege.append(a)
         self._log("auftragseingang", a["auftrag_id"], "kundenauftrag", a["kunde"], 1, neu="offen")
-        if self._kann_zuteilen():
-            self._zuteilen(a)
+        if self.fg >= 1:
+            self.fg -= 1
+            self.env.process(self._versende(a))
         else:
             self.rueckstand.append(a)
             self._log("rueckstand", a["auftrag_id"], "kundenauftrag", self.werk, 1, alt="offen", neu="rueckstand")
@@ -342,27 +335,10 @@ class Simulation:
         return zonen[-1]["tage"]
 
     def _bediene_rueckstand(self) -> None:
-        while self._kann_zuteilen() and self.rueckstand:
-            self._zuteilen(self.rueckstand.popleft())
-
-    def _kann_zuteilen(self) -> bool:
-        """Ein Auftrag kann bedient werden, wenn eine Uhr (bzw. ein Uhrenkopf und ein Band) im Lager ist."""
-        return self.fg >= 1 and (self.konzept != "koepfe" or self.bestand[self.band] >= 1)
-
-    def _zuteilen(self, a: dict[str, Any]) -> None:
-        self.fg -= 1
-        if self.konzept == "koepfe":
-            # Variante entsteht erst mit dem Auftrag: Band an den Kopf, kurze Endmontage, dann Versand
-            self.bestand[self.band] -= 1
-            self._log("endmontage", a["auftrag_id"], "kundenauftrag", self.werk, 1, komponente=self.band,
-                      alt="kopf", neu="fertige_uhr")
-            self.env.process(self._endmontage_und_versand(a))
-        else:
+        while self.fg >= 1 and self.rueckstand:
+            a = self.rueckstand.popleft()
+            self.fg -= 1
             self.env.process(self._versende(a))
-
-    def _endmontage_und_versand(self, a: dict[str, Any]):
-        yield self.env.timeout(float(self.p["montage"].get("endmontage_tage", 0.1)))
-        yield from self._versende(a)
 
     # ================================================================ Montage
     def _personal_tagessatz(self) -> float:
@@ -401,7 +377,7 @@ class Simulation:
                     # Aushilfe nur, wenn die Montage der Engpass ist: keine laufende Versorgungsstörung und Teile
                     # für den Mindesteinsatz im Lager. Sonst verbraucht sie nur schneller, was ohnehin knapp ist.
                     kap_mit = kap_stamm + au_ma * pro_ma
-                    teile_da = (min(self.bestand[k] for k in self.kopf_teile) >= kap_mit * float(au.get("mindest_tage", 10))
+                    teile_da = (min(self.bestand.values()) >= kap_mit * float(au.get("mindest_tage", 10))
                                 and not any(self._im_stoerfall(self.env.now, k, nachlauf=False)
                                             for k in self.bestand))
                     if au_seit is None and teile_da and bedarf - kap_stamm > float(au["ausloeser_tage"]) * tagesbedarf:
@@ -417,14 +393,14 @@ class Simulation:
                 kap = kap_stamm + (au_ma * pro_ma if au_seit is not None else 0.0)
                 soll = int(min(kap, max(0.0, math.ceil(bedarf))))
                 if soll > 0:
-                    moeglich = int(min(self.bestand[k] for k in self.kopf_teile))
+                    moeglich = int(min(self.bestand.values()))
                     n = min(soll, moeglich)
                     if n < soll:
-                        fehlend = [k for k in self.kopf_teile if self.bestand[k] < soll]
+                        fehlend = [k for k, b in self.bestand.items() if b < soll]
                         self._log("fehlteil", f"M{tag}", "montage", self.werk, soll - n,
                                   komponente=";".join(fehlend), neu="stillstand")
                     if n > 0:
-                        for k in self.kopf_teile:
+                        for k in self.bestand:
                             self.bestand[k] -= n
                         self.fg_wip += n
                         self._log("montage_start", f"M{tag}", "montage", self.werk, n, alt="komponenten",
@@ -745,7 +721,7 @@ class Simulation:
                 zeile[f"bestand_{k}"] = self.bestand[k]
                 zeile[f"unterwegs_{k}"] = self.pipeline[k]
                 wert += self.bestand[k] * self.m.primaerquelle(k).preis_eur
-            stueckpreis = sum(self.m.primaerquelle(k).preis_eur for k in self.kopf_teile)
+            stueckpreis = sum(self.m.primaerquelle(k).preis_eur for k in self.m.komponenten)
             zeile["bestandswert_eur"] = wert + (self.fg + self.fg_wip) * stueckpreis
             zeile["komponenten_stueck"] = sum(self.bestand.values())
             self.tage.append(zeile)

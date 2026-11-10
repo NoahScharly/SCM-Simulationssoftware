@@ -4,7 +4,7 @@ kurz: Nachfrageeinbruch
 beschreibung: Nach einem Imageschaden (Skandalstufe 2 nach P. Maywald, z. B. Vorwurf Kinderarbeit oder Umweltverschmutzung
   bei einem Lieferanten) bricht die Nachfrage ab Tag 150 für 60 Tage um 30 % ein. Testet die Gegenrichtung zu den
   übrigen Szenarien, also Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen (Werte [A])
-relevante_optionen: [keine, puffer, saisonbestand, koepfe, einzelteile]   # zeigt, was zusätzlicher Bestand kostet, wenn er nicht gebraucht wird
+relevante_optionen: [keine, puffer, saisonbestand]   # zeigt, was zusätzlicher Bestand kostet, wenn er nicht gebraucht wird
 stoerungen:
   - typ: nachfrage
     faktor: 0.7

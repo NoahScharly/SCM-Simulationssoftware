@@ -48,7 +48,6 @@ dort eine Zahl, wo sie belegt ist:
 | Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | Konzept C (Datenklassen statt loser Wörterbücher) | `data.pruefe_schluessel` |
 | Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
 | CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
-| Montagekonzept als Handlungsoption: Fertiguhren, Uhrenköpfe (Band erst mit dem Auftrag) oder Montage auf Bestellung; zeigt Kapitalbindung gegen Lieferzeit | Konzept D (Montagekonzepte A/B/C, Auftragsentkopplungspunkt) | `massnahmen.montagekonzept`, `Simulation._zuteilen`, Optionen in S0, S4, S5 |
 | Szenarien verknüpfen: mehrere Störungen gleichzeitig | Gruppe (Wunsch N. Scharly; Konzept C: Szenarien kombinierbar, jedes mit eigenem Zeitfenster) | `data.kombiniere_szenarien`, Seitenleiste |
 
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die

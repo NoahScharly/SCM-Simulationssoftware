@@ -291,10 +291,7 @@ def test_stresstest_mengenbilanz_alle_szenarien(sid):
             log = e.log
             for k in m.komponenten:
                 zu = log[(log.ereignis == "wareneingang") & (log.komponente == k)].menge.sum()
-                if k in sim.kopf_teile:
-                    ab = log[log.ereignis == "montage_start"].menge.sum()
-                else:                                   # Konzept "koepfe": Band erst mit dem Auftrag
-                    ab = log[(log.ereignis == "endmontage") & (log.komponente == k)].menge.sum()
+                ab = log[log.ereignis == "montage_start"].menge.sum()
                 assert anfang[k] + zu - ab == pytest.approx(sim.bestand[k])
                 assert sim.bestand[k] >= -1e-9
 
@@ -321,21 +318,6 @@ def test_co2_letzte_meile_getrennt():
     """Inbound und Zustellung getrennt (Idee F. Lautenbach)."""
     k = kennzahlen(simuliere(lade_modell(), 0))
     assert k["co2e_inbound_g"] + k["co2e_letzte_meile_g"] == pytest.approx(k["co2e_pro_uhr_kg"] * 1000)
-
-
-def test_montagekonzepte():
-    """Auftragsentkopplungspunkt (Idee B. Hufgard): weniger Fertigbestand bindet weniger Kapital, verlängert aber
-    die Lieferzeit; bei Köpfen wird das Band erst mit dem Auftrag montiert."""
-    erg = {k: kennzahlen(simuliere(lade_modell(None, {"massnahmen": {"montagekonzept": k}}), 0))
-           for k in ("fertiguhren", "koepfe", "einzelteile")}
-    assert erg["einzelteile"]["kapital_gebunden_eur"] < erg["koepfe"]["kapital_gebunden_eur"] \
-        < erg["fertiguhren"]["kapital_gebunden_eur"]
-    assert erg["einzelteile"]["lieferzeit_mittel"] > erg["fertiguhren"]["lieferzeit_mittel"] + 1
-    k = simuliere(lade_modell(None, {"massnahmen": {"montagekonzept": "koepfe"}}), 0)
-    differenz = (k.log.ereignis == "endmontage").sum() - k.auftraege.t_versand.notna().sum()
-    assert 0 <= differenz <= 2       # jede versandte Uhr bekam ihr Band; am Laufende ggf. noch in der Endmontage
-    with pytest.raises(KonfigurationsFehler):
-        lade_modell(None, {"massnahmen": {"montagekonzpet": "koepfe"}})
 
 
 def test_szenarien_verknuepfen():

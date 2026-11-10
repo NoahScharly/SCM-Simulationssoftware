@@ -21,8 +21,6 @@ montage:
   gutquote: 0.99                # fest: 1 % Ausschuss, ohne Zufall (Bruchteile werden übertragen) [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]
   fertigwaren_ziel_tage: 10     # Zielreichweite Fertigwarenlager in Tagen Nachfrage [A]
-  variantenteil: armband        # Teil, das beim Montagekonzept "koepfe" erst mit dem Auftrag montiert wird
-  endmontage_tage: 0.1          # Band anbringen und prüfen beim Konzept "koepfe", rund 10 min + Prüfung [A]
 
 distribution:
   lieferzusage_tage: 3          # Poster: Lieferzeit höchstens 3 Tage
@@ -102,10 +100,6 @@ massnahmen:
   luft_eilzuschlag: 0.25        # Aufschlag auf den Stückpreis für Eilfertigung und Priorisierung [A]
   ausweichroute: false          # gesperrte Abschnitte umfahren (Bahn statt Binnenschiff, Bremerhaven statt Hamburg);
                                 # ohne diese Maßnahme wartet die Ware, bis der reguläre Weg wieder frei ist
-  montagekonzept: fertiguhren   # Auftragsentkopplungspunkt (Idee B. Hufgard, Montagekonzepte A/B/C):
-                                #   fertiguhren = fertige Uhren auf Lager (Fertigwarenlager fertigwaren_ziel_tage)
-                                #   koepfe      = Uhrenköpfe auf Lager, Band erst mit dem Auftrag (endmontage_tage)
-                                #   einzelteile = nur Komponenten auf Lager, Montage auf Bestellung
   aushilfe: {}                  # Aushilfe bei Montagerückstand (Idee P. Maywald), z. B.
                                 # {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}
   saison_bestand: {}            # Saisonbestand: z. B. {monate: [8, 9, 10, 11], extra_tage: 20} hebt den Meldebestand
@@ -156,19 +150,6 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
     beschreibung: Von August bis November liegt der Meldebestand aller Komponenten 20 Tage Bedarf höher, damit vor
       der Spitze genug Teile im Lager sind (Aufbau früh wegen langer Wiederbeschaffung) [A]
     massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20}}
-  - id: koepfe
-    name: Uhrenköpfe auf Lager
-    kurz: Köpfe auf Lager
-    beschreibung: Werk, Gehäuse, Glas, Zifferblatt, Zeiger und Schließe werden vormontiert, das Armband kommt erst mit
-      der Bestellung dran (rund 10 Minuten). Das Band liegt lose statt in fertigen Uhren, bei mehreren Bandvarianten
-      bräuchte man je Variante weniger Vorrat (Montagekonzept nach B. Hufgard)
-    massnahmen: {montagekonzept: koepfe}
-  - id: einzelteile
-    name: Montage auf Bestellung
-    kurz: Auf Bestellung
-    beschreibung: Kein Lager an fertigen Uhren, jede Uhr wird erst nach Eingang der Bestellung montiert. Bindet am
-      wenigsten Kapital, verlängert aber jede Lieferung um die Montage (Montagekonzept nach B. Hufgard)
-    massnahmen: {montagekonzept: einzelteile}
   - id: saison_aushilfe
     name: Saisonbestand und Aushilfe
     kurz: Bestand + Aushilfe

@@ -177,9 +177,7 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
         letzte_meile_g = float(lf[lf.kostenart == "letzte_meile"].co2e_g.sum())
 
     # ---- Bestand
-    band = str(p["montage"].get("variantenteil", "armband"))
-    koepfe = p["massnahmen"].get("montagekonzept") == "koepfe"
-    stueckpreis = sum(m.primaerquelle(kk).preis_eur for kk in m.komponenten if not (koepfe and kk == band))
+    stueckpreis = sum(m.primaerquelle(kk).preis_eur for kk in m.komponenten)
     bedarf_tag = float(p["nachfrage"]["uhren_pro_jahr"]) / 365.0
     if not tf.empty and bedarf_tag > 0:
         komp_wert = tf.bestandswert_eur - (tf.fertigware + tf.in_montage) * stueckpreis
