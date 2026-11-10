@@ -65,14 +65,48 @@ def _overrides_mit(overrides: dict[str, Any] | None, option: dict[str, Any]) -> 
     return ov
 
 
+def relevante_ids(szenario: str | Path | dict) -> list[str] | None:
+    """Relevante Optionen laut Szenariodatei; None = alle (Normalbetrieb ohne Störung: dort braucht jede Option
+    ihre Mehrkosten im Normalbetrieb für die Break-even-Wahrscheinlichkeit p*)."""
+    import yaml
+    if isinstance(szenario, dict):
+        roh = szenario
+    else:
+        with open(szenario, encoding="utf-8") as f:
+            roh = yaml.safe_load(f) or {}
+    if not roh.get("stoerungen") or not roh.get("relevante_optionen"):
+        return None
+    ids = list(roh["relevante_optionen"])
+    return ids if REFERENZ in ids else [REFERENZ, *ids]
+
+
+def _job(pfad: str | Path, overrides: dict[str, Any], replikationen: int | None) -> dict[str, Any]:
+    """Ein Szenario mit einer Option (auf Modulebene, damit es in einem eigenen Prozess laufen kann)."""
+    return fuehre_aus(pfad, overrides, replikationen)
+
+
+def _prozesse(anzahl_jobs: int, prozesse: int | None) -> int:
+    import os
+    if prozesse is not None:
+        return max(1, int(prozesse))
+    return max(1, min(anzahl_jobs, os.cpu_count() or 1, 8))
+
+
 def vergleiche_optionen(
     szenarien: list[str | Path],
     optionen: list[dict[str, Any]] | None = None,
     overrides: dict[str, Any] | None = None,
     replikationen: int | None = None,
     fortschritt: Callable[[int, int], None] | None = None,
+    nur_relevante: bool = False,
+    prozesse: int | None = 1,
 ) -> dict[str, Any]:
-    """Simuliert jede Option auf jedem Szenario.
+    """Simuliert die Optionen auf den Szenarien.
+
+    nur_relevante: je Szenario nur die Optionen aus 'relevante_optionen' (Normalbetrieb immer alle).
+    prozesse: Anzahl paralleler Prozesse (None = automatisch, alle Kerne, höchstens 8; 1 = nacheinander).
+        Jeder Lauf hat seinen festen Seed, parallel und nacheinander liefern deshalb dieselben Zahlen. Klappt die
+        Parallelisierung nicht (z. B. eingeschränkte Umgebung), wird automatisch nacheinander gerechnet.
 
     Liefert:
         detail:      eine Zeile je (Szenario, Option) mit Mittelwerten, KI und gepaarten Differenzen zu "Ohne Maßnahme"
@@ -80,15 +114,36 @@ def vergleiche_optionen(
         optionen:    die verwendeten Optionen
     """
     optionen = optionen or lade_optionen()
-    gesamt, i = len(szenarien) * len(optionen), 0
-    ergebnisse: dict[tuple[str, str], dict[str, Any]] = {}
+    jobs: list[tuple[str | Path, dict[str, Any]]] = []
     for pfad in szenarien:
-        for opt in optionen:
-            e = fuehre_aus(pfad, _overrides_mit(overrides, opt), replikationen)
-            ergebnisse[(e["szenario_id"], opt["id"])] = e
-            i += 1
+        erlaubt = relevante_ids(pfad) if nur_relevante else None
+        jobs += [(pfad, opt) for opt in optionen if erlaubt is None or opt["id"] in erlaubt]
+    gesamt = len(jobs)
+    roh: list[dict[str, Any] | None] = [None] * gesamt
+    n_proz = _prozesse(gesamt, prozesse)
+    fertig = 0
+    if n_proz > 1 and gesamt > 1:
+        try:
+            from concurrent.futures import ProcessPoolExecutor, as_completed
+            with ProcessPoolExecutor(max_workers=n_proz) as pool:
+                zukunft = {pool.submit(_job, pfad, _overrides_mit(overrides, opt), replikationen): i
+                           for i, (pfad, opt) in enumerate(jobs)}
+                for z in as_completed(zukunft):
+                    roh[zukunft[z]] = z.result()
+                    fertig += 1
+                    if fortschritt:
+                        fortschritt(fertig, gesamt)
+        except Exception:                                   # Rückfall: nacheinander rechnen
+            roh, fertig = [None] * gesamt, 0
+    for i, (pfad, opt) in enumerate(jobs):
+        if roh[i] is None:
+            roh[i] = _job(pfad, _overrides_mit(overrides, opt), replikationen)
+            fertig += 1
             if fortschritt:
-                fortschritt(i, gesamt)
+                fortschritt(fertig, gesamt)
+    ergebnisse: dict[tuple[str, str], dict[str, Any]] = {}
+    for (pfad, opt), e in zip(jobs, roh):
+        ergebnisse[(e["szenario_id"], opt["id"])] = e
 
     zeilen = []
     for (sid, oid), e in ergebnisse.items():

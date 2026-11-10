@@ -158,7 +158,7 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
     kurz: Aushilfe
     beschreibung: Liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt eine Aushilfe
       (Zeitarbeit, 30 % teurer als eigenes Personal) für mindestens 10 Arbeitstage und bleibt, bis der Rückstand
-      aufgeholt ist (Idee P. Maywald) [A]
+      aufgeholt ist
     massnahmen: {aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
   - id: aufstocken
     name: Teilzeit aufstocken

@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import json
 import math
+import os
 import sys
 from pathlib import Path
 
@@ -118,13 +119,13 @@ def _ergebnisspeicher() -> dict:
 
 
 def rechne(overrides_json: str, ids: tuple[str, ...], reps: int, fortschritt=None) -> dict:
-    """Alle gewählten Szenarien × alle Handlungsoptionen."""
+    """Gewählte Szenarien × relevante Handlungsoptionen (Normalbetrieb: alle, für p*), parallel auf mehreren Kernen."""
     speicher = _ergebnisspeicher()
     schl = json.dumps([overrides_json, ids, reps])
     if schl not in speicher:
         sz = szenarien()
         speicher[schl] = vergleiche_optionen([sz[s]["pfad"] for s in ids], OPTIONEN, json.loads(overrides_json),
-                                             reps, fortschritt)
+                                             reps, fortschritt, nur_relevante=True, prozesse=None)
         while len(speicher) > 4:
             speicher.pop(next(iter(speicher)))
     return speicher[schl]
@@ -233,8 +234,11 @@ with st.sidebar:
                                       "(nachprüfbar). Ein anderer Seed zeigt, wie stabil das Ergebnis ist.")
         seed = (st.number_input("Seed", value=SEED_STANDARD, step=1) if eigener_seed else SEED_STANDARD)
 
-    n_laeufe = (1 + len(auswahl)) * len(OPTIONEN) * reps
-    st.caption(f"{de(n_laeufe)} Simulationsläufe, etwa {de(max(n_laeufe * SEK_PER_LAUF / 60, 0.1), 1)} Minuten.")
+    n_kombi = len(OPTIONEN) + sum(len(set(SZ[s]["optionen"] or OPT) | {"keine"}) for s in auswahl)
+    n_laeufe = n_kombi * reps
+    kerne = max(1, min(os.cpu_count() or 1, 8))
+    st.caption(f"{de(n_laeufe)} Simulationsläufe auf {kerne} Prozessorkern{'en' if kerne > 1 else ''}, etwa "
+               f"{de(max(n_laeufe * SEK_PER_LAUF / kerne, 1))} Sekunden.")
     starten = st.button("Simulation starten", type="primary", width="stretch")
 
 overrides = {

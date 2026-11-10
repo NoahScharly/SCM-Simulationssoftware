@@ -166,8 +166,10 @@ bricht das Laden mit Hinweis ab.
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
 jeder Start dieselben Zahlen liefert.
 
-Je Szenario werden nur die relevanten Optionen angezeigt (Szenariodatei, `relevante_optionen`); gerechnet werden
-alle (für die Matrix und die Kommandozeile).
+Je Szenario werden nur die relevanten Optionen gerechnet und angezeigt (Szenariodatei, `relevante_optionen`), im
+Normalbetrieb S0 alle, weil p* die Mehrkosten jeder Option im Normalbetrieb braucht. Die Läufe verteilen sich auf
+alle Prozessorkerne (höchstens 8); jeder Lauf hat seinen festen Seed, deshalb sind die Zahlen dieselben wie
+nacheinander gerechnet. Die Kommandozeile rechnet weiterhin alle Kombinationen.
 
 | Handlungsoption | Wirkung | Angezeigt in |
 |---|---|---|
