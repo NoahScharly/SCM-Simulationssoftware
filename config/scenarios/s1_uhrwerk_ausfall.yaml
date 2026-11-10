@@ -1,7 +1,7 @@
 id: S1
 name: Ausfall Uhrwerk 60 Tage
 kurz: Uhrwerk-Ausfall
-beschreibung: Einziger Uhrwerk-Lieferant liefert ab Tag 120 für 60 Tage nicht (Poster S1)
+beschreibung: Einziger Uhrwerk-Lieferant liefert ab Tag 120 für 60 Tage nicht
 relevante_optionen: [keine, puffer_500, puffer_750, puffer_1000, sellita, luftfracht]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: knoten_ausfall

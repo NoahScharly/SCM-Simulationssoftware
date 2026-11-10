@@ -1,8 +1,7 @@
 id: S4
 name: Saisonspitze November und Dezember +50 %
 kurz: Saisonspitze
-beschreibung: Nachfrage im November und Dezember 50 % höher (Poster S4, verstärkt, damit der Engpass Montage sichtbar
-  wird)
+beschreibung: Nachfrage im November und Dezember 50 % höher
 relevante_optionen: [keine, vorproduktion, aufstocken, aushilfe, vorproduktion_aufstocken]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: nachfrage
@@ -10,3 +9,4 @@ stoerungen:
     monate: [11, 12]
 sensitivitaet:                  # Bandbreite der Saisonspitze [A]
   stoerungen.0.faktor: [1.3, 1.5, 1.7]
+# Herkunft: Poster S4 (+30 %), auf +50 % verstärkt, damit der Engpass Montage sichtbar wird

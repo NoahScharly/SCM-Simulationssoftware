@@ -394,9 +394,10 @@ sellita, luft = bool(mass.get("sellita_notfall")), bool(mass.get("luftfracht_not
 puffer = int((mass.get("puffer_extra") or {}).get("uhrwerk", 0) or 0)
 st.caption(f"**{OPT[oid]['name']}:** {OPT[oid].get('beschreibung', '')}  ·  ★ = Empfehlung für dieses Szenario")
 
-st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=760, titel=""), width="stretch",
+st.plotly_chart(viz.netzkarte(erg, schritt_tage=3, hoehe=1060, titel=""), width="stretch",
                 config={"displayModeBar": False})
-st.caption("▶ Abspielen zeigt ein simuliertes Jahr in halber Geschwindigkeit (▶▶ doppelt so schnell). Punkte sind "
+st.caption("▶ Abspielen zeigt ein simuliertes Jahr im Standardtempo; im Auswahlfeld daneben lässt sich das Tempo "
+           "halbieren (½×) oder verdoppeln (2×), die Auswahl startet die Animation direkt. Punkte sind "
            "Sendungen (Farbe je Komponente, Raute = Luftfracht), ein roter Kreis eine aktive Störung, der goldene "
            "Ring den Lieferanten, der das Uhrwerk gerade liefert. Der Kasten oben links zeigt, ob ein Notfallplan "
            "aktiv ist.")

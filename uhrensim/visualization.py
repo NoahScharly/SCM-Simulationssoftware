@@ -233,14 +233,14 @@ def _status_text(erg: Ergebnis, verlauf: dict[str, list[tuple[float, str]]], t: 
     return "<br>".join(teile)
 
 
-def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str = "Animierte Netzwerksicht",
+def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 1060, titel: str = "Animierte Netzwerksicht",
               mit_bestand: bool = True, tempo_ms: int = 240) -> go.Figure:
     """Animierte geografische Netzwerksicht mit Europa-Ausschnitt und Bestandsbalken.
 
     Links die Weltkarte, rechts oben ein Ausschnitt Europa (Häfen, Rhein, Bahn, Sellita, Heilbronn),
     rechts unten die Bestandsbalken je Komponente, alles synchron zum Zeitregler und aus demselben Lauf.
     Ein goldener Ring markiert den Lieferanten, der das Uhrwerk gerade liefert (Miyota oder im Notfall Sellita).
-    tempo_ms: Dauer eines Bildes; 240 ms = halbe Geschwindigkeit gegenüber früher (120 ms).
+    tempo_ms: Dauer eines Bildes im Standardtempo (240 ms); das Auswahlfeld bietet zusätzlich ½× und 2×.
     """
     m = erg.modell
     W, H = m.einschwingen, m.horizont
@@ -249,9 +249,9 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
     verlauf = _quellen_verlauf(erg)
     if mit_bestand:
         fig = make_subplots(
-            rows=2, cols=2, column_widths=[0.60, 0.40], row_heights=[0.55, 0.45],
-            horizontal_spacing=0.09, vertical_spacing=0.10,
-            specs=[[{"type": "geo", "rowspan": 2}, {"type": "geo"}], [None, {"type": "xy"}]],
+            rows=2, cols=2, column_widths=[0.64, 0.36], row_heights=[0.62, 0.38],
+            horizontal_spacing=0.02, vertical_spacing=0.08,
+            specs=[[{"type": "geo"}, {"type": "geo"}], [{"type": "xy", "colspan": 2}, None]],
             subplot_titles=("", "Ausschnitt Europa", "Bestand in Heilbronn (Reichweite in Tagen)"))
         geos = [("geo", dict(row=1, col=1)), ("geo2", dict(row=1, col=2))]
         bd = _bestandsdaten(erg)
@@ -300,7 +300,7 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                                  marker=dict(symbol="line-ns", size=22, line=dict(width=3, color=KUPFER)),
                                  hovertemplate="%{y}: Meldebestand s = %{x:.0f} Tage (erreicht der helle Balken "
                                                "den Strich, wird nachbestellt)<extra></extra>",
-                                 showlegend=False), row=2, col=2)
+                                 showlegend=False), row=2, col=1)
 
     werk = m.knoten[m.werk]
     pakete = erg.auftraege.dropna(subset=["t_versand", "t_zustellung", "lat"]) if "lat" in erg.auftraege else None
@@ -382,15 +382,17 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
     if bd is not None:
         for spur in _bestand_spuren(bd, W, schritt_tage):
             dyn.append(len(fig.data))
-            fig.add_trace(spur, row=2, col=2)
+            fig.add_trace(spur, row=2, col=1)
         fig.update_layout(barmode="overlay")
-        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage Reichweite", row=2, col=2, domain=[0.62, 0.885])
-        fig.update_yaxes(autorange="reversed", row=2, col=2)
+        # Bestand unter beiden Karten über die ganze Breite: links genug Platz, damit die Teilenamen vollständig
+        # lesbar sind (z. B. "Lederarmband mit Schließe"), rechts die Legende
+        fig.update_xaxes(range=[0, bd["xmax"]], title="Tage Reichweite", row=2, col=1, domain=[0.17, 0.84])
+        fig.update_yaxes(autorange="reversed", row=2, col=1, tickfont=dict(size=12), automargin=True)
         for an in fig.layout.annotations:
             if an.text and an.text.startswith("Bestand in Heilbronn"):
-                an.x = (0.62 + 0.885) / 2
+                an.x = (0.17 + 0.84) / 2
         fig.add_annotation(
-            xref="paper", yref="paper", x=1.0, y=0.40, xanchor="right", yanchor="top", showarrow=False, align="left",
+            xref="paper", yref="paper", x=1.0, y=0.36, xanchor="right", yanchor="top", showarrow=False, align="left",
             font=dict(size=10, color=BRAUN_DUNKEL), bgcolor="rgba(255,255,255,0.85)", bordercolor="#DCDCD8",
             borderwidth=1, borderpad=5,
             text=(f"<b>Legende</b><br><span style='color:{BRAUN}'>■</span> im Lager"
@@ -424,21 +426,26 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
     schritte = [dict(method="animate", label=_datum(t - W),
                      args=[[f"{int(t - W)}"], dict(mode="immediate", frame=dict(duration=0, redraw=True),
                                                     transition=dict(duration=0))]) for t in zeiten]
+    def tempo(ms: int) -> dict:
+        return dict(frame=dict(duration=ms, redraw=True), fromcurrent=True, transition=dict(duration=0))
+
     geo_basis = dict(showland=True, landcolor="#E7E7E3", showocean=True, oceancolor="#EEF2F5", showcountries=True,
                      countrycolor="#CFCFCA", coastlinecolor="#C2C2BC", bgcolor=CREME)
     fig.update_layout(
         geo=geo_basis | dict(projection_type="natural earth", lataxis_range=[-50, 70], lonaxis_range=[-95, 150]),
-        updatemenus=[dict(type="buttons", showactive=False, x=0.0, y=-0.02, xanchor="left", yanchor="top",
-                          direction="right",
-                          buttons=[dict(label="▶ Abspielen", method="animate",
-                                        args=[None, dict(frame=dict(duration=tempo_ms, redraw=True), fromcurrent=True,
-                                                         transition=dict(duration=0))]),
-                                   dict(label="▶▶ Doppelt", method="animate",
-                                        args=[None, dict(frame=dict(duration=tempo_ms // 2, redraw=True),
-                                                         fromcurrent=True, transition=dict(duration=0))]),
-                                   dict(label="❚❚ Pause", method="animate",
-                                        args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])])],
-        sliders=[dict(steps=schritte, x=0.30, len=0.70, y=-0.02, yanchor="top", currentvalue=dict(prefix="Datum: "),
+        updatemenus=[
+            dict(type="buttons", showactive=False, x=0.0, y=-0.06, xanchor="left", yanchor="top", direction="right",
+                 buttons=[dict(label="▶ Abspielen", method="animate", args=[None, tempo(tempo_ms)]),
+                          dict(label="❚❚ Pause", method="animate",
+                               args=[[None], dict(frame=dict(duration=0, redraw=False), mode="immediate")])]),
+            # Auswahlfeld für das Tempo: Auswahl startet die Animation im gewählten Tempo ab dem aktuellen Datum
+            dict(type="dropdown", active=1, showactive=True, x=0.155, y=-0.06, xanchor="left", yanchor="top",
+                 direction="up", bgcolor="white", bordercolor="#C9A227", font=dict(size=12),
+                 buttons=[dict(label="Tempo: ½× langsam", method="animate", args=[None, tempo(tempo_ms * 2)]),
+                          dict(label="Tempo: 1× Standard", method="animate", args=[None, tempo(tempo_ms)]),
+                          dict(label="Tempo: 2× schnell", method="animate", args=[None, tempo(tempo_ms // 2)])]),
+        ],
+        sliders=[dict(steps=schritte, x=0.36, len=0.64, y=-0.06, yanchor="top", currentvalue=dict(prefix="Datum: "),
                       pad=dict(t=0))],
     )
     if bd is not None:
@@ -446,7 +453,7 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                                                 lataxis_range=[42.5, 55.5], lonaxis_range=[-1.0, 17.0]))
     fig.update_layout(legend=dict(orientation="h", yanchor="top", y=-0.16, x=0))
     fig = _layout(fig, titel, hoehe=hoehe)
-    fig.update_layout(margin=dict(l=0, r=10, t=70, b=150))
+    fig.update_layout(margin=dict(l=0, r=10, t=70, b=180))
     return fig
 
 
