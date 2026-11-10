@@ -1,6 +1,6 @@
 """Laden, Zusammenführen und Prüfen der Konfiguration (Modul data).
 
-Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
+
 
 Ablauf:
 1. Stammdaten aus CSV (Knoten, Kanten, Routen, Komponenten, Bezugsquellen)
