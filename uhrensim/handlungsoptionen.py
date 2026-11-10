@@ -1,6 +1,5 @@
 """Handlungsoptionen je Szenario automatisch vergleichen und eine Empfehlung ableiten (Modul handlungsoptionen).
 
-Kennzeichnung: G (Ablauf und Fachlogik N. Scharly, Code mit Claude Opus 5.5 umgesetzt), siehe KI_NACHWEIS.md.
 
 Ablauf in der Oberfläche:
     1. Normalbetrieb (S0) und die gewählten Störungsszenarien werden festgelegt.
