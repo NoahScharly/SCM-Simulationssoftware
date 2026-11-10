@@ -20,7 +20,7 @@ KURZ = {"simulation": {"auswertung_tage": 120}}
 # --------------------------------------------------------------------------- Konfiguration
 def test_basis_laedt_und_ist_plausibel():
     m = lade_modell()
-    assert len(m.komponenten) == 7
+    assert len(m.komponenten) == 6          # Schließe kommt mit dem Armband aus Brasilien
     assert m.werk == "heilbronn"
     assert not m.warnungen, m.warnungen
 
@@ -324,13 +324,16 @@ def test_armband_komplett_aus_brasilien_ohne_schliesse():
 
 
 def test_ausweichroute_leitet_schiffe_auf_see_um():
-    """Hamburg gesperrt: mit Ausweichroute laufen Schiffe, die schon unterwegs sind, Bremerhaven an."""
-    ohne = simuliere(lade_modell(szenario_pfad("S3")), 0)
-    mit = simuliere(lade_modell(szenario_pfad("S3"), {"massnahmen": {"ausweichroute": True}}), 0)
-    um = mit.log[(mit.log.ereignis == "umleitung") & (mit.log.neu == "bremerhaven")]
-    assert len(um) > 0
-    assert not ((ohne.log.ereignis == "umleitung") & (ohne.log.neu == "bremerhaven")).any()
-    assert kennzahlen(mit)["beta"] >= kennzahlen(ohne)["beta"]
+    """Hamburg gesperrt: mit Ausweichroute laufen Schiffe, die schon unterwegs sind, Bremerhaven an (ob gerade ein
+    Schiff unterwegs ist, hängt vom zufälligen Bestellzyklus ab, deshalb über mehrere Replikationen)."""
+    umgeleitet = 0
+    for rep in range(6):
+        ohne = simuliere(lade_modell(szenario_pfad("S3")), rep)
+        mit = simuliere(lade_modell(szenario_pfad("S3"), {"massnahmen": {"ausweichroute": True}}), rep)
+        umgeleitet += int(((mit.log.ereignis == "umleitung") & (mit.log.zustand_neu == "bremerhaven")).sum())
+        assert not ((ohne.log.ereignis == "umleitung") & (ohne.log.zustand_neu == "bremerhaven")).any()
+        assert kennzahlen(mit)["beta"] >= kennzahlen(ohne)["beta"] - 1e-9
+    assert umgeleitet > 0
 
 
 def test_kurzarbeit_senkt_personalkosten_im_einbruch():

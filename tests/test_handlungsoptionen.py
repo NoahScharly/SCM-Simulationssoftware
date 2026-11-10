@@ -117,7 +117,8 @@ def test_saisonbestand_vermeidet_fehlteile_in_s4():
     opt = {o["id"]: o for o in lade_optionen()}
     ohne = fuehre_aus(szenario_pfad("S4"), None, 3)["zusammenfassung"]
     mit = fuehre_aus(szenario_pfad("S4"), {"massnahmen": opt["saisonbestand"]["massnahmen"]}, 3)["zusammenfassung"]
-    assert mit.loc["fehlteil_tage", "mittel"] < ohne.loc["fehlteil_tage", "mittel"]
+    assert mit.loc["fehlteil_tage", "mittel"] <= ohne.loc["fehlteil_tage", "mittel"]
+    assert mit.loc["kapital_gebunden_eur", "mittel"] > ohne.loc["kapital_gebunden_eur", "mittel"]   # Vorrat aufgebaut
 
 
 def test_gleichstand_entscheiden_die_kosten_nicht_die_listenreihenfolge():

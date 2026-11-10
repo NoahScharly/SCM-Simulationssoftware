@@ -143,7 +143,7 @@ basis = lade_modell()
 g, mo = basis.param["grenzen"], basis.param["montage"]
 PRO_MA = float(mo.get("uhren_pro_mitarbeiter_tag", 7))
 SEED_STANDARD = int(basis.param["simulation"]["seed"])
-KNAME = {k: v[0] for k, v in KRITERIEN.items()}
+KNAME = {k: v[0] for k, v in KRITERIEN.items()} | {"fehlteil_tage": "Montagestillstand"}   # Stillstand nur Kennzahl
 ANF_STANDARD, PRIO_STANDARD = lade_entscheidungsregel()
 SORT_STIL = """
 .sortable-component {background-color: transparent; padding: 0; border: none;}
