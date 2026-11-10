@@ -586,37 +586,61 @@ def pareto_diagramm(raster: pd.DataFrame) -> go.Figure:
     return _layout(fig, "Maßnahmen im Zielkonflikt", hoehe=480)
 
 
-def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], ziel_beta: float | None,
-                      beta_spalte: str = "beta") -> go.Figure:
-    """Zielkonflikt der Handlungsoptionen: Kosten (x) gegen Lieferfähigkeit (y), Punktgröße = CO2e je Uhr.
+# Achsen für den Zielkonflikt: Spalte -> (Beschriftung, Faktor für die Anzeige, Einheit, Richtung)
+ZIEL_ACHSEN = {
+    "beta": ("Lieferfähigkeit", 100.0, "%", +1),
+    "kosten_pro_uhr": ("Kosten je Uhr", 1.0, "€", -1),
+    "co2e_pro_uhr_kg": ("CO2e je Uhr", 1000.0, "g", -1),
+    "lieferzeit_p95": ("Lieferzeit (95 %)", 1.0, "Tage", -1),
+    "fehlteil_tage": ("Montagestillstand", 1.0, "Tage", -1),
+    "kapital_gebunden_eur": ("Gebundenes Kapital", 1.0, "€", -1),
+}
 
-    Rang 1 (Empfehlung) ist kupferfarben mit dunklem Rand, grün = erfüllt alle Mindestanforderungen, grau = nicht.
-    Die gestrichelte Linie ist die Mindest-Lieferfähigkeit (falls gesetzt).
+
+def optionen_diagramm(rangfolge: pd.DataFrame, namen: dict[str, str], x: str = "kosten_pro_uhr", y: str = "beta",
+                      anforderungen: dict[str, float] | None = None) -> go.Figure:
+    """Zielkonflikt zweier frei wählbarer Zielkriterien.
+
+    ★ = Empfehlung (Rang 1). Grün gefüllt = Pareto-optimal in diesen beiden Zielen (keine andere Option ist in beiden
+    zugleich besser), grau = dominiert. Offener Kreis = verfehlt eine Mindestanforderung. Gestrichelte Linien zeigen
+    Mindestanforderungen, falls eine Achse eine hat.
     """
-    d = rangfolge.sort_values("kosten_pro_uhr").copy()
-    co2 = d.co2e_pro_uhr_kg * 1000
-    # Beschriftung abwechselnd über und unter dem Punkt, damit nahe Optionen sich nicht überdecken
+    from .evaluation import pareto_front
+    anforderungen = anforderungen or {}
+    nx, fx, ex, rx = ZIEL_ACHSEN[x]
+    ny, fy, ey, ry = ZIEL_ACHSEN[y]
+    d = rangfolge.sort_values(x).reset_index(drop=True).copy()
+    par = pareto_front(d, [x, y]) if x != y else pd.Series(True, index=d.index)
     lage = ["top center" if i % 2 == 0 else "bottom center" for i in range(len(d))]
-    groesse = 14 + 26 * (co2 - co2.min()) / ((co2.max() - co2.min()) or 1)
-    farbe = [KUPFER if r == 1 else ("#6B8F4A" if z else "#B0A69C") for r, z in zip(d.rang, d.zulaessig)]
+    farbe = [KUPFER if r == 1 else ("#6B8F4A" if p else "#B0A69C") for r, p in zip(d.rang, par)]
+    symbol = ["circle" if z else "circle-open" for z in d.zulaessig]
     fig = go.Figure(go.Scatter(
-        x=d.kosten_pro_uhr, y=d[beta_spalte] * 100, mode="markers+text",
+        x=d[x] * fx, y=d[y] * fy, mode="markers+text",
         text=[("★ " if r == 1 else "") + namen.get(o, o) for o, r in zip(d.option, d.rang)],
         textposition=lage, textfont=dict(size=11, color=BRAUN_DUNKEL),
-        customdata=co2, marker=dict(size=groesse, color=farbe, line=dict(width=[3 if r == 1 else 0.5 for r in d.rang],
-                                                                          color=BRAUN_DUNKEL)),
-        hovertemplate="%{text}<br>Kosten %{x:.2f} €/Uhr<br>Lieferfähigkeit %{y:.1f} %<br>CO2e %{customdata:.1f} g/Uhr"
-                      "<extra></extra>", showlegend=False))
-    if ziel_beta:
-        fig.add_hline(y=ziel_beta * 100, line=dict(color="#9B3B2A", dash="dash"),
-                      annotation_text=f"Mindest-Lieferfähigkeit {ziel_beta * 100:.0f} %".replace(".", ","),
-                      annotation_position="bottom right")
-    ziel_beta = ziel_beta or 1.0
-    fig.update_xaxes(title="Kosten je Uhr [€]  (links = günstiger)")
-    fig.update_yaxes(title=("Lieferfähigkeit im schlechtesten Szenario [%]" if beta_spalte == "beta_min"
-                            else "Lieferfähigkeit [%]"),
-                     range=[max(min(float((d[beta_spalte] * 100).min()) - 8, ziel_beta * 100 - 8), 0), 112])
-    return _layout(fig, "Zielkonflikt der Handlungsoptionen (Punktgröße = CO2e je Uhr)", hoehe=440)
+        marker=dict(size=18, color=farbe, symbol=symbol,
+                    line=dict(width=[3 if r == 1 else 1.5 for r in d.rang], color=[BRAUN_DUNKEL if z else f
+                              for z, f in zip(d.zulaessig, farbe)])),
+        hovertemplate="%{text}<br>" + f"{nx} %{{x:.2f}} {ex}<br>{ny} %{{y:.2f}} {ey}<extra></extra>", showlegend=False))
+    for achse, kz, f, n, e in (("x", x, fx, nx, ex), ("y", y, fy, ny, ey)):
+        if kz in anforderungen:
+            wert = anforderungen[kz] * f
+            text = f"Mindestanforderung {n} {wert:g} {e}".replace(".", ",")
+            if achse == "y":
+                fig.add_hline(y=wert, line=dict(color=ROT, dash="dash"), annotation_text=text,
+                              annotation_position="bottom right")
+            else:
+                fig.add_vline(x=wert, line=dict(color=ROT, dash="dash"), annotation_text=text,
+                              annotation_position="top left")
+    fig.update_xaxes(title=f"{nx} [{ex}]  ({'rechts' if rx > 0 else 'links'} = besser)")
+    fig.update_yaxes(title=f"{ny} [{ey}]  ({'oben' if ry > 0 else 'unten'} = besser)")
+    ywerte = d[y] * fy
+    spanne = float(ywerte.max() - ywerte.min()) or max(abs(float(ywerte.max())) * 0.05, 1.0)
+    fig.update_yaxes(range=[float(ywerte.min()) - 0.25 * spanne, float(ywerte.max()) + 0.35 * spanne])
+    xwerte = d[x] * fx
+    xsp = float(xwerte.max() - xwerte.min()) or max(abs(float(xwerte.max())) * 0.05, 1.0)
+    fig.update_xaxes(range=[float(xwerte.min()) - 0.18 * xsp, float(xwerte.max()) + 0.18 * xsp])
+    return _layout(fig, f"{nx} gegen {ny}", hoehe=400)
 
 
 KOSTENARTEN = {

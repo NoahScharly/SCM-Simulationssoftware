@@ -18,7 +18,7 @@ montage:
   uhren_pro_mitarbeiter_tag: 5  # Festlegung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle mit zugekauften
                                 # Werken, ca. 5 Uhren je Uhrmacher und Tag; Sensitivität 2/3/5/7
   arbeitstage_pro_woche: 5
-  gutquote: 0.99                # [A]
+  gutquote: 0.99                # fest: 1 % Ausschuss, ohne Zufall (Bruchteile werden übertragen) [A]
   durchlauf_tage: 1             # Montage und Endprüfung [A]
   fertigwaren_ziel_tage: 10     # Zielreichweite Fertigwarenlager in Tagen Nachfrage [A]
 
@@ -133,7 +133,8 @@ entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Ab
   anforderungen:                # Stufe 1: Mindestanforderungen (Grenze je Zielkriterium)
     beta: 0.95                  # Lieferfähigkeit mindestens 95 % (Poster: Zielkriterium mit Mindestwert)
     lieferzeit_p95: 3           # 95 % der Kunden spätestens nach 3 Werktagen (= Lieferzusage)
-  prioritaet: [beta, fehlteil_tage, kosten_pro_uhr, co2e_pro_uhr_kg]    # Stufe 2: oben = wichtigst, ROC-Gewichte
+  prioritaet: [beta, kosten_pro_uhr, co2e_pro_uhr_kg, lieferzeit_p95]   # Stufe 2: oben = wichtigst, ROC-Gewichte
+                                # Montagestillstand optional: solange lieferfähig, ist kurzer Stillstand kein Problem
 
 bewertung:
   methode: mindestwerte         # mindestwerte | gewichtet | lexikografisch

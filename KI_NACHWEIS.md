@@ -66,6 +66,11 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
    Umsetzung: Statusspalte (↻ / ✓) und Legende, Ausweichroute als eigene Option, relevante Optionen je Szenario,
    Saisonbestand, Hinweis auf festhängende Sendungen, 2 neue Tests.
 
+14. (10.11.2026, Abgleich mit der Präsentation) "Baue mir alle Dinge, die wir jetzt noch geändert haben, in die
+   Software ein": Suez-Szenario C1 entfernt, Luftfracht nur in S1, Gutquote fest 99 %, Montagestillstand nicht mehr
+   Standardkriterium, robuste Empfehlung und Kombinationsabschnitt aus der Oberfläche entfernt, zwei Zielkonflikt-
+   Diagramme mit frei wählbaren Achsen und Pareto-Markierung.
+
 ## Von der KI getroffene Modellentscheidungen (vom Studierenden zu prüfen)
 
 - Abfahrtsintervalle, Umschlag- und Zollzeiten, Transportkostensätze, Gewichte, Preise außer Miyota: Annahmen [A]
@@ -91,7 +96,8 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Bestandsbalken: Zustand kurz vor dem Bildzeitpunkt, ruhige Statusspalte statt Aufblinken, Strich kupferfarben
 - Saisonbestand August bis November +20 Tage Bedarf [A] (Varianten mit 30 Tagen und Fertigwaren-Vorproduktion
   getestet; Vorproduktion allein erzeugte mehr Fehlteile, weil Komponenten früher verbraucht werden)
-- Standard-Priorisierung: Lieferfähigkeit, Montagestillstand, Kosten, CO2e
+- Standard-Priorisierung: Lieferfähigkeit, Kosten, CO2e, Lieferzeit (Stillstand optional, Vorgabe N. Scharly)
+- Gutquote fest mit Übertrag der Ausschuss-Bruchteile statt Runden (Runden ergäbe bei 25 Uhren am Tag 0 % Ausschuss)
 
 ## Vorgenommene Änderungen
 

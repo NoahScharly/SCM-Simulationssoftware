@@ -45,7 +45,7 @@ Python 3.11 oder neuer.
 |---|---|---|
 | Uhren pro Jahr | 0 bis 25.000 | Nachfragerate = Menge ÷ 365 |
 | Montagen pro Tag | automatisch | Nötig = Menge ÷ (250 AT × Gutquote); Mitarbeiter = aufgerundet nötig ÷ 5; Kapazität = Mitarbeiter × 5 |
-| Wiederbeschaffungszeit | automatisch | Fertigung + Transit + Umschlag + Zoll der besten Route; dauerhafte Routenänderungen eines Szenarios (z. B. C1 Suez) werden übernommen |
+| Wiederbeschaffungszeit | automatisch | Fertigung + Transit + Umschlag + Zoll der besten Route; dauerhafte Routenänderungen eines Szenarios werden übernommen |
 
 ## Ordnerstruktur
 
@@ -64,8 +64,8 @@ uhrensim/
   simulation.py      SimPy-Prozesse, Ereignisprotokoll
   evaluation.py      Kennzahlen, Resilienz, Pareto-Front, Bewertung
   experiment.py      Replikationen, Konfidenzintervalle, Szenariovergleich, Sensitivität
-  handlungsoptionen.py  Optionen je Szenario vergleichen, Vor- und Nachteile, Empfehlung je Szenario und robust
-  optimization.py    Rastersuche: Optimum je Szenario und robuste Empfehlung über alle Szenarien
+  handlungsoptionen.py  Optionen je Szenario vergleichen, Vor- und Nachteile, Empfehlung je Szenario
+  optimization.py    Rastersuche über Maßnahmen-Kombinationen (nur Kommandozeile)
   visualization.py   animierte Karte, Diagramme, Kennzahlentabelle (Plotly)
   __main__.py        Kommandozeile
 app/app.py           Streamlit-Oberfläche
@@ -118,7 +118,7 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 
 1. **Normalbetrieb:** Uhren pro Jahr. Lieferanten, Verkehrsmittel (Kosten, Dauer, CO2e) und Bestände kommen aus
    der Datenbasis in `config/`. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
-2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S4, C1).
+2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S4).
 3. **Automatischer Optionsvergleich:** Nach dem Start wird jedes Szenario mit jeder Handlungsoption aus
    `base.yaml` (Block `handlungsoptionen`) simuliert, alle mit denselben Zufallszahlen. Neue Optionen werden dort
    ohne Programmierung ergänzt.
@@ -128,14 +128,14 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
    mindestens 95 %, Lieferzeit 95 % höchstens 3 Tage, beide abschaltbar und einstellbar). Stufe 2: Priorisierung,
    Zielkriterien auswählen und per Drag-and-drop ordnen; aus der Reihenfolge werden Rank-Order-Centroid-Gewichte
    (Barron und Barrett 1996), z. B. bei vier Kriterien 52 / 27 / 15 / 6 %. Standardwerte in `base.yaml`, Block
-   `entscheidung`. Ergebnis je Szenario und als robuste Empfehlung (Anforderungen im schlechtesten Szenario).
-6. **Kombinationen** (Abschnitt 4, für Fortgeschrittene): Rastersuche über alle Maßnahmenkombinationen.
+   `entscheidung`. Ergebnis: eine Empfehlung je Szenario. Zielkonflikte in zwei Diagrammen mit frei wählbaren
+   Achsen (Standard Kosten gegen Lieferfähigkeit und Kosten gegen CO2e), Pareto-optimale Optionen grün.
 
 Seed und Wiederholungen liegen unter "Experteneinstellungen". Standard ist der feste Seed aus `base.yaml`, damit
 jeder Start dieselben Zahlen liefert.
 
 Je Szenario werden nur die relevanten Optionen angezeigt (Szenariodatei, `relevante_optionen`); gerechnet werden
-alle, damit die robuste Empfehlung auch die Kosten einer Vorsorge in Szenarien enthält, in denen sie nicht hilft.
+alle (für die Matrix und die Kommandozeile).
 
 | Handlungsoption | Wirkung | Angezeigt in |
 |---|---|---|
@@ -144,7 +144,7 @@ alle, damit die robuste Empfehlung auch die Kosten einer Vorsorge in Szenarien e
 | Saisonbestand | Meldebestand aller Komponenten August bis November +20 Tage Bedarf | S4 |
 | Uhrwerk-Puffer +1.000 | mehr Sicherheitsbestand, bindet Kapital | S1, S2 |
 | Notfallplan Sellita | Ersatz-Uhrwerk aus der Schweiz, doppelter Preis | S1 |
-| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1, S2, S3 |
+| Notfallplan Luftfracht | Brückenlieferung per Flugzeug mit Eilzuschlag, danach wieder Seeweg | S1 |
 | Lederarmband aus Italien | Lkw statt Seeweg über Hamburg, teurer | S3 |
 
 | Szenario | Was passiert | Puffer | Notfallplan Sellita | Notfallplan Luftfracht |
@@ -154,7 +154,6 @@ alle, damit die robuste Empfehlung auch die Kosten einer Vorsorge in Szenarien e
 | S2 Niedrigwasser | Binnenschiff über Kaub gesperrt, Umleitung Bahn | wirkt | nicht ausgelöst | nur bei Fehlteil |
 | S3 Hamburg gestört | Hafen 14 Tage zu, Ausweichen Bremerhaven | wirkt | nicht ausgelöst | nur bei Fehlteil |
 | S4 Saisonspitze | Nachfrage Nov/Dez +30 % | wirkt | nicht ausgelöst | nur bei Fehlteil |
-| C1 Suez offen | kürzere Seeroute für das Uhrwerk | wirkt | nicht ausgelöst | nur bei Fehlteil |
 - Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.

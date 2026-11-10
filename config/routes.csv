@@ -1,5 +1,4 @@
 lieferant,route_id,prioritaet,typ,kanten
-miyota_nagano,r_uhrwerk_suez,0,regulaer,e_nag_yok;e_yok_rtm_suez;e_rtm_hn_binnen
 miyota_nagano,r_uhrwerk_basis,1,regulaer,e_nag_yok;e_yok_rtm_kap;e_rtm_hn_binnen
 miyota_nagano,r_uhrwerk_bahn,2,ausweich,e_nag_yok;e_yok_rtm_kap;e_rtm_hn_bahn
 miyota_nagano,r_uhrwerk_luft,9,notfall,e_nag_nrt;e_nrt_fra_luft;e_fra_hn

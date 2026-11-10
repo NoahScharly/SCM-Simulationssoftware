@@ -1,9 +1,0 @@
-id: C1
-name: Chance Suez wieder offen
-kurz: Suez offen
-beschreibung: Rotes Meer ab Tag 0 wieder passierbar, Uhrwerk über Suez statt Kap (Poster C1)
-relevante_optionen: [keine]   # in der Oberfläche angezeigte Handlungsoptionen
-stoerungen:
-  - typ: korridor
-    aktivieren: [e_yok_rtm_suez]
-    start_tag: 0

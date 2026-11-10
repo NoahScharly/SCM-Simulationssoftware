@@ -88,6 +88,7 @@ class Simulation:
         self.H = modell.horizont
         self.werk = modell.werk
         self.gut = float(self.p["montage"]["gutquote"])
+        self.ausschuss_rest = 0.0
         self.basis_rate = float(self.p["nachfrage"]["uhren_pro_jahr"]) / 365.0
         self.speed = self.p["transport"]["geschwindigkeit_km_tag"]
         self.vf = float(self.p["emissionen"]["verpackungsfaktor"])
@@ -361,7 +362,12 @@ class Simulation:
 
     def _fertigmeldung(self, n: int, tag: int):
         yield self.env.timeout(float(self.p["montage"]["durchlauf_tage"]))
-        gut = int(round(n * self.gut)) if self.det else int(self.rng["gutquote"].binomial(n, self.gut))
+        # Gutquote fest (kein Zufall): Ausschuss-Bruchteile werden übertragen, damit z. B. bei 25 Uhren am Tag
+        # und 99 % Gutquote im Mittel genau 1 % Ausschuss entsteht und nicht durch Runden 0 %.
+        self.ausschuss_rest += n * (1.0 - self.gut)
+        aus = int(math.floor(self.ausschuss_rest + 1e-9))
+        self.ausschuss_rest -= aus
+        gut = n - aus
         self.fg_wip -= n
         self.fg += gut
         self._log("montage_ende", f"M{tag}", "montage", self.werk, gut, alt="in_montage", neu="fertigware")

@@ -26,7 +26,7 @@ def test_basis_laedt_und_ist_plausibel():
 
 
 def test_alle_szenarien_laden():
-    for sid in ("S0", "S1", "S2", "S3", "S4", "C1"):
+    for sid in ("S0", "S1", "S2", "S3", "S4"):
         assert lade_modell(szenario_pfad(sid)).szenario_id == sid
 
 
@@ -168,10 +168,12 @@ def test_montage_wird_aus_jahresmenge_ausgelegt():
     assert not m.warnungen or all("Montagekapazität" not in w for w in m.warnungen)
 
 
-def test_wbz_folgt_dauerhafter_routenaenderung():
-    basis = lade_modell().primaerquelle("uhrwerk").wbz_min_tage
-    suez = lade_modell(szenario_pfad("C1")).primaerquelle("uhrwerk").wbz_min_tage
-    assert suez < basis
+def test_gutquote_fest_mit_uebertrag():
+    """99 % Gutquote ohne Zufall: über das Jahr entsteht rund 1 % Ausschuss, nicht 0 % durch Runden."""
+    erg = simuliere(lade_modell(None, KURZ), 0)
+    gut = erg.log[erg.log.ereignis == "montage_ende"].menge.sum()
+    aus = erg.log[erg.log.ereignis == "ausschuss"].menge.sum()
+    assert aus / (gut + aus) == pytest.approx(0.01, abs=0.002)
 
 
 # --------------------------------------------------------------------------- Bewertung
