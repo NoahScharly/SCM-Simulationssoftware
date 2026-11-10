@@ -11,8 +11,6 @@ Ablauf in der Oberfläche:
     5. Bandbreite: Stärke der Störung variieren und prüfen, ab wann die Empfehlung kippt.
 
 Empfehlungslogik (transparent, keine Blackbox):
-    Stufe 0: harte Ausschlusskriterien (z. B. Sanktionsländer). Wer einen ausgeschlossenen Standort nutzt, wird
-             nicht gerankt (Modul netzanalyse).
     Stufe 1: Mindestanforderungen (Standard: Lieferfähigkeit >= 95 %, Lieferzeit 95 % <= 3 Tage, einstellbar).
     Stufe 2: Priorisierung durch Reihenfolge der Zielkriterien, daraus Rank-Order-Centroid-Gewichte.
     Erfüllt keine Option alle Anforderungen, wird die mit dem kleinsten Abstand zu den Anforderungen empfohlen.
@@ -30,7 +28,6 @@ import pandas as pd
 from .data import KONFIG_STANDARD, lade_modell
 from .evaluation import RICHTUNG, pareto_front
 from .experiment import _setze_pfad, fuehre_aus
-from .netzanalyse import genutzte_knoten
 
 REFERENZ = "keine"
 KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage",
@@ -97,8 +94,7 @@ def vergleiche_optionen(
     for (sid, oid), e in ergebnisse.items():
         z = e["zusammenfassung"]
         ref = ergebnisse.get((sid, REFERENZ))
-        zeile: dict[str, Any] = {"szenario": sid, "szenario_name": e["szenario_name"], "option": oid,
-                                 "knoten_genutzt": ";".join(sorted(genutzte_knoten(e["beispiellauf"])))}
+        zeile: dict[str, Any] = {"szenario": sid, "szenario_name": e["szenario_name"], "option": oid}
         for kz in z.index:
             zeile[kz] = float(z.loc[kz, "mittel"])
             zeile[f"{kz}_ki95"] = float(z.loc[kz, "ki95"])
@@ -151,11 +147,6 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
     out = df.copy().reset_index(drop=True)
     verletzt = [[] for _ in range(len(out))]
     abstand = pd.Series(0.0, index=out.index)
-    # Stufe 0: harte Ausschlusskriterien (Spalte "ausschluss" = Text der verletzten Regel, leer = zulässig)
-    if "ausschluss" in out:
-        out["ausgeschlossen"] = out["ausschluss"].fillna("").astype(str).str.len() > 0
-    else:
-        out["ausgeschlossen"] = False
     for kz, grenze in (anforderungen or {}).items():
         sp = spalten.get(kz, kz)
         werte = out[sp].astype(float)
@@ -164,14 +155,12 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         abstand += fehl / (abs(grenze) or 1.0)
         for i in out.index[fehl > 0]:
             verletzt[i].append(KRITERIEN.get(kz, (kz,))[0])
-    out["zulaessig"] = (abstand <= 0) & ~out["ausgeschlossen"]
-    for i in out.index[out["ausgeschlossen"]]:
-        verletzt[i].insert(0, "Ausschlusskriterium")
+    out["zulaessig"] = abstand <= 0
     out["verletzt"] = [", ".join(v) for v in verletzt]
     out["abstand_anforderung"] = abstand
 
     gewichte = dict(zip(prioritaet, roc_gewichte(len(prioritaet))))
-    basis = out[out.zulaessig] if out.zulaessig.any() else out[~out.ausgeschlossen] if (~out.ausgeschlossen).any() else out
+    basis = out[out.zulaessig] if out.zulaessig.any() else out
     punkte = pd.Series(0.0, index=out.index)
     for kz, w in gewichte.items():
         x = out[kz].astype(float)
@@ -185,8 +174,7 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         punkte += w * norm
     out["punkte"] = punkte
     out["pareto"] = pareto_front(out, list(gewichte)) if gewichte else False
-    out = out.sort_values(["ausgeschlossen", "zulaessig", "abstand_anforderung", "punkte"],
-                          ascending=[True, False, True, True])
+    out = out.sort_values(["zulaessig", "abstand_anforderung", "punkte"], ascending=[False, True, True])
     out["rang"] = range(1, len(out) + 1)
     out.attrs["gewichte"] = gewichte
     return out
@@ -267,16 +255,6 @@ def wirkt(zeile: pd.Series | dict[str, Any]) -> bool:
     z["bereitschaft_pro_uhr"] = 0.0
     v, n = vor_und_nachteile(z)
     return bool(v or n)
-
-
-# --------------------------------------------------------------------------- Stufe 0: Ausschluss
-def markiere_ausschluss(detail: pd.DataFrame, regeln: dict[str, str], modell: Any) -> pd.DataFrame:
-    """Spalte "ausschluss": verletzte Ausschlussregeln der tatsächlich genutzten Standorte (leer = zulässig)."""
-    from .netzanalyse import pruefe_ausschluss
-    out = detail.copy()
-    out["ausschluss"] = [pruefe_ausschluss(str(g).split(";") if g else [], regeln, modell)
-                         for g in out.get("knoten_genutzt", pd.Series([""] * len(out), index=out.index))]
-    return out
 
 
 # --------------------------------------------------------------------------- Break-even p*
@@ -366,7 +344,6 @@ def bandbreite(
     prioritaet: list[str],
     overrides: dict[str, Any] | None = None,
     replikationen: int | None = None,
-    ausschluss: tuple[dict[str, str], Any] | None = None,
     fortschritt: Callable[[int, int], None] | None = None,
 ) -> pd.DataFrame:
     """Rechnet ein Szenario für jeden Wert der Bandbreite durch und zeigt, ab wann die Empfehlung kippt.
@@ -388,8 +365,7 @@ def bandbreite(
         for opt in optionen:
             e = fuehre_aus(sz, _overrides_mit(overrides, opt), replikationen)
             z = e["zusammenfassung"]
-            zeile = {"szenario": e["szenario_id"], "option": opt["id"], "wert": w,
-                     "knoten_genutzt": ";".join(sorted(genutzte_knoten(e["beispiellauf"])))}
+            zeile = {"szenario": e["szenario_id"], "option": opt["id"], "wert": w}
             for kz in z.index:
                 zeile[kz] = float(z.loc[kz, "mittel"])
             zeilen.append(zeile)
@@ -397,8 +373,6 @@ def bandbreite(
             if fortschritt:
                 fortschritt(i, gesamt)
         d = pd.DataFrame(zeilen)
-        if ausschluss is not None:
-            d = markiere_ausschluss(d, *ausschluss)
         r = rangiere(d, anforderungen, prioritaet)
         spalten = ["szenario", "option", "kosten_pro_uhr", "auftraege"]
         be = break_even(pd.concat([basis_detail[spalten], d[spalten]], ignore_index=True))

@@ -128,9 +128,9 @@ Annahmen [A]: Hochlauf 14 Tage, 150 Stück je Woche, Aushilfe-Aufschlag 30 %, Au
 Mindesteinsatz 10 Arbeitstage, Luftweg Narita–Frankfurt 11.250 km. Übernommen und zu prüfen: 49,50 €/h (Destatis
 2026, aus dem Poster P. Maywald), 4.000 € Bereitschaft (B. Hufgard).
 
-Nachtrag 10.11.2026 (Prompt sinngemäß: „Szenarien verknüpfen“): mit KI umgesetzt die Verknüpfung von Szenarien
-(Datenebene und Seitenleiste). Montagekonzepte nach B. Hufgard wurden testweise eingebaut und auf Entscheidung von
-N. Scharly wieder entfernt.
+Nachtrag 10.11.2026: Auf Entscheidung von N. Scharly wieder entfernt wurden die Montagekonzepte nach B. Hufgard,
+die Verknüpfung von Szenarien, die zusätzlichen Bezugsquellen mit den Szenarien S6/S7 sowie die
+Ausschlusskriterien (Stufe 0).
 
 ### Produkt: High-End Cars-Uhr (Entscheidung der Gruppe, 10.11.2026)
 

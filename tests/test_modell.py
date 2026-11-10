@@ -319,17 +319,3 @@ def test_co2_letzte_meile_getrennt():
     k = kennzahlen(simuliere(lade_modell(), 0))
     assert k["co2e_inbound_g"] + k["co2e_letzte_meile_g"] == pytest.approx(k["co2e_pro_uhr_kg"] * 1000)
 
-
-def test_szenarien_verknuepfen():
-    """Zwei Störungen gleichzeitig, jede mit eigenem Zeitfenster; Optionen beider Szenarien."""
-    from uhrensim.data import kombiniere_szenarien
-    k = kombiniere_szenarien(["S1", "S3"])
-    assert k["id"] == "S1+S3" and {"sellita", "ausweichroute"} <= set(k["relevante_optionen"])
-    m = lade_modell(k)
-    assert {(s.typ, s.ziel) for s in m.stoerungen} == {("knoten_ausfall", "miyota_nagano"), ("knoten_ausfall", "hamburg")}
-    assert lade_modell({"id": "X", "kombination": ["S1", "S3"]}).szenario_id == "X"   # auch als Datei möglich
-    beide = kennzahlen(simuliere(m, 0))
-    nur_s1 = kennzahlen(simuliere(lade_modell(szenario_pfad("S1")), 0))
-    assert beide["beta"] <= nur_s1["beta"] + 1e-9
-    with pytest.raises(KonfigurationsFehler):
-        kombiniere_szenarien(["S1"])

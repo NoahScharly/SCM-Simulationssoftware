@@ -37,7 +37,6 @@ dort eine Zahl, wo sie belegt ist:
 | Break-even-Wahrscheinlichkeit p* je Handlungsoption: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). Die Software fragt keine Eintrittswahrscheinlichkeit ab, sondern zeigt, ab welcher sich die Vorsorge lohnt | Poster B (Entscheidungsregel p · vermiedener Schaden > Mehrkosten) | `handlungsoptionen.break_even`, Oberfläche Abschnitt 1 und 2 |
 | Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Poster B (Szenarien mit Band) | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
 | Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | Poster B (SPOF-Liste) | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
-| Stufe 0 der Entscheidung: harte Ausschlusskriterien (Länder, Standorte) vor jeder Bewertung | Poster C (erst Grenzen, dann Ziele) | Block `ausschluss` in `base.yaml`, Seitenleiste, `netzanalyse` |
 | Szenario S5 Nachfrageeinbruch -30 % für 60 Tage (Skandalstufe 2), Bandbreite Stufe 1 bis 3 (-15/-30/-50 %): testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen | Poster C (Nachfrageschock, Skandalstufen) | `config/scenarios/s5_nachfrageeinbruch.yaml` |
 | Montagepersonal als Fixkosten: Mitarbeiter × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage. Erst dadurch kostet ein Nachfrageeinbruch spürbar | Konzept C (Lohnkosten, 140 h je Monat) | `kosten.montage_kostenmodell`, `simulation._montage` |
 | Handlungsoption Aushilfe: liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt Zeitarbeit dazu | Konzept C (Aushilfe bei Rückstand) | `massnahmen.aushilfe`, Optionen in S4 |
@@ -48,7 +47,6 @@ dort eine Zahl, wo sie belegt ist:
 | Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | Konzept C (Datenklassen statt loser Wörterbücher) | `data.pruefe_schluessel` |
 | Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
 | CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
-| Szenarien verknüpfen: mehrere Störungen gleichzeitig | Gruppe (Wunsch N. Scharly; Konzept C: Szenarien kombinierbar, jedes mit eigenem Zeitfenster) | `data.kombiniere_szenarien`, Seitenleiste |
 
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
 Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.
@@ -133,22 +131,6 @@ Weitere Beispiele: `knoten_ausfall` mit `ziel` und `dauer_tage`, `kanten_sperre`
 `korridor` mit `aktivieren`/`deaktivieren`, `nachfrage` mit `faktor` und `monate` oder `start_tag`/`dauer_tage`.
 Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben. Ein Tippfehler in einem Feldnamen
 bricht das Laden mit Hinweis ab.
-
-### Szenarien verknüpfen
-
-In der Seitenleiste unter „Welche Störungen simulieren?“ mindestens zwei Störungen bei **Szenarien verknüpfen**
-wählen. Sie laufen dann zusätzlich als ein gemeinsames Szenario (z. B. `S1+S3`), jede Störung mit ihrem eigenen
-Zeitfenster; Nachfragefaktoren werden multipliziert, die Handlungsoptionen beider Szenarien durchgerechnet. Eine
-feste Verknüpfung geht auch als Datei:
-
-```yaml
-id: S6
-name: Uhrwerk-Ausfall und Hamburg gleichzeitig
-kurz: Doppelstörung
-kombination: [S1, S3]
-```
-
-Für Verknüpfungen gibt es keine Bandbreite, weil unklar wäre, welche der Störungen variiert wird.
 
 ## Wichtige Modellannahmen und Grenzen
 

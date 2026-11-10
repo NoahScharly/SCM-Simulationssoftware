@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import math
 import sys
-import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -23,11 +22,11 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
-from uhrensim.data import (KonfigurationsFehler, kombiniere_szenarien, lade_modell, lagerhaltungssatz,  # noqa: E402
-                           montage_bedarf, szenario_dateien)
-from uhrensim.netzanalyse import ausschluss_regeln, element_name, single_points_of_failure  # noqa: E402
+from uhrensim.data import (KonfigurationsFehler, lade_modell, lagerhaltungssatz, montage_bedarf,  # noqa: E402
+                           szenario_dateien)
+from uhrensim.netzanalyse import element_name, single_points_of_failure  # noqa: E402
 from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
-                                        bandbreite, bandbreite_definition, break_even, markiere_ausschluss,
+                                        bandbreite, bandbreite_definition, break_even,
                                         p_text,
                                         lade_optionen, roc_gewichte, vergleiche_optionen,
                                         vor_und_nachteile, wirkt)
@@ -122,25 +121,12 @@ def rechne(overrides_json: str, ids: tuple[str, ...], reps: int, fortschritt=Non
     speicher = _ergebnisspeicher()
     schl = json.dumps([overrides_json, ids, reps])
     if schl not in speicher:
-        sz = SZ   # enthält auch verknüpfte Szenarien aus der Seitenleiste
+        sz = szenarien()
         speicher[schl] = vergleiche_optionen([sz[s]["pfad"] for s in ids], OPTIONEN, json.loads(overrides_json),
                                              reps, fortschritt)
         while len(speicher) > 4:
             speicher.pop(next(iter(speicher)))
     return speicher[schl]
-
-
-def kombi_anlegen(ids: tuple[str, ...]) -> str:
-    """Verknüpftes Szenario als Datei ablegen (alle Auswertungen arbeiten mit Szenariodateien) und in SZ eintragen."""
-    sz = kombiniere_szenarien(list(ids))
-    ordner = Path(tempfile.gettempdir()) / "uhrensim_verknuepfungen"
-    ordner.mkdir(exist_ok=True)
-    pfad = ordner / f"{sz['id'].replace('+', '_')}.yaml"
-    with open(pfad, "w", encoding="utf-8") as f:
-        yaml.safe_dump(sz, f, allow_unicode=True, sort_keys=False)
-    SZ[sz["id"]] = {"pfad": str(pfad), "name": sz["name"], "kurz": sz["kurz"], "beschreibung": sz["beschreibung"],
-                    "optionen": sz["relevante_optionen"]}
-    return sz["id"]
 
 
 def hinweis(art: str, titel: str, text: str) -> None:
@@ -196,29 +182,8 @@ with st.sidebar:
                        help="Der Normalbetrieb (Basis) wird immer mitgerechnet, er ist der Vergleichsmaßstab.") or []
     st.caption("Basis wird immer mitgerechnet. Für jede Störung simuliert die Software automatisch die dazu "
                "passenden Handlungsoptionen und vergleicht sie.")
-    verknuepft = st.multiselect(
-        "Szenarien verknüpfen", stoer_ids, default=[], format_func=lambda s: f"{s} · {SZ[s]['kurz']}",
-        placeholder="z. B. Uhrwerk-Ausfall + Hamburg",
-        help="Mindestens zwei Störungen wählen: Sie laufen dann zusätzlich als ein gemeinsames Szenario, jede mit "
-             "ihrem eigenen Zeitfenster. Die Handlungsoptionen beider Szenarien werden durchgerechnet.")
-    if len(verknuepft) >= 2:
-        kid = kombi_anlegen(tuple(sorted(verknuepft)))
-        auswahl = [*auswahl, kid]
-        st.caption(f"Zusätzlich gerechnet: **{kid}**")
-    elif verknuepft:
-        st.caption("Für eine Verknüpfung mindestens zwei Störungen wählen.")
 
     st.markdown("#### 3 · Zielkriterien")
-    st.markdown("**Stufe 0 · Ausschlusskriterien**")
-    LAENDER_NETZ = sorted({k.land for k in basis.knoten.values()})
-    LAENDER_STANDARD = [str(x).upper() for x in (basis.param.get("ausschluss") or {}).get("laender", [])]
-    ausgeschlossen = st.multiselect(
-        "Ausgeschlossene Länder", sorted(set(LAENDER_NETZ) | set(LAENDER_STANDARD)), default=LAENDER_STANDARD,
-        label_visibility="collapsed",
-        help="Harte Grenze vor jeder Bewertung (z. B. EU-Sanktionen). Eine Handlungsoption, die einen Standort in "
-             "einem dieser Länder nutzt (Lieferant, Vorlieferant, Hafen), wird nicht gerankt. Standard aus "
-             "base.yaml. Zum Testen ein Land des Netzes hinzufügen, z. B. BR.")
-    st.caption("Wirkt sofort, ohne neu zu rechnen.")
     st.markdown("**Mindestanforderungen**")
     anforderungen: dict[str, float] = {}
     if st.toggle("Lieferfähigkeit mindestens", value="beta" in ANF_STANDARD, key="anf_beta_an"):
@@ -363,8 +328,6 @@ def relevant(s: str) -> list[str]:
 
 
 # Empfehlung je Szenario nur unter den für das Szenario relevanten Optionen
-AUSSCHLUSS = (ausschluss_regeln(pruefung, ausgeschlossen), pruefung)
-detail = markiere_ausschluss(detail, *AUSSCHLUSS)
 BREAK_EVEN = break_even(detail).set_index(["szenario", "option"]) if len(detail) else pd.DataFrame()
 
 
@@ -595,8 +558,6 @@ with links:
                     f"Mehrkosten im Normalbetrieb {de(be_.mehrkosten_normal)} € pro Jahr, Ersparnis im Störungsjahr "
                     f"{de(be_.ersparnis_stoerung)} € (inkl. Verspätungskosten). Schwelle p* = Mehrkosten ÷ "
                     f"(Mehrkosten + Ersparnis). Hältst du die Störung für wahrscheinlicher, lohnt sich die Option.")
-    if z.get("ausschluss"):
-        hinweis("schlecht", "Ausgeschlossen (Stufe 0):", str(z["ausschluss"]))
     if oid != "keine":
         vor, nach = vor_und_nachteile(z)
         if not wirkt(z):
@@ -671,13 +632,6 @@ if sid != "S0":
                f"Verspätungen gehen mit {de(pruefung.param['kosten']['verspaetung_eur_auftrag'])} € je Bestellung "
                "ein (Sensitivität " + "/".join(de(x) for x in pruefung.param.get("sensitivitaet", {}).get(
                    "kosten.verspaetung_eur_auftrag", [])) + " €).")
-if (detail.ausschluss.astype(str).str.len() > 0).any():
-    hinweis("warn", "Stufe 0 aktiv:", "Optionen mit ❌ Ausschlusskriterium nutzen einen ausgeschlossenen Standort und "
-            "werden unabhängig von ihren Kennzahlen hinten eingeordnet.")
-    if detail[(detail.szenario == "S0") & (detail.option == "keine")].ausschluss.astype(str).str.len().gt(0).any():
-        hinweis("schlecht", "Schon der Normalbetrieb verstößt gegen ein Ausschlusskriterium.",
-                "Das reguläre Netz nutzt einen ausgeschlossenen Standort. Zulässig sind nur Optionen, die ihn "
-                "ersetzen (z. B. eine andere Bezugsquelle). Sonst muss das Netz in config/ angepasst werden.")
 
 # --------------------------------------------------------------------------- Bandbreite
 st.markdown("#### Bandbreite: Ab wann kippt die Empfehlung?")
@@ -692,13 +646,13 @@ else:
     st.markdown(f"Die Störung wird mit **{par_name} = {', '.join(de(w, 2 if isinstance(w, float) else 0) for w in werte)}** "
                 f"durchgerechnet, alle für {sid} relevanten Optionen, gleiche Zufallszahlen. Die Bandbreite steht in "
                 "der Szenariodatei und lässt sich dort ändern.")
-    bb_schl = json.dumps([st.session_state["lauf"], sid, sorted(ausgeschlossen), anforderungen, prioritaet])
+    bb_schl = json.dumps([st.session_state["lauf"], sid, anforderungen, prioritaet])
     if st.button(f"Bandbreite für {sid} durchrechnen ({len(werte) * len(relevant(sid)) * int(lauf_reps)} Läufe)",
                  key=f"bb_{sid}"):
         bal_bb = st.progress(0.0, text="Bandbreite wird gerechnet …")
         st.session_state.setdefault("bandbreite", {})[bb_schl] = bandbreite(
             pfad_sz, [OPT[o] for o in relevant(sid)], detail[detail.szenario == "S0"], anforderungen, prioritaet,
-            lauf_ov, int(lauf_reps), AUSSCHLUSS, fortschritt=lambda i, n: bal_bb.progress(i / n))
+            lauf_ov, int(lauf_reps), fortschritt=lambda i, n: bal_bb.progress(i / n))
         bal_bb.empty()
     bb = st.session_state.get("bandbreite", {}).get(bb_schl)
     if bb is not None and not bb.empty:

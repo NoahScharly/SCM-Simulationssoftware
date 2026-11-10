@@ -1,4 +1,4 @@
-"""Netzanalyse: Single Points of Failure und harte Ausschlusskriterien (Modul netzanalyse).
+"""Netzanalyse: Single Points of Failure (Modul netzanalyse).
 
 Kennzeichnung: G (Fachlogik aus den Gruppenpostern, Ausarbeitung N. Scharly, Code mit Claude Opus 5.5 umgesetzt),
 siehe KI_NACHWEIS.md.
@@ -9,11 +9,6 @@ Single Point of Failure (SPOF, Idee Gruppenposter):
     (Ausweichroute, Luftfracht, Ersatzlieferant, Bezugsoption) genutzt werden. Fällt es aus, gibt es keinen Ersatz.
     Elemente, die nur im Normalbetrieb ohne Ausweichweg sind, werden mit der Option ausgewiesen, die sie absichert.
     Annahme: Ein Lieferant braucht alle seine Vorlieferanten (jeder liefert ein anderes Material).
-
-Ausschlusskriterien (Stufe 0 der Entscheidung, Idee Gruppenposter):
-    Länder oder einzelne Standorte, die aus rechtlichen oder ethischen Gründen nicht genutzt werden dürfen
-    (z. B. EU-Sanktionen). Geprüft wird, welche Standorte eine Handlungsoption im simulierten Lauf tatsächlich
-    nutzt; nutzt sie einen ausgeschlossenen Standort, wird sie vor jeder Bewertung aussortiert.
 """
 
 from __future__ import annotations
@@ -82,41 +77,3 @@ def element_name(m: Modell, element: str) -> str:
         return f"{m.knoten[k.von].name} → {m.knoten[k.nach].name} ({k.modus})"
     return element
 
-
-# --------------------------------------------------------------------------- Ausschluss
-def genutzte_knoten(erg: Any) -> set[str]:
-    """Standorte, die ein Simulationslauf tatsächlich genutzt hat: Lieferanten mit Bestellungen und deren
-    Vorlieferanten, alle Knoten der befahrenen Strecken."""
-    if erg is None or erg.log is None or len(erg.log) == 0:
-        return set()
-    m, log = erg.modell, erg.log
-    knoten: set[str] = set()
-    lieferanten = set(log.loc[log.ereignis == "bestellung", "ort"].astype(str))
-    knoten |= lieferanten
-    for qs in m.quellen.values():
-        for q in qs:
-            if q.lieferant in lieferanten:
-                knoten |= set(q.tier2)
-    for kid in set(log.loc[log.ereignis == "abfahrt", "kante"].astype(str)):
-        if kid in m.kanten:
-            knoten |= {m.kanten[kid].von, m.kanten[kid].nach}
-    return {k for k in knoten if k in m.knoten}
-
-
-def ausschluss_regeln(m: Modell, laender: Iterable[str] | None = None,
-                      knoten: dict[str, str] | None = None) -> dict[str, str]:
-    """Ausgeschlossene Standorte des Netzes mit Grund. Standard aus base.yaml (Block ausschluss)."""
-    cfg = m.param.get("ausschluss") or {}
-    laender = {str(x).upper() for x in (cfg.get("laender") or [])} if laender is None else \
-        {str(x).upper() for x in laender}
-    gruende = dict(cfg.get("knoten") or {}) if knoten is None else dict(knoten)
-    for k in m.knoten.values():
-        if k.land.upper() in laender and k.id not in gruende:
-            gruende[k.id] = f"Land {k.land} ausgeschlossen"
-    return {k: v for k, v in gruende.items() if k in m.knoten}
-
-
-def pruefe_ausschluss(genutzt: Iterable[str], regeln: dict[str, str], m: Modell) -> str:
-    """Leerer Text = zulässig, sonst die verletzten Regeln."""
-    treffer = [f"{m.knoten[k].name}: {regeln[k]}" for k in sorted(set(genutzt)) if k in regeln]
-    return "; ".join(treffer)

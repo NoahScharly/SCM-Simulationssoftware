@@ -1,4 +1,4 @@
-"""Tests der Erweiterungen aus den Gruppenpostern: p*, Ausschlusskriterien, SPOF, Bandbreite, Szenario S5."""
+"""Tests der Erweiterungen aus den Gruppenpostern: p*, SPOF, Bandbreite, Szenario S5."""
 
 import math
 
@@ -7,9 +7,8 @@ import pytest
 
 from uhrensim.data import lade_modell
 from uhrensim.experiment import szenario_pfad
-from uhrensim.handlungsoptionen import (bandbreite_definition, break_even, lade_optionen, markiere_ausschluss,
-                                        p_text, rangiere)
-from uhrensim.netzanalyse import ausschluss_regeln, pruefe_ausschluss, single_points_of_failure
+from uhrensim.handlungsoptionen import bandbreite_definition, break_even, lade_optionen, p_text, rangiere
+from uhrensim.netzanalyse import single_points_of_failure
 
 
 @pytest.fixture(scope="module")
@@ -38,26 +37,6 @@ def test_break_even_sonderfaelle():
     assert arten["a"] == "immer"   # keine Mehrkosten, spart im Störfall
     assert arten["b"] == "nie"     # kostet und hilft nicht
     assert arten["c"] == "ohne"    # wirkt nicht, kostet nichts
-
-
-def test_ausschluss_laender(modell):
-    regeln = ausschluss_regeln(modell, ["BR"])
-    assert "estancia_leder" in regeln and "rio_grande" in regeln
-    assert pruefe_ausschluss(["miyota_nagano", "rotterdam"], regeln, modell) == ""
-    assert "Land BR" in pruefe_ausschluss(["estancia_leder"], regeln, modell)
-    assert ausschluss_regeln(modell) == {}   # Standard (Sanktionsländer) betrifft das Netz nicht
-
-
-def test_rangiere_stufe0_sortiert_ausgeschlossene_nach_hinten(modell):
-    d = pd.DataFrame([
-        {"option": "billig", "beta": 1.0, "kosten_pro_uhr": 100.0, "knoten_genutzt": "estancia_leder"},
-        {"option": "teuer", "beta": 1.0, "kosten_pro_uhr": 120.0, "knoten_genutzt": "santacroce_armband"},
-    ])
-    d = markiere_ausschluss(d, ausschluss_regeln(modell, ["BR"]), modell)
-    r = rangiere(d, {"beta": 0.95}, ["kosten_pro_uhr"])
-    assert r.iloc[0].option == "teuer"
-    assert not r.set_index("option").loc["billig", "zulaessig"]
-    assert "Ausschlusskriterium" in r.set_index("option").loc["billig", "verletzt"]
 
 
 def test_rauschen_entscheidet_nicht():
