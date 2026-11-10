@@ -294,3 +294,27 @@ def test_stresstest_mengenbilanz_alle_szenarien(sid):
                 ab = log[log.ereignis == "montage_start"].menge.sum()
                 assert anfang[k] + zu - ab == pytest.approx(sim.bestand[k])
                 assert sim.bestand[k] >= -1e-9
+
+
+def test_tippfehler_in_konfiguration_bricht_ab():
+    """Strenge Feldnamen (Idee P. Maywald)."""
+    with pytest.raises(KonfigurationsFehler, match="vermutlich 'uhren_pro_jahr'"):
+        lade_modell(None, {"nachfrage": {"uhren_pro_jahre": 5000}})
+    with pytest.raises(KonfigurationsFehler, match="unbekannte Felder"):
+        lade_modell({"id": "SX", "stoerungen": [{"typ": "nachfrage", "fakor": 0.5}]})
+    lade_modell(None, {"nachfrage": {"monatsfaktoren": {11: 1.3}}})   # freie Zuordnung bleibt erlaubt
+
+
+def test_konfig_hash_im_protokoll():
+    """Reproduzierbarkeit (Idee B. Hufgard): gleicher Hash und Seed -> gleiches Protokoll, andere Konfig -> anderer Hash."""
+    a, b = simuliere(lade_modell(szenario_pfad("S1")), 0), simuliere(lade_modell(szenario_pfad("S1")), 0)
+    c = lade_modell(szenario_pfad("S2"))
+    start = a.log[a.log.ereignis == "laufstart"]
+    assert len(start) == 1 and start.objekt_id.iloc[0] == a.modell.konfig_hash != c.konfig_hash
+    pd.testing.assert_frame_equal(a.log, b.log)
+
+
+def test_co2_letzte_meile_getrennt():
+    """Inbound und Zustellung getrennt (Idee F. Lautenbach)."""
+    k = kennzahlen(simuliere(lade_modell(), 0))
+    assert k["co2e_inbound_g"] + k["co2e_letzte_meile_g"] == pytest.approx(k["co2e_pro_uhr_kg"] * 1000)

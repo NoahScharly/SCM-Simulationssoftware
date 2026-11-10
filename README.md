@@ -45,6 +45,9 @@ dort eine Zahl, wo sie belegt ist:
 | Reservequelle realistisch: Sellita fertigt erst nach 14 Tagen Hochlauf, höchstens 150 Stück je Woche, und der Notfallplan kostet 4.000 € im Jahr Bereitschaft, auch ohne Ausfall | Konzept D (Reserve mit Hochlauf, Kapazität, Freigabekosten) | `massnahmen.notfall_*`, `simulation._reserve_ende` |
 | Zufälliger Startbestand je Replikation: sonst trifft eine Störung bei Losgrößen von 100 bis 200 Tagen immer dieselbe Stelle im Bestellzyklus oder gar keine Sendung | Konzept D (fester Starttag fällt zwischen die Lose) | `simulation.Simulation.__init__` |
 | Lagerhaltungskostensatz 15 % p. a. (8 % Zins + 7 % Versicherung, Schwund, Veralterung) | Konzepte C und D (beide 15 %) | `kosten.kapitalzins_pa`, `kosten.lagerrisiko_pa` |
+| Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | Konzept C (Datenklassen statt loser Wörterbücher) | `data.pruefe_schluessel` |
+| Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
+| CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
 
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
 Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.

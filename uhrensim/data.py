@@ -13,6 +13,9 @@ Ablauf:
 from __future__ import annotations
 
 import copy
+import hashlib
+import json
+import difflib
 import csv
 import math
 from pathlib import Path
@@ -109,9 +112,37 @@ def _lade_szenario(szenario: str | Path | dict | None) -> dict:
         return yaml.safe_load(f) or {}
 
 
+SZENARIO_FELDER = {"id", "name", "kurz", "beschreibung", "relevante_optionen", "stoerungen", "sensitivitaet",
+                   "aenderungen"}
+STOERUNG_FELDER = {"typ", "ziel", "start_tag", "dauer_tage", "faktor", "monate", "aktivieren", "deaktivieren",
+                   "parameter", "wert"}
+
+
+def pruefe_schluessel(basis: Any, neu: Any, pfad: str = "") -> None:
+    """Strenge Prüfung der Feldnamen (Idee P. Maywald: Datenklassen statt loser Wörterbücher). Ein Tippfehler in
+    einer Szenariodatei oder Eingabe bricht das Laden sofort mit Meldung ab, statt still ignoriert zu werden.
+
+    Geprüft wird gegen base.yaml. Leere Wörterbücher dort (z. B. monatsfaktoren, puffer_extra) sind frei
+    belegbare Zuordnungen und werden nicht weiter geprüft.
+    """
+    if not isinstance(basis, dict) or not isinstance(neu, dict) or not basis:
+        return
+    for k, v in neu.items():
+        ort = f"{pfad}.{k}" if pfad else str(k)
+        if k not in basis:
+            aehnlich = difflib.get_close_matches(str(k), [str(b) for b in basis], n=1)
+            raise KonfigurationsFehler(f"Unbekannter Parameter '{ort}'"
+                                       + (f", gemeint ist vermutlich '{aehnlich[0]}'" if aehnlich else ""))
+        pruefe_schluessel(basis[k], v, ort)
+
+
 def _baue_stoerungen(roh: list[dict], einschwingen: float) -> list[Stoerung]:
     ergebnis = []
     for i, s in enumerate(roh or []):
+        falsch = set(s) - STOERUNG_FELDER
+        if falsch:
+            raise KonfigurationsFehler(f"Störung {i}: unbekannte Felder {sorted(falsch)}, erlaubt sind "
+                                       f"{sorted(STOERUNG_FELDER)}")
         typ = s.get("typ")
         if typ not in {"knoten_ausfall", "kanten_sperre", "korridor", "nachfrage", "kosten"}:
             raise KonfigurationsFehler(f"Störung {i}: unbekannter Typ '{typ}'")
@@ -306,9 +337,14 @@ def lade_modell(
         param = yaml.safe_load(f)
 
     sz = _lade_szenario(szenario)
+    falsch = set(sz) - SZENARIO_FELDER
+    if falsch:
+        raise KonfigurationsFehler(f"Szenario {sz.get('id', '?')}: unbekannte Felder {sorted(falsch)}")
+    pruefe_schluessel(param, sz.get("aenderungen", {}))
     param = tief_zusammenfuehren(param, sz.get("aenderungen", {}))
     overrides = copy.deepcopy(overrides or {})
     wbz_wunsch = overrides.pop("wbz", {}) or {}
+    pruefe_schluessel(param, overrides)
     param = tief_zusammenfuehren(param, overrides)
 
     # Bezugsoption: Lederarmband komplett aus Italien statt Brasilien
@@ -329,6 +365,7 @@ def lade_modell(
         stoerungen=_baue_stoerungen(sz.get("stoerungen", []), einschwingen),
     )
     modell.kunden = _lade_kunden(ordner, knoten[modell.werk])
+    modell.konfig_hash = konfig_hash(ordner, param, sz)
     _pruefe_referenzen(modell)
     _pruefe_plausibilitaet(modell)
     return modell
@@ -370,3 +407,18 @@ def lagerhaltungssatz(p: dict) -> float:
     """
     k = p["kosten"]
     return float(k["kapitalzins_pa"]) + float(k.get("lagerrisiko_pa", 0.0) or 0.0)
+
+
+def konfig_hash(ordner: Path, param: dict, szenario: dict) -> str:
+    """Fingerabdruck eines Laufs (Idee B. Hufgard): Stammdaten-Dateien, zusammengeführte Parameter und Szenario.
+
+    Gleicher Hash + gleiche Softwareversion + gleicher Seed = identisches Ereignisprotokoll. Der Hash steht im
+    Ereignis 'laufstart' jedes Protokolls, damit ein Ergebnis seiner Konfiguration zugeordnet werden kann.
+    """
+    h = hashlib.sha256()
+    for datei in sorted(Path(ordner).glob("*.csv")):
+        h.update(datei.name.encode())
+        h.update(datei.read_bytes())
+    h.update(json.dumps(param, sort_keys=True, default=str).encode())
+    h.update(json.dumps(szenario, sort_keys=True, default=str).encode())
+    return h.hexdigest()[:12]

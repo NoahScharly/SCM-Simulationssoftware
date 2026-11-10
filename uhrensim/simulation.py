@@ -729,6 +729,9 @@ class Simulation:
 
     # ================================================================ Lauf
     def lauf(self) -> Ergebnis:
+        from . import __version__
+        self._log("laufstart", self.m.konfig_hash, "lauf", self.werk, alt=f"version {__version__}",
+                  neu=f"seed {self.p['simulation']['seed']} replikation {self.rep}")
         self.env.process(self._nachfrage())
         self.env.process(self._montage())
         self.env.process(self._tagesabschluss())
