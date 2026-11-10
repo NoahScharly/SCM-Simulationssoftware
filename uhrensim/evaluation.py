@@ -18,6 +18,7 @@ from typing import Any
 import numpy as np
 import pandas as pd
 
+from .data import lagerhaltungssatz
 from .simulation import Ergebnis
 
 # Richtung je Kennzahl: +1 größer ist besser, -1 kleiner ist besser
@@ -159,7 +160,11 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
     t = erg.tage
     tf = t[(t.tag >= W) & (t.tag < H)] if not t.empty else t
     k = p["kosten"]
-    kosten["kapitalbindung"] = float(tf.bestandswert_eur.sum() * k["kapitalzins_pa"] / 365.0) if not tf.empty else 0.0
+    kosten["kapitalbindung"] = float(tf.bestandswert_eur.sum() * lagerhaltungssatz(p) / 365.0) if not tf.empty else 0.0
+    # Bereitschaftskosten einer Reservequelle (Qualifizierung, Musterfreigabe, Rahmenvertrag; Idee B. Hufgard):
+    # fallen jedes Jahr an, auch wenn der Notfallplan nie ausgelöst wird
+    bereit = float(p["massnahmen"].get("notfall_bereitschaft_eur_jahr", 0.0) or 0.0)
+    kosten["bereitschaft"] = bereit * (H - W) / 365.0 if p["massnahmen"].get("sellita_notfall") else 0.0
     kosten["lagerplatz"] = float(tf.komponenten_stueck.sum() * k["lager_eur_stueck_tag"]) if not tf.empty else 0.0
     kosten["verspaetung"] = verspaetet * float(k["verspaetung_eur_auftrag"])
     kosten_gesamt = float(sum(kosten.values()))
@@ -202,6 +207,8 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
     # Kapitalbindung sichtbar machen: Ø gebundener Bestandswert und dessen Zinskosten je Uhr
     ergebnis["kapital_gebunden_eur"] = float(tf.bestandswert_eur.mean()) if not tf.empty else math.nan
     ergebnis["kapitalbindung_pro_uhr"] = kosten["kapitalbindung"] / n if zugestellt else math.nan
+    ergebnis["bereitschaft_pro_uhr"] = kosten["bereitschaft"] / n if zugestellt else math.nan
+    ergebnis["aushilfe_tage"] = int((lf.ereignis == "aushilfe").sum()) if not lf.empty else 0
     return ergebnis
 
 

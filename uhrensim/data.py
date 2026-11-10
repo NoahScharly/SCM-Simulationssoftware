@@ -361,3 +361,12 @@ def szenario_dateien(konfig_ordner: str | Path = KONFIG_STANDARD) -> list[Path]:
     """Szenario-Dateien, Basis (s0_*) zuerst."""
     dateien = (Path(konfig_ordner) / "scenarios").glob("*.yaml")
     return sorted(dateien, key=lambda p: (not p.name.startswith("s0"), p.name))
+
+
+def lagerhaltungssatz(p: dict) -> float:
+    """Lagerhaltungskostensatz p. a. = kalkulatorischer Zins + Versicherung, Schwund und Veralterung.
+
+    Gruppenkonsens 15 % (B. Hufgard und P. Maywald): 8 % Zins + 7 % Lagerrisiko, übliche Spanne 15 bis 25 %.
+    """
+    k = p["kosten"]
+    return float(k["kapitalzins_pa"]) + float(k.get("lagerrisiko_pa", 0.0) or 0.0)

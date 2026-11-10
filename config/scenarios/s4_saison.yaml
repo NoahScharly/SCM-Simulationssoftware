@@ -2,7 +2,7 @@ id: S4
 name: Saisonspitze November und Dezember +30 %
 kurz: Saisonspitze
 beschreibung: Nachfrage im November und Dezember 30 % höher (Poster S4)
-relevante_optionen: [keine, saisonbestand]   # in der Oberfläche angezeigte Handlungsoptionen
+relevante_optionen: [keine, saisonbestand, aushilfe, saison_aushilfe]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: nachfrage
     faktor: 1.3

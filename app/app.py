@@ -22,7 +22,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
-from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
+from uhrensim.data import (KonfigurationsFehler, lade_modell, lagerhaltungssatz, montage_bedarf,  # noqa: E402
+                           szenario_dateien)
 from uhrensim.netzanalyse import ausschluss_regeln, element_name, single_points_of_failure  # noqa: E402
 from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
                                         bandbreite, bandbreite_definition, break_even, markiere_ausschluss,
@@ -72,6 +73,17 @@ st.markdown(
 
 
 # --------------------------------------------------------------------------- Hilfen
+def montage_text(m) -> str:
+    """Erklärung des Montage-Kostenmodells für den Rechenweg."""
+    k, mo = m.param["kosten"], m.param["montage"]
+    if str(k.get("montage_kostenmodell", "stueck")) != "personal":
+        return f"Montage: {de(k['montage_eur_uhr'])} € je montierter Uhr."
+    jahr = float(k["lohnkosten_eur_h"]) * float(k["stunden_ma_jahr"])
+    return (f"Montage: {de(mo.get('mitarbeiter', 0))} Mitarbeiter × {de(k['stunden_ma_jahr'])} h × "
+            f"{de(k['lohnkosten_eur_h'], 2)} €/h = {de(jahr * float(mo.get('mitarbeiter', 0)))} € im Jahr, fällig auch "
+            f"an Tagen ohne Montage (Fixkosten).")
+
+
 def de(x: float, nachkomma: int = 0) -> str:
     """Zahl im deutschen Format."""
     if x is None or (isinstance(x, float) and math.isnan(x)):
@@ -467,10 +479,10 @@ deshalb zeigen die Differenzen nur die Wirkung der Störung oder der Option, und
 **Lieferfähigkeit β** = pünktliche Bestellungen / alle Bestellungen. Pünktlich heißt: zugestellt nach höchstens
 {zusage} Werktagen. Wert hier: {de(z['beta'] * 100, 1)} % ± {de(z['beta_ki95'] * 100, 1)} Pp (95-%-Konfidenzintervall).
 
-**Kosten je Uhr** = (Einkauf + Montage {de(m.param['kosten']['montage_eur_uhr'])} €/Uhr + Paket + Transport je
-Tonnenkilometer und Sendung + Umschlag + Zoll + Kapitalbindung {de(m.param['kosten']['kapitalzins_pa'] * 100)} % p. a.
-auf den Lagerwert + Lagerplatz + {de(m.param['kosten']['verspaetung_eur_auftrag'])} € je verspäteter Bestellung)
-/ gelieferte Uhren.
+**Kosten je Uhr** = (Einkauf + Montage + Paket + Transport je Tonnenkilometer und Sendung + Umschlag + Zoll
++ Lagerhaltung {de(lagerhaltungssatz(m.param) * 100)} % p. a. auf den Lagerwert + Lagerplatz
++ {de(m.param['kosten']['verspaetung_eur_auftrag'])} € je verspäteter Bestellung + Bereitschaft einer Reservequelle)
+/ gelieferte Uhren. {montage_text(m)}
 
 **CO2e je Uhr** = Σ (Sendungsgewicht × Distanz × GLEC-Faktor des Verkehrsträgers) + Umschlag + Zustellung,
 geteilt durch die gelieferten Uhren.
@@ -563,8 +575,11 @@ with links:
     if oid != "keine":
         vor, nach = vor_und_nachteile(z)
         if not wirkt(z):
+            bereit = float(z.get("bereitschaft_pro_uhr", 0.0) or 0.0)
             hinweis("", f"{OPT[oid]['kurz']} wird in diesem Szenario nicht ausgelöst.",
-                    "Keine Wirkung, aber auch keine Kosten. Die Option ist eine Versicherung für andere Fälle.")
+                    (f"Keine Wirkung, es fallen nur die Bereitschaftskosten von {de(bereit, 2)} € je Uhr an. "
+                     if bereit >= 0.005 else "Keine Wirkung, aber auch keine Kosten. ")
+                    + "Die Option ist eine Versicherung für andere Fälle.")
         else:
             if vor:
                 hinweis("gut", "Vorteile ggü. ohne Maßnahme:", " · ".join(vor))
@@ -716,7 +731,7 @@ for s in sz_ids:
             continue
         r = zs.loc[o]
         zeichen = "✅" if rang_je_sz[s].set_index("option").loc[o, "zulaessig"] else "❌"
-        zusatz = " (nicht ausgelöst)" if o in ("sellita", "luftfracht") and not wirkt(r) else ""
+        zusatz = " (nicht ausgelöst)" if o in ("sellita", "luftfracht", "aushilfe") and not wirkt(r) else ""
         zeile[OPT_KURZ[o]] = f"{zeichen} {de(r.beta * 100, 1)} % · {de(r.kosten_pro_uhr, 2)} €{zusatz}"
     zeile["Empfehlung"] = "★ " + OPT_KURZ[rang_je_sz[s].iloc[0].option]
     matrix.append(zeile)

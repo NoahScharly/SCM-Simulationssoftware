@@ -115,6 +115,19 @@ Ausschlusskriterien als Stufe 0, Szenario S5, Rauschschwelle in der Normierung, 
 Annahmen [A]: Sanktionsliste RU, BY, IR, KP, SY; Bandbreiten S2 20/50/80 Tage, S3 7/14/28 Tage, S4 Faktor
 1,15/1,3/1,5, S5 Faktor 0,8/0,6/0,4; Toleranz für p* 0,05 % der Jahreskosten.
 
+### Zusammenführung mit den Simulationskonzepten der Gruppe (10.11.2026)
+
+System: Claude Opus 5.5 (Anthropic), claude.ai, 10.11.2026.
+Wesentlicher Prompt (sinngemäß): Aus allen Konzepten der Gruppe das Beste heraussuchen, von jedem soll etwas drin
+sein, die Oberfläche bleibt wie sie ist. Vorher: Fehleranalyse, warum Störungen kaum wirken und der Nachfrageeinbruch
+fast nichts kostet; Armband Italien als Ausweichoption verworfen (N. Scharly: im Hamburg-Fall fehlt das Glas trotzdem).
+Umgesetzt mit KI: zufälliger Startbestand je Replikation, Seerouten ohne Landquerung, Luftfracht ohne russischen
+Luftraum, Personal als Fixkosten, Aushilfe, Reservequelle mit Hochlauf, Kapazität und Bereitschaftskosten,
+Lagerhaltungssatz 15 %, S5 nach Skandalstufen, Stresstest. Herkunft der Ideen siehe README, Abschnitt Version 2.
+Annahmen [A]: Hochlauf 14 Tage, 150 Stück je Woche, Aushilfe-Aufschlag 30 %, Auslöser 5 Tagesbedarfe,
+Mindesteinsatz 10 Arbeitstage, Luftweg Narita–Frankfurt 11.250 km. Übernommen und zu prüfen: 49,50 €/h (Destatis
+2026, aus dem Poster P. Maywald), 4.000 € Bereitschaft (B. Hufgard).
+
 ### Produkt: High-End Cars-Uhr (Entscheidung der Gruppe, 10.11.2026)
 
 Netz, Teile und Preise bleiben die der Automatikuhr (800 bis 1.200 €), das Produkt wird als fiktive

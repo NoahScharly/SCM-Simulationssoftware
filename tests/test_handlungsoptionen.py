@@ -73,9 +73,12 @@ def vergleich():
 
 def test_notfallplan_wirkt_nur_bei_ausloeser(vergleich):
     d = vergleich["detail"].set_index(["szenario", "option"])
-    # S0: Miyota fällt nicht aus, Sellita wird nie ausgelöst, gleiche Zufallszahlen -> identisches Ergebnis
-    assert d.loc[("S0", "sellita"), "kosten_pro_uhr"] == pytest.approx(d.loc[("S0", REFERENZ), "kosten_pro_uhr"])
-    assert not wirkt(d.loc[("S0", "sellita")])
+    # S0: Miyota fällt nicht aus, Sellita wird nie ausgelöst, gleiche Zufallszahlen -> identisches Ergebnis bis auf
+    # die festen Bereitschaftskosten der Reservequelle
+    s0 = d.loc[("S0", "sellita")]
+    assert s0.kosten_pro_uhr - s0.bereitschaft_pro_uhr == pytest.approx(d.loc[("S0", REFERENZ), "kosten_pro_uhr"])
+    assert s0.bereitschaft_pro_uhr > 0
+    assert not wirkt(s0)
     # S1: Sellita schließt die Lücke
     assert d.loc[("S1", "sellita"), "beta"] > d.loc[("S1", REFERENZ), "beta"] + 0.1
     assert d.loc[("S1", REFERENZ), "delta_beta"] == 0

@@ -47,9 +47,17 @@ kosten:
   transport_eur_tkm: {see: 0.02, bahn: 0.06, binnen: 0.05, lkw: 0.15, luft: 3.0}     # [A]
   transport_fix_eur_sendung: {see: 250, bahn: 90, binnen: 90, lkw: 60, luft: 180}   # [A]
   umschlag_eur_t: 40            # je Umschlag [A]
-  kapitalzins_pa: 0.10          # Kapitalbindung [A]
+  kapitalzins_pa: 0.08          # kalkulatorischer Zins [A]
+  lagerrisiko_pa: 0.07          # Versicherung, Schwund, Veralterung; zusammen 15 % Lagerhaltungskostensatz wie bei
+                                # B. Hufgard und P. Maywald (übliche Spanne 15 bis 25 %, Logistik-Journal) [A]
   lager_eur_stueck_tag: 0.002   # Lagerplatz je Komponente [A]
-  montage_eur_uhr: 25           # [A]
+  montage_kostenmodell: personal   # personal = Fixkosten der Stammbelegschaft je Arbeitstag (auch bei Leerlauf);
+                                # stueck = montage_eur_uhr je montierter Uhr (alter Stand, nur zum Vergleich)
+  lohnkosten_eur_h: 49.50       # Arbeitskosten je Stunde Verarbeitendes Gewerbe (Destatis 2026, übernommen aus dem
+                                # Poster P. Maywald) [prüfen]
+  stunden_ma_jahr: 1680         # 140 Arbeitsstunden je Person und Monat (P. Maywald) [A]
+                                # -> rund 83.000 € je Mitarbeiter und Jahr
+  montage_eur_uhr: 25           # nur bei montage_kostenmodell: stueck [A]
   paket_eur_uhr: 6              # [A]
   verspaetung_eur_auftrag: 50   # Fehlmengenkosten je verspätetem Auftrag (Rabatt, entgangener Deckungsbeitrag, Image) [A];
                                 # High-End Cars-Uhr für Sammler (800 bis 1.200 €): Verspätung wiegt schwerer,
@@ -72,8 +80,15 @@ massnahmen:
                                 # versandte Miyota-Aufträge werden storniert. Nach Wiederanlauf zurück zu Miyota.
                                 # Annahme: Gehäuse und Zifferblatt-Variante für SW300-1 sind vorab freigegeben.
   notfall_reaktion_tage: 3      # Ausfallmeldung bis erste Bestellung beim Ersatzlieferanten [A]
+  notfall_hochlauf_tage: 14     # Reserve fertigt erst nach dem Hochlauf (Material, Fertigungsslot) [A]
+  notfall_kapazitaet_stk_woche: 150   # Sellita teilt einem Kleinkunden nur ein Kontingent zu, rund 1,5-facher
+                                      # Wochenbedarf bei 5.000 Uhren/Jahr [A]
+  notfall_bereitschaft_eur_jahr: 4000 # Qualifizierung, Musterfreigabe, Rahmenvertrag; fällt auch ohne Ausfall an
+                                      # (Wert und Idee aus dem Konzept B. Hufgard) [A]
   armband_italien: false        # Bezugsoption: Lederarmband komplett aus Italien (Santa Croce, Leder aus der Toskana)
                                 # statt Estancia Velha (Brasilien). Teurer, aber kurzer Lkw-Weg, kein Zoll, kein Seeweg.
+                                # Keine Handlungsoption mehr: Bei gestörtem Hamburg fehlt das Saphirglas trotzdem, ein
+                                # zweites Armband löst das Problem also nicht. Bleibt nur als Bezugsquelle im Netz.
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 8        # Reichweite, ab der Luftfracht ausgelöst wird; muss über der Luft-WBZ liegen
                                 # (2 Tage Eilfertigung + Lkw + Flug + Zoll + Umschlag = rund 6 bis 7 Tage)
@@ -85,6 +100,8 @@ massnahmen:
   luft_eilzuschlag: 0.25        # Aufschlag auf den Stückpreis für Eilfertigung und Priorisierung [A]
   ausweichroute: false          # gesperrte Abschnitte umfahren (Bahn statt Binnenschiff, Bremerhaven statt Hamburg);
                                 # ohne diese Maßnahme wartet die Ware, bis der reguläre Weg wieder frei ist
+  aushilfe: {}                  # Aushilfe bei Montagerückstand (Idee P. Maywald), z. B.
+                                # {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}
   saison_bestand: {}            # Saisonbestand: z. B. {monate: [8, 9, 10, 11], extra_tage: 20} hebt den Meldebestand
                                 # aller Komponenten vor der Spitze an (Aufbau ab August wegen langer WBZ)
   saison_vorproduktion: {}      # z. B. {monate: [10, 11, 12], ziel_tage: 30} höherer Fertigwarenvorrat
@@ -110,7 +127,9 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
   - id: sellita
     name: Notfallplan Sellita (Ersatz-Uhrwerk)
     kurz: Ersatz-Uhrwerk
-    beschreibung: Fällt Miyota aus, wird nach der Reaktionszeit bei Sellita (CH) bestellt, doppelter Preis, Lkw statt Schiff
+    beschreibung: Fällt Miyota aus, wird nach der Reaktionszeit bei Sellita (CH) bestellt, doppelter Preis, Lkw statt
+      Schiff; Sellita braucht 14 Tage Hochlauf, liefert höchstens 150 Stück je Woche, und der Notfallplan kostet
+      4.000 € im Jahr Bereitschaft, auch wenn er nie gebraucht wird
     massnahmen: {sellita_notfall: true}
   - id: luftfracht
     name: Notfallplan Luftfracht
@@ -118,17 +137,26 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
     beschreibung: Nach einem Lieferantenausfall kommt die erste Lieferung als Brücke per Flugzeug (Eilfertigung mit
       Aufschlag), danach wieder Seeweg; zusätzlich Eilbezug, wenn die Reichweite unter den Auslöser fällt
     massnahmen: {luftfracht_notfall: true}
-  - id: armband_italien
-    name: Lederarmband aus Italien
-    kurz: Armband Italien
-    beschreibung: Bezugsoption Santa Croce (IT) statt Estancia Velha (BR), teurer, aber Lkw statt Seeweg und kein Zoll
-    massnahmen: {armband_italien: true}
+  - id: aushilfe
+    name: Aushilfe in der Montage
+    kurz: Aushilfe
+    beschreibung: Liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt eine Aushilfe
+      (Zeitarbeit, 30 % teurer als eigenes Personal) für mindestens 10 Arbeitstage und bleibt, bis der Rückstand
+      aufgeholt ist (Idee P. Maywald) [A]
+    massnahmen: {aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
   - id: saisonbestand
     name: Saisonbestand aufbauen
     kurz: Saisonbestand
     beschreibung: Von August bis November liegt der Meldebestand aller Komponenten 20 Tage Bedarf höher, damit vor
       der Spitze genug Teile im Lager sind (Aufbau früh wegen langer Wiederbeschaffung) [A]
     massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20}}
+  - id: saison_aushilfe
+    name: Saisonbestand und Aushilfe
+    kurz: Bestand + Aushilfe
+    beschreibung: Beides zusammen. Der Saisonbestand sorgt für Teile, die Aushilfe für Montagekapazität; bei einer
+      starken Spitze fehlt sonst jeweils das andere [A]
+    massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20},
+                 aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
 
 entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Abschnitt 1 bis 3), dort änderbar
   anforderungen:                # Stufe 1: Mindestanforderungen (Grenze je Zielkriterium)

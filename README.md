@@ -28,8 +28,9 @@ Python 3.11 oder neuer.
 
 ## Version 2: Erweiterungen aus den Gruppenpostern
 
-Grundkonzept, Netz und Daten stammen aus dem Poster von N. Scharly. Aus den beiden anderen Gruppenpostern wurde
-die Logik übernommen, nicht die Zahlen:
+Grundkonzept, Netz und Daten stammen aus dem Poster von N. Scharly. Aus den Postern und Simulationskonzepten der
+übrigen Gruppenmitglieder (B = F. Lautenbach, C = P. Maywald, D = B. Hufgard) wurde die Logik übernommen und nur
+dort eine Zahl, wo sie belegt ist:
 
 | Erweiterung | Idee aus | Wo |
 |---|---|---|
@@ -37,7 +38,13 @@ die Logik übernommen, nicht die Zahlen:
 | Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Poster B (Szenarien mit Band) | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
 | Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | Poster B (SPOF-Liste) | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
 | Stufe 0 der Entscheidung: harte Ausschlusskriterien (Länder, Standorte) vor jeder Bewertung | Poster C (erst Grenzen, dann Ziele) | Block `ausschluss` in `base.yaml`, Seitenleiste, `netzanalyse` |
-| Szenario S5 Nachfrageeinbruch -40 % für 60 Tage: testet Überbestand und Kapitalbindung statt Fehlmengen | Poster C (Nachfrageschock) | `config/scenarios/s5_nachfrageeinbruch.yaml` |
+| Szenario S5 Nachfrageeinbruch -30 % für 60 Tage (Skandalstufe 2), Bandbreite Stufe 1 bis 3 (-15/-30/-50 %): testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen | Poster C (Nachfrageschock, Skandalstufen) | `config/scenarios/s5_nachfrageeinbruch.yaml` |
+| Montagepersonal als Fixkosten: Mitarbeiter × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage. Erst dadurch kostet ein Nachfrageeinbruch spürbar | Konzept C (Lohnkosten, 140 h je Monat) | `kosten.montage_kostenmodell`, `simulation._montage` |
+| Handlungsoption Aushilfe: liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt Zeitarbeit dazu | Konzept C (Aushilfe bei Rückstand) | `massnahmen.aushilfe`, Optionen in S4 |
+| Stresstest: alle Szenarien × alle Optionen × 500 und 25.000 Uhren, Mengenbilanz je Komponente geht auf | Konzept C (Stresstest, Mengenbilanz) | `tests/test_modell.py` |
+| Reservequelle realistisch: Sellita fertigt erst nach 14 Tagen Hochlauf, höchstens 150 Stück je Woche, und der Notfallplan kostet 4.000 € im Jahr Bereitschaft, auch ohne Ausfall | Konzept D (Reserve mit Hochlauf, Kapazität, Freigabekosten) | `massnahmen.notfall_*`, `simulation._reserve_ende` |
+| Zufälliger Startbestand je Replikation: sonst trifft eine Störung bei Losgrößen von 100 bis 200 Tagen immer dieselbe Stelle im Bestellzyklus oder gar keine Sendung | Konzept D (fester Starttag fällt zwischen die Lose) | `simulation.Simulation.__init__` |
+| Lagerhaltungskostensatz 15 % p. a. (8 % Zins + 7 % Versicherung, Schwund, Veralterung) | Konzepte C und D (beide 15 %) | `kosten.kapitalzins_pa`, `kosten.lagerrisiko_pa` |
 
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
 Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.

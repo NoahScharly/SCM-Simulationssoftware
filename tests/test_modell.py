@@ -12,7 +12,7 @@ import pytest
 from uhrensim.data import KonfigurationsFehler, lade_modell
 from uhrensim.evaluation import bewerte, kennzahlen, pareto_front
 from uhrensim.experiment import szenario_pfad
-from uhrensim.simulation import simuliere
+from uhrensim.simulation import Simulation, simuliere
 
 KURZ = {"simulation": {"auswertung_tage": 120}}
 
@@ -240,3 +240,57 @@ def test_kunden_zufaellig_nach_einwohnern_und_laufzeit_nach_entfernung():
     lauf = a.t_zustellung - a.t_versand
     nah, fern = lauf[a.km <= 250].mean(), lauf[a.km > 450].mean()
     assert nah < fern                                                     # weiter weg = längere Paketlaufzeit
+
+
+# --------------------------------------------------------------------------- Zusammenführung der Gruppenkonzepte
+def test_personalkosten_fallen_auch_ohne_montage_an():
+    """Fixkosten (Idee P. Maywald): Ohne Nachfrage wird nichts montiert, die Belegschaft kostet trotzdem."""
+    m = lade_modell(None, {"nachfrage": {"uhren_pro_jahr": 1000}})
+    e = simuliere(m, 0)
+    personal = e.log[e.log.ereignis == "personal"]
+    assert not personal.empty and (personal.kosten_eur > 0).all()
+    assert e.log[(e.log.ereignis == "montage_start")].kosten_eur.sum() == 0
+
+
+def test_aushilfe_nur_bei_rueckstand():
+    aus = {"massnahmen": {"aushilfe": {"mitarbeiter": 1, "ausloeser_tage": 5, "mindest_tage": 10, "aufschlag": 0.3}}}
+    basis = simuliere(lade_modell(None, aus), 0)
+    assert (basis.log.ereignis == "aushilfe").sum() == 0           # Normalbetrieb: kein Rückstand, keine Aushilfe
+    s1 = simuliere(lade_modell(szenario_pfad("S1"), aus), 0)
+    st = s1.modell.stoerungen[0]
+    tage = s1.log[s1.log.ereignis == "aushilfe"].zeit
+    assert not ((tage >= st.start) & (tage <= st.ende)).any()      # während des Lieferausfalls fehlen Teile, keine Aushilfe
+    s4 = simuliere(lade_modell(szenario_pfad("S4"), {**aus, "nachfrage": {"monatsfaktoren": {11: 1.2, 12: 1.2}}}), 0)
+    assert (s4.log.ereignis == "aushilfe").sum() > 0               # starke Saisonspitze: Montage ist der Engpass
+
+
+def test_reservequelle_hochlauf_und_kapazitaet():
+    """Sellita (Idee B. Hufgard): erst nach dem Hochlauf, höchstens die Wochenkapazität."""
+    ms = {"sellita_notfall": True, "notfall_hochlauf_tage": 14, "notfall_kapazitaet_stk_woche": 150}
+    e = simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": ms}), 0)
+    wechsel = e.log[(e.log.ereignis == "lieferantenwechsel") & (e.log.zustand_neu == "sellita_lcf")].zeit.min()
+    ein = e.log[(e.log.ereignis == "wareneingang") & (e.log.objekt_id.isin(
+        e.log[(e.log.ereignis == "bestellung") & (e.log.ort == "sellita_lcf")].objekt_id))]
+    assert ein.zeit.min() >= wechsel + 14                           # nichts vor Ende des Hochlaufs
+    menge, dauer = ein.menge.sum(), ein.zeit.max() - (wechsel + 14)
+    assert menge <= 150 / 7 * dauer + ein.menge.max() + 1e-6        # Wochenkapazität eingehalten
+
+
+@pytest.mark.parametrize("sid", ["S0", "S1", "S2", "S3", "S4", "S5"])
+def test_stresstest_mengenbilanz_alle_szenarien(sid):
+    """Stresstest (Idee P. Maywald): auch bei Extremwerten kein Absturz, kein negativer Bestand, keine Ware aus dem
+    Nichts. Je Komponente gilt: Anfangsbestand + Wareneingang - Verbrauch = Endbestand."""
+    from uhrensim.handlungsoptionen import lade_optionen
+    for opt in lade_optionen():
+        for menge in (500, 25000):
+            m = lade_modell(szenario_pfad(sid), {"nachfrage": {"uhren_pro_jahr": menge},
+                                                  "massnahmen": opt.get("massnahmen") or {}})
+            sim = Simulation(m, 1)
+            anfang = dict(sim.bestand)
+            e = sim.lauf()
+            log = e.log
+            for k in m.komponenten:
+                zu = log[(log.ereignis == "wareneingang") & (log.komponente == k)].menge.sum()
+                ab = log[log.ereignis == "montage_start"].menge.sum()
+                assert anfang[k] + zu - ab == pytest.approx(sim.bestand[k])
+                assert sim.bestand[k] >= -1e-9

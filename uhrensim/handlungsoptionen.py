@@ -34,7 +34,8 @@ from .netzanalyse import genutzte_knoten
 
 REFERENZ = "keine"
 KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage",
-              "luftfracht_sendungen", "kapital_gebunden_eur", "kapitalbindung_pro_uhr")
+              "luftfracht_sendungen", "kapital_gebunden_eur", "kapitalbindung_pro_uhr", "bereitschaft_pro_uhr",
+              "aushilfe_tage")
 # Schwellen, ab denen eine Differenz als Vor- oder Nachteil gilt (darunter: Rauschen bzw. keine Wirkung)
 SCHWELLEN = {"beta": 0.005, "kosten_pro_uhr": 0.10, "co2e_pro_uhr_kg": 0.0005, "lieferzeit_p95": 0.5,
              "fehlteil_tage": 0.5, "kapital_gebunden_eur": 1000.0}
@@ -240,14 +241,31 @@ def vor_und_nachteile(zeile: pd.Series | dict[str, Any]) -> tuple[list[str], lis
             continue
         besser = (v > 0) if RICHTUNG.get(kz, -1) > 0 else (v < 0)
         (vor if besser else nach).append((gut if besser else schlecht).format(fmt(v)))
+    b = z.get("bereitschaft_pro_uhr", 0.0)
+    if b and not (isinstance(b, float) and math.isnan(b)) and float(b) >= 0.005:
+        nach.append(f"Bereitschaftskosten {_de(float(b), 2)} € je Uhr, auch ohne Ausfall")
+    a = z.get("aushilfe_tage", 0.0)
+    if a and not (isinstance(a, float) and math.isnan(a)) and float(a) >= 0.5:
+        nach.append(f"{_de(float(a))} Arbeitstage Aushilfe")
     if z.get("luftfracht_sendungen", 0) and float(z["luftfracht_sendungen"]) >= 0.5:
         nach.append(f"{_de(float(z['luftfracht_sendungen']))} Eilsendungen per Flugzeug")
     return vor, nach
 
 
 def wirkt(zeile: pd.Series | dict[str, Any]) -> bool:
-    """False, wenn sich keine Kennzahl spürbar von "Ohne Maßnahme" unterscheidet (Notfallplan nicht ausgelöst)."""
-    v, n = vor_und_nachteile(zeile)
+    """False, wenn sich keine Kennzahl spürbar von "Ohne Maßnahme" unterscheidet (Notfallplan nicht ausgelöst).
+
+    Feste Bereitschaftskosten einer Reservequelle zählen dabei nicht: Sie fallen auch an, wenn der Notfallplan
+    nie ausgelöst wird, und werden getrennt als Nachteil genannt.
+    """
+    z = dict(zeile)
+    b = z.get("bereitschaft_pro_uhr", 0.0)
+    if b is not None and not (isinstance(b, float) and math.isnan(b)) and "delta_kosten_pro_uhr" in z:
+        dk = z["delta_kosten_pro_uhr"]
+        if dk is not None and not (isinstance(dk, float) and math.isnan(dk)):
+            z["delta_kosten_pro_uhr"] = float(dk) - float(b)
+    z["bereitschaft_pro_uhr"] = 0.0
+    v, n = vor_und_nachteile(z)
     return bool(v or n)
 
 

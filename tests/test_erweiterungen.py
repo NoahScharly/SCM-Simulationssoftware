@@ -80,7 +80,7 @@ def test_spof(modell):
 
 def test_szenario_s5_und_bandbreiten():
     m = lade_modell(szenario_pfad("S5"))
-    assert m.stoerungen[0].typ == "nachfrage" and m.stoerungen[0].faktor == pytest.approx(0.6)
+    assert m.stoerungen[0].typ == "nachfrage" and m.stoerungen[0].faktor == pytest.approx(0.7)
     for sid in ("S1", "S2", "S3", "S4", "S5"):
         defi = bandbreite_definition(szenario_pfad(sid))
         assert defi is not None and len(defi[1]) >= 3

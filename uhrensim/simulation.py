@@ -28,7 +28,7 @@ import numpy as np
 import pandas as pd
 import simpy
 
-from .data import dreieck_mittel
+from .data import dreieck_mittel, lagerhaltungssatz
 from .domain import EU_LAENDER, Bezugsquelle, Modell, Route
 
 STROEME = ("nachfrage", "versand", "zoll", "umschlag", "gutquote", "kunden", "startbestand")
@@ -118,6 +118,8 @@ class Simulation:
         self.offen: dict[str, list[dict[str, Any]]] = {k: [] for k in modell.komponenten}
         self.aktive_quelle = {k: modell.primaerquelle(k) for k in modell.komponenten}
         self.luft_offen = {k: False for k in modell.komponenten}
+        self.reserve_bereit_ab: dict[str, float] = {}   # Reservequelle fertigt erst nach dem Hochlauf
+        self.reserve_frei_ab: dict[str, float] = {}     # ab wann ihre Kapazität wieder frei ist
         self.fg = float(math.ceil(self._fg_ziel(0.0)))
         self.fg_wip = 0.0
 
@@ -217,7 +219,7 @@ class Simulation:
         # EOQ als Referenz: Fixkosten je Sendung gegen Kapitalbindung
         route = next(r for r in self.m.routen[q.lieferant] if r.typ == "regulaer")
         K = sum(self.p["kosten"]["transport_fix_eur_sendung"][self.m.kanten[k].modus] for k in route.kanten)
-        h = q.preis_eur * float(self.p["kosten"]["kapitalzins_pa"])
+        h = q.preis_eur * lagerhaltungssatz(self.p)
         D = bedarf * 365.0
         eoq = math.sqrt(2 * D * K / h) if D > 0 and h > 0 else 0.0
         Q = max(eoq, bedarf * float(self.p["bestand"]["bestellintervall_min_tage"]), 1.0) if bedarf > 0 else 0.0
@@ -339,13 +341,56 @@ class Simulation:
             self.env.process(self._versende(a))
 
     # ================================================================ Montage
+    def _personal_tagessatz(self) -> float:
+        """Kosten eines Montage-Mitarbeiters je Arbeitstag: Lohnkosten je Stunde × Stunden je Jahr / Arbeitstage."""
+        k = self.p["kosten"]
+        arbeitstage_jahr = 52.0 * float(self.p["montage"]["arbeitstage_pro_woche"])
+        return float(k.get("lohnkosten_eur_h", 0.0)) * float(k.get("stunden_ma_jahr", 0.0)) / arbeitstage_jahr
+
     def _montage(self):
+        """Tägliche Montage. Kostenmodell 'personal': die Stammbelegschaft kostet jeden Arbeitstag, auch wenn mangels
+        Teilen oder Nachfrage weniger montiert wird (Fixkosten). 'stueck': Montagekosten je montierter Uhr.
+
+        Maßnahme Aushilfe (Idee P. Maywald): Liegt die Montage mehr als 'ausloeser_tage' Tagesbedarf hinter dem Plan
+        und sind Teile da, kommt eine Aushilfe (Zeitarbeit mit Aufschlag) für mindestens 'mindest_tage' Arbeitstage
+        und bleibt, bis die Stammbelegschaft den Rückstand wieder allein schafft.
+        """
         yield self.env.timeout(0.25)
-        kap = float(self.p["montage"]["kapazitaet_pro_tag"])
+        mo, ko = self.p["montage"], self.p["kosten"]
+        kap_stamm = float(mo["kapazitaet_pro_tag"])
+        pro_ma = float(mo.get("uhren_pro_mitarbeiter_tag", 5))
+        personal = str(ko.get("montage_kostenmodell", "stueck")) == "personal"
+        tagessatz = self._personal_tagessatz()
+        stamm = float(mo.get("mitarbeiter") or math.ceil(kap_stamm / pro_ma))
+        au = self.p["massnahmen"].get("aushilfe") or {}
+        au_ma = float(au.get("mitarbeiter", 1)) if au else 0.0
+        au_seit: int | None = None
         while self.env.now < self.H:
             tag = int(math.floor(self.env.now))
             if self.ist_arbeitstag(tag):
                 bedarf = self._fg_ziel(self.env.now) + len(self.rueckstand) - self.fg - self.fg_wip
+                if personal:
+                    self._log("personal", f"P{tag}", "montage", self.werk, stamm, kosten=stamm * tagessatz,
+                              kategorie="montage")
+                if au:
+                    tagesbedarf = max(self.basis_rate * self.nachfragefaktor(self.env.now), 1e-9)
+                    # Aushilfe nur, wenn die Montage der Engpass ist: keine laufende Versorgungsstörung und Teile
+                    # für den Mindesteinsatz im Lager. Sonst verbraucht sie nur schneller, was ohnehin knapp ist.
+                    kap_mit = kap_stamm + au_ma * pro_ma
+                    teile_da = (min(self.bestand.values()) >= kap_mit * float(au.get("mindest_tage", 10))
+                                and not any(self._im_stoerfall(self.env.now, k, nachlauf=False)
+                                            for k in self.bestand))
+                    if au_seit is None and teile_da and bedarf - kap_stamm > float(au["ausloeser_tage"]) * tagesbedarf:
+                        au_seit = tag
+                        self._log("aushilfe_start", f"A{tag}", "montage", self.werk, au_ma, neu="aushilfe")
+                    elif (au_seit is not None and tag - au_seit >= float(au.get("mindest_tage", 10)) * 7 / 5
+                          and bedarf <= kap_stamm):
+                        au_seit = None
+                        self._log("aushilfe_ende", f"A{tag}", "montage", self.werk, au_ma, alt="aushilfe")
+                    if au_seit is not None:
+                        self._log("aushilfe", f"A{tag}", "montage", self.werk, au_ma, kategorie="montage",
+                                  kosten=au_ma * tagessatz * (1.0 + float(au.get("aufschlag", 0.0))))
+                kap = kap_stamm + (au_ma * pro_ma if au_seit is not None else 0.0)
                 soll = int(min(kap, max(0.0, math.ceil(bedarf))))
                 if soll > 0:
                     moeglich = int(min(self.bestand.values()))
@@ -359,8 +404,8 @@ class Simulation:
                             self.bestand[k] -= n
                         self.fg_wip += n
                         self._log("montage_start", f"M{tag}", "montage", self.werk, n, alt="komponenten",
-                                  neu="in_montage", kosten=n * float(self.p["kosten"]["montage_eur_uhr"]),
-                                  kategorie="montage")
+                                  neu="in_montage", kosten=0.0 if personal else n * float(ko["montage_eur_uhr"]),
+                                  kategorie="" if personal else "montage")
                         self.env.process(self._fertigmeldung(n, tag))
                     self._pruefe_nachschub()
             yield self.env.timeout(1.0)
@@ -433,8 +478,21 @@ class Simulation:
             t = max(t, e)
         return t + rest
 
+    def _reserve_ende(self, q: Bezugsquelle, menge: float, fertigung: float) -> float:
+        """Fertigungsende bei einer Reservequelle (Idee B. Hufgard): Sie fertigt erst nach dem Hochlauf und nur mit
+        begrenzter Wochenkapazität. Aufträge laufen nacheinander durch die Kapazität."""
+        ms = self.p["massnahmen"]
+        kap_tag = float(ms.get("notfall_kapazitaet_stk_woche", 0) or 0) / 7.0
+        start = max(self.env.now, self.reserve_bereit_ab.get(q.lieferant, self.env.now),
+                    self.reserve_frei_ab.get(q.lieferant, 0.0))
+        dauer = menge / kap_tag if kap_tag > 0 else 0.0
+        self.reserve_frei_ab[q.lieferant] = start + dauer
+        return max(self.env.now + fertigung, start + dauer)
+
     def _lieferant(self, b: dict[str, Any], q: Bezugsquelle):
         fertigung = 2.0 if b["typ"] == "notfall" else q.fertigung_tage + q.wbz_zuschlag_tage
+        if q.rolle == "alternativ" and b["typ"] != "notfall":
+            fertigung = self._reserve_ende(q, b["menge"], fertigung) - self.env.now
         ende = self._fertigungsende(q, self.env.now, fertigung)
         if ende - self.env.now > fertigung + 1e-9:
             b["status"] = "wartet"
@@ -547,15 +605,15 @@ class Simulation:
                   neu="verfuegbar")
 
     # ================================================================ Eilbezug
-    def _im_stoerfall(self, t: float, komp: str) -> bool:
+    def _im_stoerfall(self, t: float, komp: str, nachlauf: bool = True) -> bool:
         """Notfallplan Luftfracht gilt nur bei einer Versorgungsstörung dieser Komponente und im Nachlauf danach.
 
         Versorgungsstörung = Ausfall des Lieferanten, eines Vorlieferanten oder eines Knotens auf der regulären
         Route, oder Sperrung einer Kante dieser Route. Nachfragespitzen oder Normalbetrieb lösen keinen Flug aus.
         """
-        if not self.p["massnahmen"].get("luft_nur_im_stoerfall", True):
+        if nachlauf and not self.p["massnahmen"].get("luft_nur_im_stoerfall", True):
             return True
-        nach = float(self.p["massnahmen"].get("luft_nachlauf_tage", 90))
+        nach = float(self.p["massnahmen"].get("luft_nachlauf_tage", 90)) if nachlauf else 0.0
         q = self.aktive_quelle[komp]
         kanten = {kid for r in self._routen(q.lieferant, False) for kid in r.kanten}
         knoten = {q.lieferant, *q.tier2} | {self.m.kanten[kid].nach for kid in kanten}
@@ -625,6 +683,8 @@ class Simulation:
             return
         yield self.env.timeout(max(0.0, start - self.env.now))
         self.aktive_quelle[komp] = ersatz
+        self.reserve_bereit_ab[ersatz.lieferant] = self.env.now + float(
+            self.p["massnahmen"].get("notfall_hochlauf_tage", 0) or 0)
         self._log("lieferantenwechsel", komp, "notfallplan", ersatz.lieferant, komponente=komp,
                   alt=primaer.lieferant, neu=ersatz.lieferant)
         for b in list(self.offen[komp]):
