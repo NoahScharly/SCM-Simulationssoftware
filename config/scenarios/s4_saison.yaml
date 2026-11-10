@@ -2,7 +2,7 @@ id: S4
 name: Saisonspitze November und Dezember +50 %
 kurz: Saisonspitze
 beschreibung: Nachfrage im November und Dezember 50 % höher
-relevante_optionen: [keine, vorproduktion, aufstocken, aushilfe, vorproduktion_aufstocken]   # in der Oberfläche angezeigte Handlungsoptionen
+relevante_optionen: [keine, vorproduktion, aufstocken, aushilfe]   # in der Oberfläche angezeigte Handlungsoptionen
 stoerungen:
   - typ: nachfrage
     faktor: 1.5

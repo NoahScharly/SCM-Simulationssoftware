@@ -181,7 +181,6 @@ nacheinander gerechnet. Die Kommandozeile rechnet weiterhin alle Kombinationen.
 | Ohne Maßnahme | nur Bestellpunktverfahren; bei Sperre wartet die Ware | allen (Referenz) |
 | Ausweichroute | Bahn statt Binnenschiff über Kaub, Bremerhaven statt Hamburg; Schiffe, die schon unterwegs sind, laufen Bremerhaven an (150 km Umweg, 0,5 Tage) | S2, S3 |
 | Vorproduktion | Juli bis Dezember fertige Uhren für 40 statt 10 Tage Bedarf auf Lager, nutzt freie Montagekapazität vor der Spitze, bindet Kapital | S4 |
-| Vorproduktion + Aufstocken | beides zusammen | S4 |
 | Teilzeit aufstocken | die halbe Stelle geht bei Montagerückstand auf Vollzeit, ohne Aufschlag | S4 |
 | Aushilfe | Zeitarbeit bei Montagerückstand, 30 % teurer | S4 |
 | Bestand an Nachfrage anpassen | Meldebestand und Bestellmengen sinken mit der erkannten Nachfrage (Reaktion 7 Tage) | S5 |
