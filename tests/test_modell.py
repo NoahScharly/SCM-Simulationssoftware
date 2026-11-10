@@ -1,4 +1,4 @@
-# Urheberschaft: Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N), je Test markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Verifikation (Folie 11): Konfiguration, Mengenbilanz, deterministischer Modus, Reproduzierbarkeit.
 
 Start: pytest -q
@@ -118,6 +118,7 @@ def test_kapazitaet_eins_bricht_lieferfaehigkeit_ein():
     assert k["beta"] < 0.5
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_niedrigwasser_mit_ausweichroute_leitet_auf_bahn_um():
     m = lade_modell(szenario_pfad("S2"), {"massnahmen": {"ausweichroute": True}})
     erg = simuliere(m)
@@ -128,6 +129,7 @@ def test_niedrigwasser_mit_ausweichroute_leitet_auf_bahn_um():
     assert not ((binnen.zeit >= s.start) & (binnen.zeit < s.ende)).any()
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_niedrigwasser_ohne_massnahme_wartet_ware():
     m = lade_modell(szenario_pfad("S2"))
     erg = simuliere(m)
@@ -137,6 +139,7 @@ def test_niedrigwasser_ohne_massnahme_wartet_ware():
     assert bahn.empty
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_sellita_notfallplan_erst_miyota_dann_sellita_dann_zurueck():
     m = lade_modell(szenario_pfad("S1"), {"massnahmen": {"sellita_notfall": True}})
     erg = simuliere(m, 0)
@@ -153,6 +156,7 @@ def test_sellita_notfallplan_erst_miyota_dann_sellita_dann_zurueck():
     assert "sellita_lcf" not in set(ohne.log[ohne.log.ereignis == "bestellung"].ort)  # ohne Ausfall nie Sellita
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_sellita_macht_unabhaengig_vom_miyota_ausfall():
     ohne = kennzahlen(simuliere(lade_modell(szenario_pfad("S1")), 0))
     mit = kennzahlen(simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": {"sellita_notfall": True}}), 0))
@@ -204,6 +208,7 @@ def test_optimum_je_szenario_und_robuste_empfehlung():
     assert r.rang.iloc[0] == 1
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_bestandsbalken_laufen_synchron_zur_karte():
     from uhrensim.visualization import netzkarte
     erg = simuliere(lade_modell(None, KURZ), replikation=0)
@@ -323,6 +328,7 @@ def test_armband_komplett_aus_brasilien_ohne_schliesse():
     assert not any("santacroce" in k or "conegliano" in k for k in m.knoten)
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_ausweichroute_leitet_schiffe_auf_see_um():
     """Hamburg gesperrt: mit Ausweichroute laufen Schiffe, die schon unterwegs sind, Bremerhaven an (ob gerade ein
     Schiff unterwegs ist, hängt vom zufälligen Bestellzyklus ab, deshalb über mehrere Replikationen)."""

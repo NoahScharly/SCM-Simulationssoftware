@@ -1,4 +1,4 @@
-# Urheberschaft: Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N), je Test markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Tests für den automatischen Vergleich der Handlungsoptionen.
 
 
@@ -72,6 +72,7 @@ def vergleich():
     return vergleiche_optionen([szenario_pfad("S0"), szenario_pfad("S1")], opt, replikationen=2)
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_notfallplan_wirkt_nur_bei_ausloeser(vergleich):
     d = vergleich["detail"].set_index(["szenario", "option"])
     # S0: Miyota fällt nicht aus, Sellita wird nie ausgelöst, gleiche Zufallszahlen -> identisches Ergebnis bis auf
@@ -91,6 +92,7 @@ def test_robuste_option_nutzt_schlechtestes_szenario(vergleich):
     assert r.set_index("option").loc[REFERENZ, "beta_min"] < 0.95
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_luftfracht_brueckenlieferung_nach_ausfall():
     """S1: Während des Ausfalls wird nicht geflogen, beim Wiederanlauf kommt eine Brückenlieferung per Flugzeug."""
     from uhrensim.experiment import fuehre_aus
@@ -107,6 +109,7 @@ def test_luftfracht_brueckenlieferung_nach_ausfall():
     assert b.kosten_eur > b.menge * m.primaerquelle(b.komponente).preis_eur
 
 
+# Urheberschaft dieses Tests: Noah Scharly (N)
 def test_luftfracht_nicht_im_normalbetrieb():
     from uhrensim.experiment import fuehre_aus
     z = fuehre_aus(szenario_pfad("S0"), {"massnahmen": {"luftfracht_notfall": True}}, 2)["zusammenfassung"]

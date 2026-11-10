@@ -223,8 +223,8 @@ Die Commits liefen gesammelt über ein Konto und sagen deshalb nichts über die 
 | `tests/test_erweiterungen.py` | F | Tests zu p*, SPOF, Bandbreite, S5 |
 | `uhrensim/simulation.py` | B, P und N | geteilt, Abschnitte im Code markiert: B Nachschub, Bestellungen, Transportprozess, Reservequelle, Zufallsströme, Startbestand, Störungen, Lauf; P Nachfrage, Versand, Montage, Personal, Aushilfe, Kurzarbeit, Tagesabschluss; N Routenwahl und Umleitung, Luftfracht-Brücke, Notfallplan Sellita bei Uhrwerk-Ausfall |
 | `uhrensim/optimization.py` | P | Rastersuche über Maßnahmen-Kombinationen |
-| `tests/test_modell.py` | P | Verifikation, Stresstest mit Mengenbilanz |
-| `tests/test_handlungsoptionen.py` | P | Tests des Optionsvergleichs |
+| `tests/test_modell.py` | P und N | Verifikation, Stresstest mit Mengenbilanz (P); Tests zu Ausweichroute, Umleitung, Notfallplan Sellita und Synchronität von Karte und Bestandsbalken (N), je Test markiert |
+| `tests/test_handlungsoptionen.py` | P und N | Tests des Optionsvergleichs (P); Tests zu Notfallplan und Luftfracht (N), je Test markiert |
 | `uhrensim/data.py` | B | Laden, Feldnamen- und Plausibilitätsprüfung, Konfigurations-Hash |
 | `app/app.py`, `uhrensim/experiment.py`, `uhrensim/__main__.py`, `uhrensim/__init__.py` | G | Oberfläche, Experimente, Kommandozeile |
 | `config/*` | G | Datenbasis, Annahmen mit [A] markiert |
