@@ -221,7 +221,7 @@ Die Commits liefen gesammelt über ein Konto und sagen deshalb nichts über die 
 | `uhrensim/evaluation.py` | F | Kennzahlen, Resilienz, CO2e getrennt nach Beschaffung und letzter Meile, Pareto |
 | `uhrensim/netzanalyse.py` | F | Single Points of Failure |
 | `tests/test_erweiterungen.py` | F | Tests zu p*, SPOF, Bandbreite, S5 |
-| `uhrensim/simulation.py` | B und P | geteilt, Abschnitte im Code markiert: B Beschaffung, Transport, Reservequelle, Zufallsströme, Startbestand, Lauf; P Nachfrage, Versand, Montage, Personal, Aushilfe, Kurzarbeit, Tagesabschluss |
+| `uhrensim/simulation.py` | B, P und N | geteilt, Abschnitte im Code markiert: B Nachschub, Bestellungen, Transportprozess, Reservequelle, Zufallsströme, Startbestand, Störungen, Lauf; P Nachfrage, Versand, Montage, Personal, Aushilfe, Kurzarbeit, Tagesabschluss; N Routenwahl und Umleitung, Luftfracht-Brücke, Notfallplan Sellita bei Uhrwerk-Ausfall |
 | `uhrensim/optimization.py` | P | Rastersuche über Maßnahmen-Kombinationen |
 | `tests/test_modell.py` | P | Verifikation, Stresstest mit Mengenbilanz |
 | `tests/test_handlungsoptionen.py` | P | Tests des Optionsvergleichs |

@@ -1,4 +1,4 @@
-# Urheberschaft: geteilt zwischen Benedict Hufgard (B) und Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: geteilt zwischen Benedict Hufgard (B), Philipp Maywald (P) und Noah Scharly (N); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 # Zuordnung je Abschnitt über die Markierungen '# ---- Urheberschaft dieses Abschnitts'.
 # Ohne Markierung bis zum ersten Abschnitt (Importe, Zufallsströme, Startbestand, Init): Benedict Hufgard (B)
 """Ereignisdiskrete Simulation der Supply Chain mit SimPy (Modul simulation).
@@ -471,7 +471,7 @@ class Simulation:
             return 1.0
         return self._erkannter_faktor(float(ba.get("reaktion_tage", 7)))
 
-    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Nachschub, Lieferanten, Reservequelle, Routen, Transport, Luftfracht, Notfallplan, Störungen)
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Nachschub, Bestellungen, Fertigung, Reservequelle mit Hochlauf und Kapazität, Lieferant)
     def _pruefe_nachschub(self) -> None:
         f = self._anpassungsfaktor()
         for k, pol in self.politik.items():
@@ -548,6 +548,7 @@ class Simulation:
         b["status"] = "transport"
         yield from self._transport(b, q)
 
+    # ---- Urheberschaft dieses Abschnitts: Noah Scharly (N) (Routenwahl, Umleitung gesperrter Abschnitte, Umleitung von Schiffen unterwegs)
     # ================================================================ Transport
     def _routen(self, lieferant: str, notfall: bool) -> list[Route]:
         """Routen eines Lieferanten. Ausweichrouten nur mit Maßnahme 'ausweichroute' (sonst wartet die Ware)."""
@@ -593,6 +594,7 @@ class Simulation:
                         return rest
         return None
 
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Transportprozess)
     def _transport(self, b: dict[str, Any], q: Bezugsquelle):
         komp, menge = b["komponente"], b["menge"]
         masse_t = menge * self.m.komponenten[komp].gewicht_g * self.vf / 1e6
@@ -670,6 +672,7 @@ class Simulation:
         self._log("wareneingang", b["id"], "sendung", self.werk, menge, komponente=komp, alt="angekommen",
                   neu="verfuegbar")
 
+    # ---- Urheberschaft dieses Abschnitts: Noah Scharly (N) (Eilbezug per Luftfracht, Brücke nach Lieferantenausfall, Notfallplan Ersatzlieferant Sellita)
     # ================================================================ Eilbezug
     def _im_stoerfall(self, t: float, komp: str, nachlauf: bool = True) -> bool:
         """Notfallplan Luftfracht gilt nur bei einer Versorgungsstörung dieser Komponente und im Nachlauf danach.
@@ -769,6 +772,7 @@ class Simulation:
                       alt=ersatz.lieferant, neu=primaer.lieferant)
             self._pruefe_nachschub()
 
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Störungen)
     # ================================================================ Störungen und Tagesabschluss
     def _stoerung(self, s):
         yield self.env.timeout(max(0.0, s.start - self.env.now))
