@@ -144,6 +144,11 @@ bricht das Laden mit Hinweis ab.
 
 ## Ablauf in der Oberfläche
 
+Die Hauptseite hat drei Reiter: **Überblick** (alle Szenarien: Empfehlung je Szenario, was die Priorität ändert, wie
+sicher die Ergebnisse sind), **Szenario im Detail** (ein gewähltes Szenario mit einer Option: Karte, Kennzahlen,
+Optionsvergleich, Bandbreite, Zielkonflikte) und **Netz und Daten** (Datenbasis, Single Points of Failure). Jede
+Überschrift trägt eine Markierung, worauf sie sich bezieht: grau „alle Szenarien“, rot das gewählte Szenario.
+
 1. **Normalbetrieb:** Uhren pro Jahr. Lieferanten, Verkehrsmittel (Kosten, Dauer, CO2e) und Bestände kommen aus
    der Datenbasis in `config/`. Montagekapazität und Wiederbeschaffungszeiten folgen automatisch.
 2. **Störungen wählen:** welche Szenarien neben der Basis simuliert werden (S1 bis S5).
