@@ -85,6 +85,26 @@ def _job(pfad: str | Path, overrides: dict[str, Any], replikationen: int | None)
     return fuehre_aus(pfad, overrides, replikationen)
 
 
+class _OhneHauptskript:
+    """Neue Rechenprozesse starten unter Windows, indem sie das Hauptskript neu laden. Unter Streamlit ist das die
+    ganze App: Jeder Prozess würde die Oberfläche ohne Browser ausführen ("missing ScriptRunContext") und Zeit
+    verlieren. Solange der Prozesspool startet, wird das Hauptskript deshalb vor den Kindprozessen verborgen; sie
+    brauchen nur das Paket uhrensim."""
+
+    def __enter__(self):
+        import sys
+        self.main = sys.modules.get("__main__")
+        self.alt = {k: getattr(self.main, k) for k in ("__file__", "__spec__") if hasattr(self.main, k)}
+        for k in self.alt:
+            setattr(self.main, k, None)
+        return self
+
+    def __exit__(self, *args):
+        for k, v in self.alt.items():
+            setattr(self.main, k, v)
+        return False
+
+
 def _prozesse(anzahl_jobs: int, prozesse: int | None) -> int:
     import os
     if prozesse is not None:
@@ -124,10 +144,13 @@ def vergleiche_optionen(
     fertig = 0
     if n_proz > 1 and gesamt > 1:
         try:
+            import multiprocessing
             from concurrent.futures import ProcessPoolExecutor, as_completed
-            with ProcessPoolExecutor(max_workers=n_proz) as pool:
-                zukunft = {pool.submit(_job, pfad, _overrides_mit(overrides, opt), replikationen): i
-                           for i, (pfad, opt) in enumerate(jobs)}
+            # "spawn" auf allen Systemen wie unter Windows: saubere Kindprozesse, gleiches Verhalten überall
+            with ProcessPoolExecutor(max_workers=n_proz, mp_context=multiprocessing.get_context("spawn")) as pool:
+                with _OhneHauptskript():        # nur solange die Prozesse starten (beim Einreichen der Aufgaben)
+                    zukunft = {pool.submit(_job, pfad, _overrides_mit(overrides, opt), replikationen): i
+                               for i, (pfad, opt) in enumerate(jobs)}
                 for z in as_completed(zukunft):
                     roh[zukunft[z]] = z.result()
                     fertig += 1
