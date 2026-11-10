@@ -35,28 +35,37 @@ try:  # Drag-and-drop-Liste für die Priorisierung; ohne das Paket greift eine e
 except ImportError:  # pragma: no cover
     sort_items = None
 
-st.set_page_config(page_title="Uhren-Supply-Chain Heilbronn", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Cars-Uhr Supply Chain", layout="wide", initial_sidebar_state="expanded")
 st.markdown(
     """<style>
-    .stApp {background-color: #F8F4EC;}
-    [data-testid="stSidebar"] {background-color: #F1E9DD;}
-    h1, h2, h3, h4 {font-family: Cambria, Georgia, serif; color: #3E2C23;}
-    h1 {font-size: 2.0rem !important; margin-bottom: 0 !important;}
+    .stApp {background-color: #F6F6F4;}
+    [data-testid="stSidebar"] {background-color: #1E1E22;}
+    [data-testid="stSidebar"] h2, [data-testid="stSidebar"] h4, [data-testid="stSidebar"] p:not(button p),
+    [data-testid="stSidebar"] label, [data-testid="stSidebar"] .stCaption,
+    [data-testid="stSidebar"] [data-testid="stCaptionContainer"] {color: #ECECEA !important;}
+    [data-testid="stSidebar"] h4 {border-left: 4px solid #C8102E; padding-left: 8px;}
+    h1, h2, h3, h4 {font-family: 'Arial Black', 'Helvetica Neue', Arial, sans-serif; color: #1E1E22;
+                    letter-spacing: 0.01em;}
+    h1 {font-size: 2.0rem !important; margin-bottom: 0 !important; font-style: italic; text-transform: uppercase;}
+    h3 {border-bottom: 3px solid #C8102E; padding-bottom: 4px;}
+    .zielflagge {height: 10px; margin: 6px 0 10px 0; border-radius: 2px;
+                 background: repeating-conic-gradient(#1E1E22 0 25%, #FFFFFF 0 50%) 0 0 / 10px 10px;}
     .block-container {padding-top: 2.2rem; max-width: 1500px;}
-    .untertitel {color: #6D594C; font-size: 0.98rem; margin-bottom: 0.6rem;}
-    .kasten {background: #FFFFFF; border: 1px solid #E3D7C7; border-radius: 10px; padding: 12px 14px;
-             margin: 4px 0 10px 0; font-size: 0.92rem; color: #3E2C23;}
-    .kasten b {color: #3E2C23;}
+    .untertitel {color: #5E6168; font-size: 0.98rem; margin-bottom: 0.6rem;}
+    .kasten {background: #FFFFFF; border: 1px solid #DCDCD8; border-left: 4px solid #C8102E; border-radius: 10px;
+             padding: 12px 14px; margin: 4px 0 10px 0; font-size: 0.92rem; color: #1E1E22;}
+    .kasten b {color: #1E1E22;}
+    [data-testid="stSidebar"] .kasten span {color: #5E6168 !important;}
     .hinweis {border-left: 4px solid #B0A69C; background: #FFFFFF; border-radius: 6px; padding: 9px 12px;
-              margin-bottom: 7px; color: #3E2C23; font-size: 0.95rem;}
+              margin-bottom: 7px; color: #1E1E22; font-size: 0.95rem;}
     .hinweis.gut {border-left-color: #5B7F3A;}
-    .hinweis.warn {border-left-color: #C08A55;}
-    .hinweis.schlecht {border-left-color: #9B3B2A;}
+    .hinweis.warn {border-left-color: #E0A100;}
+    .hinweis.schlecht {border-left-color: #C8102E;}
     .hinweis .titel {font-weight: 600;}
-    [data-testid="stMetric"] {background: #FFFFFF; border: 1px solid #E3D7C7; border-radius: 10px;
+    [data-testid="stMetric"] {background: #FFFFFF; border: 1px solid #DCDCD8; border-top: 3px solid #1E1E22; border-radius: 10px;
                               padding: 10px 14px 6px 14px;}
-    [data-testid="stMetricLabel"] p {font-size: 0.9rem; color: #6D594C;}
-    .erkl {color: #6D594C; font-size: 0.82rem; line-height: 1.25; margin: 4px 2px 0 2px;}
+    [data-testid="stMetricLabel"] p {font-size: 0.9rem; color: #5E6168;}
+    .erkl {color: #5E6168; font-size: 0.82rem; line-height: 1.25; margin: 4px 2px 0 2px;}
     </style>""",
     unsafe_allow_html=True,
 )
@@ -128,10 +137,10 @@ SORT_STIL = """
 .sortable-container {background-color: transparent; counter-reset: item; padding: 0; margin: 0;}
 .sortable-container-header {display: none;}
 .sortable-container-body {background-color: transparent; padding: 0;}
-.sortable-item, .sortable-item:hover {background-color: #FFFFFF; color: #3E2C23; border: 1px solid #E3D7C7;
-    border-left: 4px solid #8B5E3C; border-radius: 8px; font-size: 0.9rem; margin: 0 0 6px 0; padding: 7px 10px;
+.sortable-item, .sortable-item:hover {background-color: #FFFFFF; color: #1E1E22; border: 1px solid #DCDCD8;
+    border-left: 4px solid #C8102E; border-radius: 8px; font-size: 0.9rem; margin: 0 0 6px 0; padding: 7px 10px;
     cursor: grab; text-align: left; font-family: 'Source Sans Pro', 'Source Sans 3', sans-serif;}
-.sortable-item::before {counter-increment: item; content: counter(item) ". "; font-weight: 600; color: #8B5E3C;}
+.sortable-item::before {counter-increment: item; content: counter(item) ". "; font-weight: 600; color: #C8102E;}
 """
 SEK_PER_LAUF = 0.25
 
@@ -150,7 +159,7 @@ with st.sidebar:
         f'<div class="kasten">Nötig: <b>{de(mb["montagen_noetig"], 1)} Montagen pro Tag</b><br>'
         f'Dafür: <b>{mb["mitarbeiter"]} Mitarbeiter</b> × {de(PRO_MA)} Uhren = '
         f'<b>{de(mb["kapazitaet_pro_tag"])} Montagen/Tag</b><br>'
-        f'<span style="color:#6D594C">Auslastung {de(auslastung * 100)} % · {g["arbeitstage_pro_jahr"]} '
+        f'<span style="color:#5E6168">Auslastung {de(auslastung * 100)} % · {g["arbeitstage_pro_jahr"]} '
         f'Arbeitstage · {de(float(mo["gutquote"]) * 100)} % Gutquote</span></div>',
         unsafe_allow_html=True)
 
@@ -232,8 +241,9 @@ ids = tuple(["S0", *[s for s in auswahl if s != "S0"]])
 schluessel = json.dumps([overrides, ids, reps], sort_keys=True)
 
 # --------------------------------------------------------------------------- Kopf
-st.title("Uhren-Supply-Chain Heilbronn")
-st.markdown(f'<div class="untertitel">Simulationsgestützte Entscheidungsunterstützung · {de(menge)} Uhren pro Jahr · '
+st.title("High-End Cars-Uhr · Supply Chain Heilbronn")
+st.markdown('<div class="zielflagge"></div>', unsafe_allow_html=True)
+st.markdown(f'<div class="untertitel">Simulationsgestützte Entscheidungsunterstützung · Automatikuhr in Lizenzedition · {de(menge)} Uhren pro Jahr · '
             f'{mb["mitarbeiter"]} Mitarbeiter in der Montage · Basis + {len(ids) - 1} Störungen × '
             f'{len(OPTIONEN)} Handlungsoptionen</div>', unsafe_allow_html=True)
 
@@ -617,7 +627,8 @@ if sid != "S0":
                "Statt eine Eintrittswahrscheinlichkeit zu raten, zeigt die Software die Schwelle p*, ab der sich die "
                "Option lohnt: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). "
                f"Verspätungen gehen mit {de(pruefung.param['kosten']['verspaetung_eur_auftrag'])} € je Bestellung "
-               "ein (Sensitivität 10/20/50 €).")
+               "ein (Sensitivität " + "/".join(de(x) for x in pruefung.param.get("sensitivitaet", {}).get(
+                   "kosten.verspaetung_eur_auftrag", [])) + " €).")
 if (detail.ausschluss.astype(str).str.len() > 0).any():
     hinweis("warn", "Stufe 0 aktiv:", "Optionen mit ❌ Ausschlusskriterium nutzen einen ausgeschlossenen Standort und "
             "werden unabhängig von ihren Kennzahlen hinten eingeordnet.")

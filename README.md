@@ -1,6 +1,7 @@
-# Simulationsmodell Uhren-Supply-Chain
+# Simulationsmodell Supply Chain: High-End Cars-Uhr
 
-Ereignisdiskrete Simulation (SimPy) einer globalen Lieferkette für eine Automatikuhr mit Montage in Heilbronn.
+Ereignisdiskrete Simulation (SimPy) einer globalen Lieferkette für eine High-End Cars-Automatikuhr (fiktive
+Lizenzedition, 800 bis 1.200 €) mit Montage in Heilbronn.
 Portfolioprüfung Logistik und Supply Chain Management, DHBW Heilbronn, Gruppe 04 Die Logistiker.
 
 Das Modell setzt das Simulationskonzept (Prüfungselement 2) um: ein Modellkern, in den Netz, Mengen,
@@ -126,7 +127,7 @@ Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
 - Werte mit `[A]` in den Konfigurationsdateien sind Annahmen und in der Sensitivitätsanalyse zu prüfen.
 - Montagekapazität folgt der Jahresmenge: bei 5.000 Uhren/Jahr sind 20,2 Montagen/Tag nötig, also 5 Uhrmacher × 5 = 25 Montagen/Tag (Auslastung 81 %). Annahme 5 Uhren je Uhrmacher und Tag (Handarbeit mit zugekauften Werken: Einschalen, Zeiger, Armband, Endkontrolle), Sensitivität 2/3/5/7.
 - Zollsatz überall 0 % (Freihandels- bzw. Partnerschaftsabkommen mit JP, CH, MU, Mercosur, EU-US-Zollverordnung 2026). Die Zollabfertigung (0,5 bis 2 Tage) bleibt, weil Anmeldung, Ursprungsnachweis und Einfuhrumsatzsteuer für Drittlandsware immer nötig sind.
-- Fehlmengenkosten: 20 € je verspätetem Auftrag, Sensitivität 10/20/50 €.
+- Fehlmengenkosten: 50 € je verspätetem Auftrag (High-End-Sammleruhr), Sensitivität 20/50/100 €.
 - Optimierung: alle 12 Maßnahmenkombinationen je Szenario. Robuste Empfehlung = zulässig nur, wenn β auch im schlechtesten Szenario ≥ 95 %; Rang nach mittleren Kosten.
 - Netzwerksicht: Weltkarte, Ausschnitt Europa und animierte Bestandsbalken (Reichweite in Tagen, Meldebestand, Bestellzeitpunkte), synchron und aus demselben Lauf. Goldener Ring und Statuskasten zeigen, welcher Lieferant das Uhrwerk gerade liefert. Abspielen in halber Geschwindigkeit (240 ms je Bild), ▶▶ doppelt so schnell.
 

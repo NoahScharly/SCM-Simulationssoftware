@@ -20,15 +20,15 @@ from .evaluation import BESCHRIFTUNG, lieferzeiten
 from .simulation import Ergebnis
 
 # Farben im Stil des Posters
-BRAUN_DUNKEL = "#3E2C23"
-BRAUN = "#6B4A35"
-KUPFER = "#C08A55"
-GRAU = "#6D594C"
-CREME = "#F8F4EC"
-ROT = "#9B3B2A"
+BRAUN_DUNKEL = "#1E1E22"  # Asphalt
+BRAUN = "#3A3D44"
+KUPFER = "#E0A100"  # Rennsport-Gelb (Akzent, Empfehlung)
+GRAU = "#5E6168"
+CREME = "#F6F6F4"
+ROT = "#C8102E"  # Rennrot (Störung, Luftfracht)
 MODUS_FARBE = {"see": BRAUN_DUNKEL, "bahn": "#5B7F3A", "binnen": "#2F6F8B", "lkw": KUPFER, "luft": ROT}
 MODUS_NAME = {"see": "Seeschiff", "bahn": "Bahn", "binnen": "Binnenschiff", "lkw": "Lkw", "luft": "Luftfracht"}
-KOMP_FARBE = ["#3E2C23", "#C08A55", "#5B7F3A", "#2F6F8B", "#9B3B2A", "#8C6D9E", "#B0A69C"]
+KOMP_FARBE = ["#1E1E22", "#E0A100", "#3B7D3A", "#2F6F8B", "#C8102E", "#8C6D9E", "#9A9CA2"]
 MONATE = ["Jan", "Feb", "Mär", "Apr", "Mai", "Jun", "Jul", "Aug", "Sep", "Okt", "Nov", "Dez"]
 
 
@@ -40,8 +40,8 @@ def _layout(fig: go.Figure, titel: str = "", hoehe: int = 420) -> go.Figure:
         margin=dict(l=40, r=20, t=50 if titel else 20, b=40),
         legend=dict(bgcolor="rgba(0,0,0,0)"),
     )
-    fig.update_xaxes(gridcolor="#E3D7C7", zeroline=False)
-    fig.update_yaxes(gridcolor="#E3D7C7", zeroline=False)
+    fig.update_xaxes(gridcolor="#DCDCD8", zeroline=False)
+    fig.update_yaxes(gridcolor="#DCDCD8", zeroline=False)
     return fig
 
 
@@ -391,7 +391,7 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
                 an.x = (0.62 + 0.885) / 2
         fig.add_annotation(
             xref="paper", yref="paper", x=1.0, y=0.40, xanchor="right", yanchor="top", showarrow=False, align="left",
-            font=dict(size=10, color=BRAUN_DUNKEL), bgcolor="rgba(255,255,255,0.85)", bordercolor="#E3D7C7",
+            font=dict(size=10, color=BRAUN_DUNKEL), bgcolor="rgba(255,255,255,0.85)", bordercolor="#DCDCD8",
             borderwidth=1, borderpad=5,
             text=(f"<b>Legende</b><br><span style='color:{BRAUN}'>■</span> im Lager"
                   f"<br><span style='color:rgba(192,138,85,0.55)'>■</span> Lager + bestellt<br>   und unterwegs"
@@ -409,7 +409,7 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
         return basis_anno + [go.layout.Annotation(
             text=text, xref="paper", yref="paper", x=0.0, y=1.0, xanchor="left",
             yanchor="bottom", showarrow=False, align="left", font=dict(size=12, color=BRAUN_DUNKEL),
-            bgcolor="rgba(248,244,236,0.92)", bordercolor="#C9A227", borderwidth=1, borderpad=4)]
+            bgcolor="rgba(246,246,244,0.92)", bordercolor="#C9A227", borderwidth=1, borderpad=4)]
 
     def rahmen(t: float) -> list:
         spuren = []
@@ -424,8 +424,8 @@ def netzkarte(erg: Ergebnis, schritt_tage: int = 3, hoehe: int = 760, titel: str
     schritte = [dict(method="animate", label=_datum(t - W),
                      args=[[f"{int(t - W)}"], dict(mode="immediate", frame=dict(duration=0, redraw=True),
                                                     transition=dict(duration=0))]) for t in zeiten]
-    geo_basis = dict(showland=True, landcolor="#E9DFD0", showocean=True, oceancolor="#F4EFE6", showcountries=True,
-                     countrycolor="#D8CBB8", coastlinecolor="#CBBBA5", bgcolor=CREME)
+    geo_basis = dict(showland=True, landcolor="#E7E7E3", showocean=True, oceancolor="#EEF2F5", showcountries=True,
+                     countrycolor="#CFCFCA", coastlinecolor="#C2C2BC", bgcolor=CREME)
     fig.update_layout(
         geo=geo_basis | dict(projection_type="natural earth", lataxis_range=[-50, 70], lonaxis_range=[-95, 150]),
         updatemenus=[dict(type="buttons", showactive=False, x=0.0, y=-0.02, xanchor="left", yanchor="top",

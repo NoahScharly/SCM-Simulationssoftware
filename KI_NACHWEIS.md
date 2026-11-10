@@ -115,6 +115,13 @@ Ausschlusskriterien als Stufe 0, Szenario S5, Rauschschwelle in der Normierung, 
 Annahmen [A]: Sanktionsliste RU, BY, IR, KP, SY; Bandbreiten S2 20/50/80 Tage, S3 7/14/28 Tage, S4 Faktor
 1,15/1,3/1,5, S5 Faktor 0,8/0,6/0,4; Toleranz für p* 0,05 % der Jahreskosten.
 
+### Produkt: High-End Cars-Uhr (Entscheidung der Gruppe, 10.11.2026)
+
+Netz, Teile und Preise bleiben die der Automatikuhr (800 bis 1.200 €), das Produkt wird als fiktive
+Cars-Lizenzedition geführt. Mit KI umgesetzt: Titel und Texte, Farbschema im Rennsport-Stil (Rennrot, Asphalt,
+Gelb, Zielflaggen-Streifen), bewusst ohne Logos oder Figuren des Lizenzgebers. Fehlmengenkosten 50 € statt 20 € je
+verspätetem Auftrag, weil Sammlerkunden empfindlicher auf Verspätung reagieren [A], Sensitivität 20/50/100 €.
+
 ## Vorgenommene Änderungen
 
 [hier eigene Änderungen eintragen]

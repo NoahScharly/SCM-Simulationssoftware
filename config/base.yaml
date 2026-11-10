@@ -51,8 +51,9 @@ kosten:
   lager_eur_stueck_tag: 0.002   # Lagerplatz je Komponente [A]
   montage_eur_uhr: 25           # [A]
   paket_eur_uhr: 6              # [A]
-  verspaetung_eur_auftrag: 20   # Fehlmengenkosten je verspätetem Auftrag (Rabatt, entgangener Deckungsbeitrag, Image) [A];
-                                # Sensitivität 10/20/50 €
+  verspaetung_eur_auftrag: 50   # Fehlmengenkosten je verspätetem Auftrag (Rabatt, entgangener Deckungsbeitrag, Image) [A];
+                                # High-End Cars-Uhr für Sammler (800 bis 1.200 €): Verspätung wiegt schwerer,
+                                # deshalb 50 € statt 20 €; Sensitivität 20/50/100 €
 
 emissionen:
   umschlag_kg_t: 1.2            # GLEC Umschlag
@@ -155,7 +156,7 @@ grenzen:                        # Plausibilitätsregeln (Folie 2)
   wbz_max_tage: 180
 
 sensitivitaet:                  # One-at-a-time (Folie 11): python -m uhrensim --sensitivitaet
-  kosten.verspaetung_eur_auftrag: [10, 20, 50]
+  kosten.verspaetung_eur_auftrag: [20, 50, 100]
   montage.uhren_pro_mitarbeiter_tag: [2, 3, 5, 7]
   transport.zoll_tage: [[0.5, 1, 2], [1, 2, 4]]
   emissionen.verpackungsfaktor: [1.2, 1.5, 1.8]
