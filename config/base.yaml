@@ -136,6 +136,12 @@ entscheidung:                   # Empfehlung im Optionsvergleich (Oberfläche Ab
   prioritaet: [beta, kosten_pro_uhr, co2e_pro_uhr_kg, lieferzeit_p95]   # Stufe 2: oben = wichtigst, ROC-Gewichte
                                 # Montagestillstand optional: solange lieferfähig, ist kurzer Stillstand kein Problem
 
+ausschluss:                     # Stufe 0 der Entscheidung: harte Grenzen vor jeder Bewertung (Idee Gruppenposter)
+                                # Eine Handlungsoption, die einen ausgeschlossenen Standort nutzt (Lieferant, Vorlieferant,
+                                # Hafen, Flughafen), wird nicht gerankt, egal wie gut ihre Kennzahlen sind.
+  laender: [RU, BY, IR, KP, SY] # EU-Sanktionen (Stand 2026) [A]; in der Oberfläche änderbar
+  knoten: {}                    # einzelne Standorte mit Grund, z. B. {estancia_leder: "Lieferantenaudit nicht bestanden"}
+
 bewertung:
   methode: mindestwerte         # mindestwerte | gewichtet | lexikografisch
   mindestwerte: {beta: 0.95}

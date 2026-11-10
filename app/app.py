@@ -23,7 +23,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
 from uhrensim.data import KonfigurationsFehler, lade_modell, montage_bedarf, szenario_dateien  # noqa: E402
+from uhrensim.netzanalyse import ausschluss_regeln, element_name, single_points_of_failure  # noqa: E402
 from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
+                                        bandbreite, bandbreite_definition, break_even, markiere_ausschluss,
+                                        p_text,
                                         lade_optionen, roc_gewichte, vergleiche_optionen,
                                         vor_und_nachteile, wirkt)
 
@@ -160,6 +163,16 @@ with st.sidebar:
                "passenden Handlungsoptionen und vergleicht sie.")
 
     st.markdown("#### 3 · Zielkriterien")
+    st.markdown("**Stufe 0 · Ausschlusskriterien**")
+    LAENDER_NETZ = sorted({k.land for k in basis.knoten.values()})
+    LAENDER_STANDARD = [str(x).upper() for x in (basis.param.get("ausschluss") or {}).get("laender", [])]
+    ausgeschlossen = st.multiselect(
+        "Ausgeschlossene Länder", sorted(set(LAENDER_NETZ) | set(LAENDER_STANDARD)), default=LAENDER_STANDARD,
+        label_visibility="collapsed",
+        help="Harte Grenze vor jeder Bewertung (z. B. EU-Sanktionen). Eine Handlungsoption, die einen Standort in "
+             "einem dieser Länder nutzt (Lieferant, Vorlieferant, Hafen), wird nicht gerankt. Standard aus "
+             "base.yaml. Zum Testen ein Land des Netzes hinzufügen, z. B. BR.")
+    st.caption("Wirkt sofort, ohne neu zu rechnen.")
     st.markdown("**Mindestanforderungen**")
     anforderungen: dict[str, float] = {}
     if st.toggle("Lieferfähigkeit mindestens", value="beta" in ANF_STANDARD, key="anf_beta_an"):
@@ -259,6 +272,30 @@ with st.expander("Datenbasis des Normalbetriebs: Lieferanten und Verkehrsmittel"
                                                                   if t in pruefung.knoten),
     } for k, qs in pruefung.quellen.items() for q in qs]), hide_index=True, width="stretch")
 
+with st.expander("Single Points of Failure im Netz"):
+    spof = single_points_of_failure(pruefung, OPTIONEN)
+    kritisch = spof[spof.spof]
+    st.markdown(
+        "Geprüft wird jedes Element auf dem regulären Weg einer Komponente nach Heilbronn: Gibt es einen anderen Weg, "
+        "der es umgeht, wenn man alle Handlungsoptionen nutzt (Ausweichroute, Luftfracht, Ersatzlieferant, andere "
+        "Bezugsquelle)? **Ohne Ausweichweg = Single Point of Failure.** Fällt so ein Element aus, hilft nur Bestand. "
+        f"Die Montage in {kurzname(pruefung.knoten[spof.attrs['werk']].name)} ist für alle Komponenten ein SPOF, weil "
+        "es nur ein Werk gibt.")
+    if kritisch.empty:
+        hinweis("gut", "Keine Single Points of Failure", "außer dem Werk.")
+    else:
+        hinweis("schlecht", f"{len(kritisch)} Elemente ohne Ausweichweg:",
+                " · ".join(f"{viz.komp_name(pruefung, r.komponente)}: {element_name(pruefung, r.element)}"
+                           for r in kritisch.itertuples() if r.typ == "Knoten"))
+    st.dataframe(pd.DataFrame([{
+        "Komponente": viz.komp_name(pruefung, r.komponente), "Element": element_name(pruefung, r.element),
+        "Art": r.typ, "Single Point of Failure": "❌ ja" if r.spof else "✅ nein",
+        "Abgesichert durch": r.abgesichert_durch,
+    } for r in spof.sort_values(["spof", "komponente"], ascending=[False, True]).itertuples()]),
+        hide_index=True, width="stretch")
+    st.caption("Annahme: Ein Lieferant braucht alle seine Vorlieferanten. Lkw-Strecken innerhalb Europas lassen sich in "
+               "der Praxis meist umfahren, sie erscheinen hier nur, weil im Netz keine zweite Strecke hinterlegt ist.")
+
 if starten or "lauf" not in st.session_state:
     st.session_state["lauf"] = schluessel
 lauf_ov, lauf_ids, lauf_reps = json.loads(st.session_state["lauf"])
@@ -279,6 +316,19 @@ def relevant(s: str) -> list[str]:
 
 
 # Empfehlung je Szenario nur unter den für das Szenario relevanten Optionen
+AUSSCHLUSS = (ausschluss_regeln(pruefung, ausgeschlossen), pruefung)
+detail = markiere_ausschluss(detail, *AUSSCHLUSS)
+BREAK_EVEN = break_even(detail).set_index(["szenario", "option"]) if len(detail) else pd.DataFrame()
+
+
+def p_stern(s: str, o: str) -> str:
+    """Break-even-Text einer Option in einem Szenario (leer für Basis und Referenz)."""
+    if BREAK_EVEN.empty or (s, o) not in BREAK_EVEN.index:
+        return ""
+    r = BREAK_EVEN.loc[(s, o)]
+    return p_text(r.p_art, r.p_stern)
+
+
 detail_rel = detail[[o in relevant(s) for s, o in zip(detail.szenario, detail.option)]]
 rang_je_sz = empfehlung_je_szenario(detail_rel, anforderungen, prioritaet)
 
@@ -488,6 +538,16 @@ with links:
                         f"Der Bestand hält {de(tts_m)} Tage (TTS), bis wieder Ware ankommt, vergehen {de(ttr)} Tage "
                         f"(TTR). Lücke rund {de(luecke)} Tage.")
 
+    if oid != "keine" and sid != "S0" and p_stern(sid, oid):
+        be_ = BREAK_EVEN.loc[(sid, oid)]
+        if be_.p_art in ("ab", "bis", "immer", "nie"):
+            hinweis("gut" if be_.p_art == "immer" else "warn" if be_.p_art in ("ab", "bis") else "schlecht",
+                    f"Lohnt sich die Vorsorge? {p_stern(sid, oid).capitalize()}.",
+                    f"Mehrkosten im Normalbetrieb {de(be_.mehrkosten_normal)} € pro Jahr, Ersparnis im Störungsjahr "
+                    f"{de(be_.ersparnis_stoerung)} € (inkl. Verspätungskosten). Schwelle p* = Mehrkosten ÷ "
+                    f"(Mehrkosten + Ersparnis). Hältst du die Störung für wahrscheinlicher, lohnt sich die Option.")
+    if z.get("ausschluss"):
+        hinweis("schlecht", "Ausgeschlossen (Stufe 0):", str(z["ausschluss"]))
     if oid != "keine":
         vor, nach = vor_und_nachteile(z)
         if not wirkt(z):
@@ -540,6 +600,7 @@ for r in rang.itertuples():
     tab_opt.append({
         "Rang": r.rang, "Option": ("★ " if r.rang == 1 else "") + OPT[r.option]["name"],
         "Anforderungen": "✅" if r.zulaessig else f"❌ {r.verletzt}",
+        "Lohnt sich? (Break-even p*)": p_stern(sid, r.option) if r.option != "keine" and sid != "S0" else "",
         "Punkte": round(r.punkte, 2) if r.zulaessig and prioritaet else None,
         "Lieferfähigkeit [%]": round(r.beta * 100, 1), "Kosten [€/Uhr]": round(r.kosten_pro_uhr, 2),
         "CO2e [g/Uhr]": round(r.co2e_pro_uhr_kg * 1000, 1), "Lieferzeit 95 % [Tage]": round(r.lieferzeit_p95, 1),
@@ -549,7 +610,70 @@ for r in rang.itertuples():
     })
 st.dataframe(pd.DataFrame(tab_opt), hide_index=True, width="stretch", column_config={
     "Lieferfähigkeit [%]": st.column_config.ProgressColumn(format="%.1f", min_value=0, max_value=100),
-    "Vorteile": st.column_config.TextColumn(width="large"), "Nachteile": st.column_config.TextColumn(width="large")})
+    "Vorteile": st.column_config.TextColumn(width="large"), "Nachteile": st.column_config.TextColumn(width="large"),
+    "Lohnt sich? (Break-even p*)": st.column_config.TextColumn(width="medium")})
+if sid != "S0":
+    st.caption("**Lohnt sich? (Break-even p*)**: Eine Vorsorge kostet im Normalbetrieb Geld und spart im Störungsjahr. "
+               "Statt eine Eintrittswahrscheinlichkeit zu raten, zeigt die Software die Schwelle p*, ab der sich die "
+               "Option lohnt: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). "
+               f"Verspätungen gehen mit {de(pruefung.param['kosten']['verspaetung_eur_auftrag'])} € je Bestellung "
+               "ein (Sensitivität 10/20/50 €).")
+if (detail.ausschluss.astype(str).str.len() > 0).any():
+    hinweis("warn", "Stufe 0 aktiv:", "Optionen mit ❌ Ausschlusskriterium nutzen einen ausgeschlossenen Standort und "
+            "werden unabhängig von ihren Kennzahlen hinten eingeordnet.")
+    if detail[(detail.szenario == "S0") & (detail.option == "keine")].ausschluss.astype(str).str.len().gt(0).any():
+        hinweis("schlecht", "Schon der Normalbetrieb verstößt gegen ein Ausschlusskriterium.",
+                "Das reguläre Netz nutzt einen ausgeschlossenen Standort. Zulässig sind nur Optionen, die ihn "
+                "ersetzen (z. B. eine andere Bezugsquelle). Sonst muss das Netz in config/ angepasst werden.")
+
+# --------------------------------------------------------------------------- Bandbreite
+st.markdown("#### Bandbreite: Ab wann kippt die Empfehlung?")
+pfad_sz = SZ[sid]["pfad"]
+defi = bandbreite_definition(pfad_sz) if sid != "S0" else None
+if defi is None:
+    st.caption("Für dieses Szenario ist keine Bandbreite hinterlegt (Szenariodatei, Block sensitivitaet).")
+else:
+    par, werte = defi
+    par_name = {"dauer_tage": "Dauer der Störung [Tage]", "faktor": "Faktor auf die Nachfrage"}.get(
+        par.split(".")[-1], par)
+    st.markdown(f"Die Störung wird mit **{par_name} = {', '.join(de(w, 2 if isinstance(w, float) else 0) for w in werte)}** "
+                f"durchgerechnet, alle für {sid} relevanten Optionen, gleiche Zufallszahlen. Die Bandbreite steht in "
+                "der Szenariodatei und lässt sich dort ändern.")
+    bb_schl = json.dumps([st.session_state["lauf"], sid, sorted(ausgeschlossen), anforderungen, prioritaet])
+    if st.button(f"Bandbreite für {sid} durchrechnen ({len(werte) * len(relevant(sid)) * int(lauf_reps)} Läufe)",
+                 key=f"bb_{sid}"):
+        bal_bb = st.progress(0.0, text="Bandbreite wird gerechnet …")
+        st.session_state.setdefault("bandbreite", {})[bb_schl] = bandbreite(
+            pfad_sz, [OPT[o] for o in relevant(sid)], detail[detail.szenario == "S0"], anforderungen, prioritaet,
+            lauf_ov, int(lauf_reps), AUSSCHLUSS, fortschritt=lambda i, n: bal_bb.progress(i / n))
+        bal_bb.empty()
+    bb = st.session_state.get("bandbreite", {}).get(bb_schl)
+    if bb is not None and not bb.empty:
+        tab_bb = []
+        for w, g_ in bb.groupby("wert", sort=False):
+            g_ = g_.sort_values("rang")
+            best, ohne = g_.iloc[0], g_[g_.option == "keine"].iloc[0]
+            zeile = {par_name: w, "Empfehlung": "★ " + OPT_KURZ[best.option],
+                     "Lieferfähigkeit ohne Maßnahme [%]": round(ohne.beta * 100, 1),
+                     "Lieferfähigkeit Empfehlung [%]": round(best.beta * 100, 1)}
+            for o in relevant(sid):
+                if o == "keine":
+                    continue
+                r_ = g_[g_.option == o].iloc[0]
+                zeile[f"p* {OPT_KURZ[o]}"] = (p_text(r_.p_art, r_.p_stern).replace("lohnt sich ", "")
+                                             .replace(" Eintrittswahrscheinlichkeit pro Jahr", ""))
+            tab_bb.append(zeile)
+        st.dataframe(pd.DataFrame(tab_bb), hide_index=True, width="stretch")
+        empf_bb = [r["Empfehlung"] for r in tab_bb]
+        if len(set(empf_bb)) > 1:
+            hinweis("warn", "Die Empfehlung kippt:",
+                    " · ".join(f"{par_name.split(' [')[0]} {de(r[par_name], 2 if isinstance(r[par_name], float) else 0)}"
+                               f" → {r['Empfehlung']}" for r in tab_bb)
+                    + ". Die Entscheidung hängt also davon ab, wie stark die Störung ausfällt.")
+        else:
+            hinweis("gut", "Die Empfehlung ist stabil:", f"{empf_bb[0]} über die ganze Bandbreite.")
+    elif bb is None:
+        st.caption("Noch nicht gerechnet. Die Rechnung dauert je nach Wiederholungen etwas.")
 st.markdown("#### Zielkonflikte")
 st.caption("Zwei Gegenüberstellungen mit frei wählbaren Achsen. ★ = Empfehlung · grün = Pareto-optimal (keine andere "
            "Option ist in beiden Zielen zugleich besser) · grau = in beiden Zielen schlechter als eine andere · "

@@ -8,5 +8,5 @@ stoerungen:
     ziel: miyota_nagano
     start_tag: 120
     dauer_tage: 60
-sensitivitaet:
-  stoerungen.0.dauer_tage: [30, 60, 90]
+sensitivitaet:                  # Bandbreite der Ausfalldauer [A]
+  stoerungen.0.dauer_tage: [15, 30, 60, 90]

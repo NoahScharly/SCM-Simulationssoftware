@@ -105,12 +105,22 @@ YAML-Änderungen gegenüber base.yaml, pytest-Tests zur Mengenbilanz und die Feh
 - Standard-Priorisierung: Lieferfähigkeit, Kosten, CO2e, Lieferzeit (Stillstand optional, Vorgabe N. Scharly)
 - Gutquote fest mit Übertrag der Ausschuss-Bruchteile statt Runden (Runden ergäbe bei 25 Uhren am Tag 0 % Ausschuss)
 
+## Version 2 (November 2026): Erweiterungen aus den Gruppenpostern
+
+System: Claude Opus 5.5 (Anthropic), claude.ai, 10.11.2026.
+Wesentlicher Prompt: Logik aus den Gruppenpostern in das bestehende Grundkonzept einbauen, ohne den alten Stand zu
+verändern (neues Repository). Auswahl der Erweiterungen durch N. Scharly nach Abwägung der drei Poster.
+Umgesetzt mit KI: Break-even-Wahrscheinlichkeit p*, Bandbreite je Szenario, Single Points of Failure,
+Ausschlusskriterien als Stufe 0, Szenario S5, Rauschschwelle in der Normierung, Tests (`tests/test_erweiterungen.py`).
+Annahmen [A]: Sanktionsliste RU, BY, IR, KP, SY; Bandbreiten S2 20/50/80 Tage, S3 7/14/28 Tage, S4 Faktor
+1,15/1,3/1,5, S5 Faktor 0,8/0,6/0,4; Toleranz für p* 0,05 % der Jahreskosten.
+
 ## Vorgenommene Änderungen
 
 [hier eigene Änderungen eintragen]
 
 ## Fachliche und technische Prüfungen
 
-- 39 automatische Tests (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
+- 47 automatische Tests (Version 2, vorher 39) (`pytest -q`): Mengenbilanz, deterministischer Transit gegen Handrechnung,
   Reproduzierbarkeit, Common Random Numbers, Extremwerte, Umleitung bei Niedrigwasser, Bewertung, Optimierung je Szenario, Bestandsanimation
 - [hier eigene Prüfungen eintragen, z. B. Parameter gegen Quellen geprüft, Ergebnisse plausibilisiert]

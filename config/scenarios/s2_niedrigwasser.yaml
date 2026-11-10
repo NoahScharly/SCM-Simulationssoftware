@@ -8,3 +8,5 @@ stoerungen:
     ziel: e_rtm_hn_binnen
     start_tag: 200
     dauer_tage: 50
+sensitivitaet:                  # Bandbreite der Sperrdauer [A]
+  stoerungen.0.dauer_tage: [20, 50, 80]

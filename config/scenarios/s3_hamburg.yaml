@@ -8,3 +8,5 @@ stoerungen:
     ziel: hamburg
     start_tag: 60
     dauer_tage: 14
+sensitivitaet:                  # Bandbreite der Schließdauer [A]
+  stoerungen.0.dauer_tage: [7, 14, 28]

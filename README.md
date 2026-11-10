@@ -25,6 +25,22 @@ pytest -q                         # Verifikationstests
 
 Python 3.11 oder neuer.
 
+## Version 2: Erweiterungen aus den Gruppenpostern
+
+Grundkonzept, Netz und Daten stammen aus dem Poster von N. Scharly. Aus den beiden anderen Gruppenpostern wurde
+die Logik übernommen, nicht die Zahlen:
+
+| Erweiterung | Idee aus | Wo |
+|---|---|---|
+| Break-even-Wahrscheinlichkeit p* je Handlungsoption: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). Die Software fragt keine Eintrittswahrscheinlichkeit ab, sondern zeigt, ab welcher sich die Vorsorge lohnt | Poster B (Entscheidungsregel p · vermiedener Schaden > Mehrkosten) | `handlungsoptionen.break_even`, Oberfläche Abschnitt 1 und 2 |
+| Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Poster B (Szenarien mit Band) | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
+| Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | Poster B (SPOF-Liste) | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
+| Stufe 0 der Entscheidung: harte Ausschlusskriterien (Länder, Standorte) vor jeder Bewertung | Poster C (erst Grenzen, dann Ziele) | Block `ausschluss` in `base.yaml`, Seitenleiste, `netzanalyse` |
+| Szenario S5 Nachfrageeinbruch -40 % für 60 Tage: testet Überbestand und Kapitalbindung statt Fehlmengen | Poster C (Nachfrageschock) | `config/scenarios/s5_nachfrageeinbruch.yaml` |
+
+Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
+Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.
+
 ## Was das Modell abbildet
 
 | Bereich | Umsetzung |

@@ -7,3 +7,5 @@ stoerungen:
   - typ: nachfrage
     faktor: 1.3
     monate: [11, 12]
+sensitivitaet:                  # Bandbreite der Saisonspitze [A]
+  stoerungen.0.faktor: [1.15, 1.3, 1.5]

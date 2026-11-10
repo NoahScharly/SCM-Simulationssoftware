@@ -7,9 +7,12 @@ Ablauf in der Oberfläche:
     2. Für jedes Szenario wird jede Handlungsoption aus base.yaml (Block handlungsoptionen) simuliert,
        alle mit denselben Zufallszahlen (Common Random Numbers).
     3. Je Szenario: Vergleich gegen "Ohne Maßnahme", Vor- und Nachteile, Empfehlung nach Priorität.
-    4. Über alle Szenarien: robuste Empfehlung (Mindest-Lieferfähigkeit im schlechtesten Szenario).
+    4. Je Option: Break-even-Wahrscheinlichkeit p* (lohnt sich die Vorsorge, wenn die Störung mit p eintritt?).
+    5. Bandbreite: Stärke der Störung variieren und prüfen, ab wann die Empfehlung kippt.
 
 Empfehlungslogik (transparent, keine Blackbox):
+    Stufe 0: harte Ausschlusskriterien (z. B. Sanktionsländer). Wer einen ausgeschlossenen Standort nutzt, wird
+             nicht gerankt (Modul netzanalyse).
     Stufe 1: Mindestanforderungen (Standard: Lieferfähigkeit >= 95 %, Lieferzeit 95 % <= 3 Tage, einstellbar).
     Stufe 2: Priorisierung durch Reihenfolge der Zielkriterien, daraus Rank-Order-Centroid-Gewichte.
     Erfüllt keine Option alle Anforderungen, wird die mit dem kleinsten Abstand zu den Anforderungen empfohlen.
@@ -26,7 +29,8 @@ import pandas as pd
 
 from .data import KONFIG_STANDARD, lade_modell
 from .evaluation import RICHTUNG, pareto_front
-from .experiment import fuehre_aus
+from .experiment import _setze_pfad, fuehre_aus
+from .netzanalyse import genutzte_knoten
 
 REFERENZ = "keine"
 KENNZAHLEN = ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg", "lieferzeit_p95", "fehlteil_tage",
@@ -92,7 +96,8 @@ def vergleiche_optionen(
     for (sid, oid), e in ergebnisse.items():
         z = e["zusammenfassung"]
         ref = ergebnisse.get((sid, REFERENZ))
-        zeile: dict[str, Any] = {"szenario": sid, "szenario_name": e["szenario_name"], "option": oid}
+        zeile: dict[str, Any] = {"szenario": sid, "szenario_name": e["szenario_name"], "option": oid,
+                                 "knoten_genutzt": ";".join(sorted(genutzte_knoten(e["beispiellauf"])))}
         for kz in z.index:
             zeile[kz] = float(z.loc[kz, "mittel"])
             zeile[f"{kz}_ki95"] = float(z.loc[kz, "ki95"])
@@ -145,6 +150,11 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
     out = df.copy().reset_index(drop=True)
     verletzt = [[] for _ in range(len(out))]
     abstand = pd.Series(0.0, index=out.index)
+    # Stufe 0: harte Ausschlusskriterien (Spalte "ausschluss" = Text der verletzten Regel, leer = zulässig)
+    if "ausschluss" in out:
+        out["ausgeschlossen"] = out["ausschluss"].fillna("").astype(str).str.len() > 0
+    else:
+        out["ausgeschlossen"] = False
     for kz, grenze in (anforderungen or {}).items():
         sp = spalten.get(kz, kz)
         werte = out[sp].astype(float)
@@ -153,24 +163,29 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         abstand += fehl / (abs(grenze) or 1.0)
         for i in out.index[fehl > 0]:
             verletzt[i].append(KRITERIEN.get(kz, (kz,))[0])
-    out["zulaessig"] = abstand <= 0
+    out["zulaessig"] = (abstand <= 0) & ~out["ausgeschlossen"]
+    for i in out.index[out["ausgeschlossen"]]:
+        verletzt[i].insert(0, "Ausschlusskriterium")
     out["verletzt"] = [", ".join(v) for v in verletzt]
     out["abstand_anforderung"] = abstand
 
     gewichte = dict(zip(prioritaet, roc_gewichte(len(prioritaet))))
-    basis = out[out.zulaessig] if out.zulaessig.any() else out
+    basis = out[out.zulaessig] if out.zulaessig.any() else out[~out.ausgeschlossen] if (~out.ausgeschlossen).any() else out
     punkte = pd.Series(0.0, index=out.index)
     for kz, w in gewichte.items():
         x = out[kz].astype(float)
         bx = basis[kz].astype(float)
         bester, schlechtester = (bx.max(), bx.min()) if richtung(kz) > 0 else (bx.min(), bx.max())
-        spanne = abs(schlechtester - bester)
+        # Mindestspanne = Schwelle, ab der ein Unterschied als echt gilt. Sonst würde z. B. ein Unterschied von
+        # 0,03 Prozentpunkten Lieferfähigkeit (Zufallsrauschen) auf die volle Spanne 0 bis 1 gestreckt.
+        spanne = max(abs(schlechtester - bester), SCHWELLEN.get(kz, 0.0))
         norm = ((x - bester).abs() / spanne) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
         out[f"norm_{kz}"] = norm
         punkte += w * norm
     out["punkte"] = punkte
     out["pareto"] = pareto_front(out, list(gewichte)) if gewichte else False
-    out = out.sort_values(["zulaessig", "abstand_anforderung", "punkte"], ascending=[False, True, True])
+    out = out.sort_values(["ausgeschlossen", "zulaessig", "abstand_anforderung", "punkte"],
+                          ascending=[True, False, True, True])
     out["rang"] = range(1, len(out) + 1)
     out.attrs["gewichte"] = gewichte
     return out
@@ -234,3 +249,143 @@ def wirkt(zeile: pd.Series | dict[str, Any]) -> bool:
     """False, wenn sich keine Kennzahl spürbar von "Ohne Maßnahme" unterscheidet (Notfallplan nicht ausgelöst)."""
     v, n = vor_und_nachteile(zeile)
     return bool(v or n)
+
+
+# --------------------------------------------------------------------------- Stufe 0: Ausschluss
+def markiere_ausschluss(detail: pd.DataFrame, regeln: dict[str, str], modell: Any) -> pd.DataFrame:
+    """Spalte "ausschluss": verletzte Ausschlussregeln der tatsächlich genutzten Standorte (leer = zulässig)."""
+    from .netzanalyse import pruefe_ausschluss
+    out = detail.copy()
+    out["ausschluss"] = [pruefe_ausschluss(str(g).split(";") if g else [], regeln, modell)
+                         for g in out.get("knoten_genutzt", pd.Series([""] * len(out), index=out.index))]
+    return out
+
+
+# --------------------------------------------------------------------------- Break-even p*
+def break_even(detail: pd.DataFrame, basis: str = "S0") -> pd.DataFrame:
+    """Break-even-Wahrscheinlichkeit p* je (Szenario, Option), Entscheidungsregel aus dem Gruppenposter.
+
+    Eine Vorsorge-Option kostet im Normalbetrieb M (Mehrkosten je Jahr gegenüber "Ohne Maßnahme" in S0) und spart
+    im Störungsjahr E (Kosten "Ohne Maßnahme" minus Kosten mit Option im Szenario, inkl. Verspätungskosten).
+    Kosten werden je Uhr verglichen und auf die Jahresnachfrage hochgerechnet: Ohne Maßnahme werden im
+    Störungsjahr weniger Uhren ausgeliefert, die Gesamtkosten des Jahres wären deshalb scheinbar niedriger.
+    Tritt die Störung in einem Jahr mit Wahrscheinlichkeit p ein, lohnt sich die Option, wenn
+        p · E  >  (1 − p) · M     also     p  >  p* = M / (M + E).
+    Die Eintrittswahrscheinlichkeit wird nicht geschätzt, die Software zeigt nur die Schwelle p*.
+    Bewertung:
+        "ohne"    M und E praktisch null: Option wirkt in diesem Szenario nicht und kostet nichts
+        "immer"   M <= 0 und E >= 0: günstiger im Normalbetrieb und nicht schlechter im Szenario
+        "nie"     E <= 0 und M >= 0: hilft im Szenario nicht und kostet etwas
+        "ab"      lohnt sich ab p > p*
+        "bis"     M < 0, E < 0: spart im Normalbetrieb, verliert im Szenario, lohnt bis p < p*
+    """
+    zeilen = []
+    if "kosten_pro_uhr" not in detail:
+        return pd.DataFrame(columns=["szenario", "option", "mehrkosten_normal", "ersparnis_stoerung", "p_stern",
+                                     "p_art"])
+    idx = detail.set_index(["szenario", "option"])
+    k = idx["kosten_pro_uhr"]
+    menge = idx["auftraege"] if "auftraege" in idx else pd.Series(1.0, index=idx.index)
+    for (sid, oid), _ in k.items():
+        if sid == basis or oid == REFERENZ or (basis, oid) not in k or (basis, REFERENZ) not in k \
+                or (sid, REFERENZ) not in k:
+            continue
+        M = float((k[(basis, oid)] - k[(basis, REFERENZ)]) * menge[(basis, REFERENZ)])
+        E = float((k[(sid, REFERENZ)] - k[(sid, oid)]) * menge[(sid, REFERENZ)])
+        # Differenzen unter 0,05 % der Jahreskosten gelten als null (Rauschen der Simulation)
+        tol = max(1.0, 0.0005 * float(k[(basis, REFERENZ)] * menge[(basis, REFERENZ)]))
+        M0, E0 = (0.0 if abs(M) < tol else M), (0.0 if abs(E) < tol else E)
+        if M0 == 0 and E0 == 0:
+            art, p = "ohne", math.nan
+        elif M0 <= 0 and E0 >= 0:
+            art, p = "immer", 0.0
+        elif E0 <= 0 and M0 >= 0:
+            art, p = "nie", math.nan
+        elif M0 > 0 and E0 > 0:
+            art, p = "ab", M0 / (M0 + E0)
+        else:
+            art, p = "bis", M0 / (M0 + E0)
+        zeilen.append({"szenario": sid, "option": oid, "mehrkosten_normal": M, "ersparnis_stoerung": E,
+                       "p_stern": p, "p_art": art})
+    return pd.DataFrame(zeilen)
+
+
+def p_text(art: str, p: float) -> str:
+    """Lesbare Fassung von p* für die Oberfläche."""
+    if art == "ohne":
+        return "ohne Wirkung (wird nicht ausgelöst, kostet nichts)"
+    if art == "immer":
+        return "lohnt sich immer (keine Mehrkosten im Normalbetrieb)"
+    if art == "nie":
+        return "lohnt sich nie"
+    pct = _de(p * 100, 1 if p < 0.1 else 0)
+    if art == "ab":
+        return f"lohnt sich ab {pct} % Eintrittswahrscheinlichkeit pro Jahr"
+    return f"lohnt sich nur bis {pct} % Eintrittswahrscheinlichkeit pro Jahr"
+
+
+# --------------------------------------------------------------------------- Bandbreite
+def bandbreite_definition(szenario: str | Path | dict) -> tuple[str, list[Any]] | None:
+    """Bandbreite aus der Szenariodatei (Block sensitivitaet), z. B. ('stoerungen.0.dauer_tage', [15, 30, 60])."""
+    import yaml
+    if isinstance(szenario, dict):
+        roh = szenario
+    else:
+        with open(szenario, encoding="utf-8") as f:
+            roh = yaml.safe_load(f) or {}
+    sens = roh.get("sensitivitaet") or {}
+    if not sens:
+        return None
+    pfad, werte = next(iter(sens.items()))
+    return str(pfad), list(werte)
+
+
+def bandbreite(
+    szenario: str | Path,
+    optionen: list[dict[str, Any]],
+    basis_detail: pd.DataFrame,
+    anforderungen: dict[str, float],
+    prioritaet: list[str],
+    overrides: dict[str, Any] | None = None,
+    replikationen: int | None = None,
+    ausschluss: tuple[dict[str, str], Any] | None = None,
+    fortschritt: Callable[[int, int], None] | None = None,
+) -> pd.DataFrame:
+    """Rechnet ein Szenario für jeden Wert der Bandbreite durch und zeigt, ab wann die Empfehlung kippt.
+
+    basis_detail: Zeilen des Normalbetriebs S0 (für p*). Liefert je (Wert, Option) Kennzahlen, Rang und p*.
+    """
+    import yaml
+    defi = bandbreite_definition(szenario)
+    if defi is None:
+        return pd.DataFrame()
+    pfad, werte = defi
+    with open(szenario, encoding="utf-8") as f:
+        roh = yaml.safe_load(f) or {}
+    gesamt, i = len(werte) * len(optionen), 0
+    teile = []
+    for w in werte:
+        sz = _setze_pfad(roh, pfad, w)
+        zeilen = []
+        for opt in optionen:
+            e = fuehre_aus(sz, _overrides_mit(overrides, opt), replikationen)
+            z = e["zusammenfassung"]
+            zeile = {"szenario": e["szenario_id"], "option": opt["id"], "wert": w,
+                     "knoten_genutzt": ";".join(sorted(genutzte_knoten(e["beispiellauf"])))}
+            for kz in z.index:
+                zeile[kz] = float(z.loc[kz, "mittel"])
+            zeilen.append(zeile)
+            i += 1
+            if fortschritt:
+                fortschritt(i, gesamt)
+        d = pd.DataFrame(zeilen)
+        if ausschluss is not None:
+            d = markiere_ausschluss(d, *ausschluss)
+        r = rangiere(d, anforderungen, prioritaet)
+        spalten = ["szenario", "option", "kosten_pro_uhr", "auftraege"]
+        be = break_even(pd.concat([basis_detail[spalten], d[spalten]], ignore_index=True))
+        r = r.merge(be[["option", "p_stern", "p_art"]], on="option", how="left")
+        teile.append(r)
+    out = pd.concat(teile, ignore_index=True)
+    out.attrs["parameter"] = pfad
+    return out
