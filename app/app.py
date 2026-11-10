@@ -13,6 +13,7 @@ from __future__ import annotations
 import json
 import math
 import sys
+import tempfile
 from pathlib import Path
 
 import pandas as pd
@@ -22,8 +23,8 @@ import yaml
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from uhrensim import visualization as viz  # noqa: E402
-from uhrensim.data import (KonfigurationsFehler, lade_modell, lagerhaltungssatz, montage_bedarf,  # noqa: E402
-                           szenario_dateien)
+from uhrensim.data import (KonfigurationsFehler, kombiniere_szenarien, lade_modell, lagerhaltungssatz,  # noqa: E402
+                           montage_bedarf, szenario_dateien)
 from uhrensim.netzanalyse import ausschluss_regeln, element_name, single_points_of_failure  # noqa: E402
 from uhrensim.handlungsoptionen import (KRITERIEN, empfehlung_je_szenario, lade_entscheidungsregel,  # noqa: E402
                                         bandbreite, bandbreite_definition, break_even, markiere_ausschluss,
@@ -121,12 +122,25 @@ def rechne(overrides_json: str, ids: tuple[str, ...], reps: int, fortschritt=Non
     speicher = _ergebnisspeicher()
     schl = json.dumps([overrides_json, ids, reps])
     if schl not in speicher:
-        sz = szenarien()
+        sz = SZ   # enthält auch verknüpfte Szenarien aus der Seitenleiste
         speicher[schl] = vergleiche_optionen([sz[s]["pfad"] for s in ids], OPTIONEN, json.loads(overrides_json),
                                              reps, fortschritt)
         while len(speicher) > 4:
             speicher.pop(next(iter(speicher)))
     return speicher[schl]
+
+
+def kombi_anlegen(ids: tuple[str, ...]) -> str:
+    """Verknüpftes Szenario als Datei ablegen (alle Auswertungen arbeiten mit Szenariodateien) und in SZ eintragen."""
+    sz = kombiniere_szenarien(list(ids))
+    ordner = Path(tempfile.gettempdir()) / "uhrensim_verknuepfungen"
+    ordner.mkdir(exist_ok=True)
+    pfad = ordner / f"{sz['id'].replace('+', '_')}.yaml"
+    with open(pfad, "w", encoding="utf-8") as f:
+        yaml.safe_dump(sz, f, allow_unicode=True, sort_keys=False)
+    SZ[sz["id"]] = {"pfad": str(pfad), "name": sz["name"], "kurz": sz["kurz"], "beschreibung": sz["beschreibung"],
+                    "optionen": sz["relevante_optionen"]}
+    return sz["id"]
 
 
 def hinweis(art: str, titel: str, text: str) -> None:
@@ -182,6 +196,17 @@ with st.sidebar:
                        help="Der Normalbetrieb (Basis) wird immer mitgerechnet, er ist der Vergleichsmaßstab.") or []
     st.caption("Basis wird immer mitgerechnet. Für jede Störung simuliert die Software automatisch die dazu "
                "passenden Handlungsoptionen und vergleicht sie.")
+    verknuepft = st.multiselect(
+        "Szenarien verknüpfen", stoer_ids, default=[], format_func=lambda s: f"{s} · {SZ[s]['kurz']}",
+        placeholder="z. B. Uhrwerk-Ausfall + Hamburg",
+        help="Mindestens zwei Störungen wählen: Sie laufen dann zusätzlich als ein gemeinsames Szenario, jede mit "
+             "ihrem eigenen Zeitfenster. Die Handlungsoptionen beider Szenarien werden durchgerechnet.")
+    if len(verknuepft) >= 2:
+        kid = kombi_anlegen(tuple(sorted(verknuepft)))
+        auswahl = [*auswahl, kid]
+        st.caption(f"Zusätzlich gerechnet: **{kid}**")
+    elif verknuepft:
+        st.caption("Für eine Verknüpfung mindestens zwei Störungen wählen.")
 
     st.markdown("#### 3 · Zielkriterien")
     st.markdown("**Stufe 0 · Ausschlusskriterien**")

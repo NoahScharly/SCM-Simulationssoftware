@@ -48,6 +48,8 @@ dort eine Zahl, wo sie belegt ist:
 | Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | Konzept C (Datenklassen statt loser Wörterbücher) | `data.pruefe_schluessel` |
 | Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
 | CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
+| Montagekonzept als Handlungsoption: Fertiguhren, Uhrenköpfe (Band erst mit dem Auftrag) oder Montage auf Bestellung; zeigt Kapitalbindung gegen Lieferzeit | Konzept D (Montagekonzepte A/B/C, Auftragsentkopplungspunkt) | `massnahmen.montagekonzept`, `Simulation._zuteilen`, Optionen in S0, S4, S5 |
+| Szenarien verknüpfen: mehrere Störungen gleichzeitig | Gruppe (Wunsch N. Scharly; Konzept C: Szenarien kombinierbar, jedes mit eigenem Zeitfenster) | `data.kombiniere_szenarien`, Seitenleiste |
 
 Außerdem: Unterschiede unterhalb der Rauschschwelle (z. B. 0,03 Prozentpunkte Lieferfähigkeit) entscheiden die
 Rangfolge nicht mehr, weil die Normierung mindestens die Schwelle als Spanne nutzt.
@@ -130,7 +132,24 @@ stoerungen:
 
 Weitere Beispiele: `knoten_ausfall` mit `ziel` und `dauer_tage`, `kanten_sperre` mit Kanten-ID,
 `korridor` mit `aktivieren`/`deaktivieren`, `nachfrage` mit `faktor` und `monate` oder `start_tag`/`dauer_tage`.
-Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben.
+Mit `aenderungen:` lassen sich beliebige Werte aus `base.yaml` überschreiben. Ein Tippfehler in einem Feldnamen
+bricht das Laden mit Hinweis ab.
+
+### Szenarien verknüpfen
+
+In der Seitenleiste unter „Welche Störungen simulieren?“ mindestens zwei Störungen bei **Szenarien verknüpfen**
+wählen. Sie laufen dann zusätzlich als ein gemeinsames Szenario (z. B. `S1+S3`), jede Störung mit ihrem eigenen
+Zeitfenster; Nachfragefaktoren werden multipliziert, die Handlungsoptionen beider Szenarien durchgerechnet. Eine
+feste Verknüpfung geht auch als Datei:
+
+```yaml
+id: S6
+name: Uhrwerk-Ausfall und Hamburg gleichzeitig
+kurz: Doppelstörung
+kombination: [S1, S3]
+```
+
+Für Verknüpfungen gibt es keine Bandbreite, weil unklar wäre, welche der Störungen variiert wird.
 
 ## Wichtige Modellannahmen und Grenzen
 

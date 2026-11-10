@@ -103,17 +103,61 @@ def _lade_stammdaten(ordner: Path):
 
 
 # --------------------------------------------------------------------------- Szenario
-def _lade_szenario(szenario: str | Path | dict | None) -> dict:
+def _lade_szenario(szenario: str | Path | dict | None, konfig_ordner: str | Path = KONFIG_STANDARD) -> dict:
     if szenario is None:
         return {"id": "S0", "name": "Basis", "stoerungen": []}
     if isinstance(szenario, dict):
-        return szenario
-    with open(szenario, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        sz = szenario
+    else:
+        with open(szenario, encoding="utf-8") as f:
+            sz = yaml.safe_load(f) or {}
+    if sz.get("kombination"):
+        sz = kombiniere_szenarien(list(sz["kombination"]), konfig_ordner) | {
+            k: v for k, v in sz.items() if k not in ("kombination", "stoerungen", "aenderungen")}
+    return sz
+
+
+def kombiniere_szenarien(ids: list[str], konfig_ordner: str | Path = KONFIG_STANDARD) -> dict:
+    """Verknüpft mehrere Szenarien zu einem: Alle Störungen laufen gleichzeitig, jede mit ihrem eigenen Zeitfenster.
+
+    Nachfragefaktoren werden multipliziert, Parameteränderungen zusammengeführt (spätere gewinnen), die relevanten
+    Handlungsoptionen vereinigt. Eine Bandbreite gibt es für Kombinationen nicht, weil unklar wäre, welche Störung
+    variiert wird. Ein Szenario mit 'kombination: [S1, S3]' in einer Datei wird beim Laden genauso aufgelöst.
+    """
+    if len(ids) < 2:
+        raise KonfigurationsFehler("Eine Verknüpfung braucht mindestens zwei Szenarien")
+    teile = []
+    for kennung in ids:
+        treffer = None
+        for pfad in szenario_dateien(konfig_ordner):
+            with open(pfad, encoding="utf-8") as f:
+                roh = yaml.safe_load(f) or {}
+            if str(roh.get("id")) == str(kennung) and not roh.get("kombination"):
+                treffer = roh
+                break
+        if treffer is None:
+            raise KonfigurationsFehler(f"Verknüpfung: Szenario '{kennung}' nicht gefunden")
+        teile.append(treffer)
+    optionen: list[str] = []
+    for t in teile:
+        optionen += [o for o in (t.get("relevante_optionen") or []) if o not in optionen]
+    aenderungen: dict = {}
+    for t in teile:
+        aenderungen = tief_zusammenfuehren(aenderungen, t.get("aenderungen") or {})
+    return {
+        "id": "+".join(str(t["id"]) for t in teile),
+        "name": " + ".join(str(t.get("name", t["id"])) for t in teile),
+        "kurz": " + ".join(str(t.get("kurz", t["id"])) for t in teile),
+        "beschreibung": "Verknüpfte Szenarien, alle Störungen gleichzeitig mit ihren eigenen Zeitfenstern: "
+                        + " · ".join(f"{t['id']}: {t.get('name', '')}" for t in teile),
+        "relevante_optionen": optionen,
+        "stoerungen": [copy.deepcopy(s) for t in teile for s in (t.get("stoerungen") or [])],
+        "aenderungen": aenderungen,
+    }
 
 
 SZENARIO_FELDER = {"id", "name", "kurz", "beschreibung", "relevante_optionen", "stoerungen", "sensitivitaet",
-                   "aenderungen"}
+                   "aenderungen", "kombination"}
 STOERUNG_FELDER = {"typ", "ziel", "start_tag", "dauer_tage", "faktor", "monate", "aktivieren", "deaktivieren",
                    "parameter", "wert"}
 
@@ -336,7 +380,7 @@ def lade_modell(
     with open(ordner / "base.yaml", encoding="utf-8") as f:
         param = yaml.safe_load(f)
 
-    sz = _lade_szenario(szenario)
+    sz = _lade_szenario(szenario, ordner)
     falsch = set(sz) - SZENARIO_FELDER
     if falsch:
         raise KonfigurationsFehler(f"Szenario {sz.get('id', '?')}: unbekannte Felder {sorted(falsch)}")

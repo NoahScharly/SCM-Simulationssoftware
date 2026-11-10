@@ -128,6 +128,10 @@ Annahmen [A]: Hochlauf 14 Tage, 150 Stück je Woche, Aushilfe-Aufschlag 30 %, Au
 Mindesteinsatz 10 Arbeitstage, Luftweg Narita–Frankfurt 11.250 km. Übernommen und zu prüfen: 49,50 €/h (Destatis
 2026, aus dem Poster P. Maywald), 4.000 € Bereitschaft (B. Hufgard).
 
+Nachtrag 10.11.2026 (Prompts sinngemäß: „Montagekonzept noch reinbringen“, „Szenarien verknüpfen“): mit KI
+umgesetzt Montagekonzepte Fertiguhren/Köpfe/Einzelteile als Handlungsoption und die Verknüpfung von Szenarien
+(Datenebene und Seitenleiste). Annahme [A]: Endmontage Band 0,1 Tage, Montage auf Bestellung mit 1 Tag Durchlauf.
+
 ### Produkt: High-End Cars-Uhr (Entscheidung der Gruppe, 10.11.2026)
 
 Netz, Teile und Preise bleiben die der Automatikuhr (800 bis 1.200 €), das Produkt wird als fiktive
