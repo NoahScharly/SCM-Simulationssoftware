@@ -1,6 +1,5 @@
 """Simulationsbasierte Optimierung über diskrete Alternativen (Modul optimization).
 
-Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
 
 Rastersuche (Folie 5, Schritt 6): Jede Kombination von Maßnahmen wird auf jedem Szenario
 mit denselben Zufallszahlen simuliert. Daraus entstehen zwei Empfehlungen:
