@@ -164,3 +164,13 @@ Zielkonflikt, weil Schiffe auf See nicht nach Bremerhaven umgeleitet wurden. Umg
 (150 km, 0,5 Tage [A]), S3 auf 21 Tage, Block „Was ändert die Priorität?“, Tests.
 Annahmen [A]: Reaktionszeit Bestand anpassen 7 Tage, Kurzarbeit 14 Tage, Remanenzkosten 25 %.
 
+
+### Nachtrag 10.11.2026 (spät): Puffer-Stufen, Geschwindigkeit, Vorproduktion
+
+Entscheidungen N. Scharly nach Vorschlag und Prüfung durch Claude: Uhrwerk-Puffer in drei Stufen (500, 750, 1.000;
+Rechnung zeigte 500 knapp, 750 ausreichend, 1.000 Überversicherung); Prioritätsprofil „Kapital zuerst“; nur relevante
+Optionen je Szenario rechnen und parallel auf mehreren Kernen (gleiche Ergebnisse, geprüft); S4 auf +50 %, weil bei
++30 % kaum etwas passiert; Saisonbestand (Teile) durch Vorproduktion fertiger Uhren ersetzt, weil Rechnungen zeigten,
+dass in der Spitze die Montage der Engpass ist, nicht die Teile; Bandbreite bleibt bei einem Wert je Szenario;
+dominierende Optionen (z. B. Ausweichroute in S2) bleiben bewusst als klare Fälle stehen.
+Annahmen [A]: Vorproduktion Juli bis Dezember mit 40 Tagen Fertigwarenvorrat.

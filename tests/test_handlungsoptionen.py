@@ -112,14 +112,14 @@ def test_luftfracht_nicht_im_normalbetrieb():
     assert z.loc["luftfracht_sendungen", "mittel"] == 0
 
 
-def test_saisonbestand_vermeidet_fehlteile_in_s4():
+def test_vorproduktion_hebt_lieferfaehigkeit_in_s4():
+    """Engpass in der Saisonspitze ist die Montage: fertige Uhren vorher auf Lager legen hilft, bindet aber Kapital."""
     from uhrensim.experiment import fuehre_aus
     opt = {o["id"]: o for o in lade_optionen()}
     ohne = fuehre_aus(szenario_pfad("S4"), None, 3)["zusammenfassung"]
-    mit = fuehre_aus(szenario_pfad("S4"), {"massnahmen": opt["saisonbestand"]["massnahmen"]}, 3)["zusammenfassung"]
-    assert mit.loc["fehlteil_tage", "mittel"] <= ohne.loc["fehlteil_tage", "mittel"]
-    assert mit.loc["kapital_gebunden_eur", "mittel"] > ohne.loc["kapital_gebunden_eur", "mittel"]   # Vorrat aufgebaut
-
+    mit = fuehre_aus(szenario_pfad("S4"), {"massnahmen": opt["vorproduktion"]["massnahmen"]}, 3)["zusammenfassung"]
+    assert mit.loc["beta", "mittel"] > ohne.loc["beta", "mittel"] + 0.05
+    assert mit.loc["kapital_gebunden_eur", "mittel"] > ohne.loc["kapital_gebunden_eur", "mittel"]
 
 def test_gleichstand_entscheiden_die_kosten_nicht_die_listenreihenfolge():
     """Nur Lieferfähigkeit gewählt, drei Optionen mit 100 %: die günstigste gewinnt, als gleichauf markiert."""

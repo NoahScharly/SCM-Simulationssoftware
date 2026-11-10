@@ -175,7 +175,8 @@ nacheinander gerechnet. Die Kommandozeile rechnet weiterhin alle Kombinationen.
 |---|---|---|
 | Ohne Maßnahme | nur Bestellpunktverfahren; bei Sperre wartet die Ware | allen (Referenz) |
 | Ausweichroute | Bahn statt Binnenschiff über Kaub, Bremerhaven statt Hamburg; Schiffe, die schon unterwegs sind, laufen Bremerhaven an (150 km Umweg, 0,5 Tage) | S2, S3 |
-| Saisonbestand | Meldebestand aller Komponenten August bis November +20 Tage Bedarf | S4 |
+| Vorproduktion | Juli bis Dezember fertige Uhren für 40 statt 10 Tage Bedarf auf Lager, nutzt freie Montagekapazität vor der Spitze, bindet Kapital | S4 |
+| Vorproduktion + Aufstocken | beides zusammen | S4 |
 | Teilzeit aufstocken | die halbe Stelle geht bei Montagerückstand auf Vollzeit, ohne Aufschlag | S4 |
 | Aushilfe | Zeitarbeit bei Montagerückstand, 30 % teurer | S4 |
 | Bestand an Nachfrage anpassen | Meldebestand und Bestellmengen sinken mit der erkannten Nachfrage (Reaktion 7 Tage) | S5 |
@@ -190,7 +191,7 @@ nacheinander gerechnet. Die Kommandozeile rechnet weiterhin alle Kombinationen.
 | S1 Uhrwerk-Ausfall | Miyota liefert ab Tag 120 für 60 Tage nicht | wirkt | **ausgelöst** (Tag 123 bis 180) | Uhrwerk nicht (Lieferant steht), andere Teile bei Bedarf |
 | S2 Niedrigwasser | Binnenschiff über Kaub gesperrt, Umleitung Bahn | wirkt | nicht ausgelöst | nur bei Fehlteil |
 | S3 Hamburg gestört | Hafen 21 Tage zu, Ausweichen Bremerhaven | wirkt | nicht ausgelöst | nur bei Fehlteil |
-| S4 Saisonspitze | Nachfrage Nov/Dez +30 % | wirkt | nicht ausgelöst | nur bei Fehlteil |
+| S4 Saisonspitze | Nachfrage Nov/Dez +50 % | wirkt | nicht ausgelöst | nur bei Fehlteil |
 - Einkauf wird als Wareneinsatz bewertet (verbaute Komponenten × Einkaufspreis), nicht nach Bestelldatum.
 - Emissionsfaktoren: GLEC-Standardwerte (Well-to-Wheel), konservativ, keine Primärdaten.
 - TTR ist eine Eingabe (Störungsdauer, bei Lieferanten plus Transit der ersten neuen Sendung), TTS wird simuliert.

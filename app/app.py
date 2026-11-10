@@ -298,8 +298,8 @@ with st.expander("Single Points of Failure im Netz"):
         "Geprüft wird jedes Element auf dem regulären Weg einer Komponente nach Heilbronn: Gibt es einen anderen Weg, "
         "der es umgeht, wenn man alle Handlungsoptionen nutzt (Ausweichroute, Luftfracht, Ersatzlieferant, andere "
         "Bezugsquelle)? **Ohne Ausweichweg = Single Point of Failure.** Fällt so ein Element aus, hilft nur Bestand. "
-        f"Die Montage in {kurzname(pruefung.knoten[spof.attrs['werk']].name)} ist für alle Komponenten ein SPOF, weil "
-        "es nur ein Werk gibt.")
+        "Zusätzlich ist das Werk Heilbronn selbst (Montage und Lager) für alle Komponenten ein Single Point of "
+        "Failure, weil es keinen zweiten Montagestandort gibt.")
     if kritisch.empty:
         hinweis("gut", "Keine Single Points of Failure", "außer dem Werk.")
     else:

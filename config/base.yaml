@@ -167,19 +167,20 @@ handlungsoptionen:              # werden nach dem Start für jedes gewählte Sze
       für mindestens 10 Arbeitstage auf Vollzeit (eigene Mitarbeiterin, kein Zeitarbeitsaufschlag), bis der Rückstand
       aufgeholt ist; nur sinnvoll, solange die Grundbesetzung eine Teilzeitstelle enthält
     massnahmen: {aushilfe: {mitarbeiter: 0.5, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.0}}
-  - id: saisonbestand
-    name: Saisonbestand aufbauen
-    kurz: Saisonbestand
-    beschreibung: Von August bis November liegt der Meldebestand aller Komponenten 20 Tage Bedarf höher, damit vor
-      der Spitze genug Teile im Lager sind (Aufbau früh wegen langer Wiederbeschaffung) [A]
-    massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20}}
-  - id: saison_aushilfe
-    name: Saisonbestand und Aushilfe
-    kurz: Bestand + Aushilfe
-    beschreibung: Beides zusammen. Der Saisonbestand sorgt für Teile, die Aushilfe für Montagekapazität; bei einer
-      starken Spitze fehlt sonst jeweils das andere [A]
-    massnahmen: {saison_bestand: {monate: [8, 9, 10, 11], extra_tage: 20},
-                 aushilfe: {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}}
+  - id: vorproduktion
+    name: Vorproduktion vor der Saison
+    kurz: Vorproduktion
+    beschreibung: Von Juli bis Dezember nutzt die Montage ihre freie Kapazität und legt fertige Uhren für 40 Tage
+      Bedarf auf Lager (sonst 10 Tage). Kostet kaum etwas, bindet aber Kapital in Fertigwaren, und die Uhren sind
+      schon gebaut, falls die Spitze ausbleibt
+    massnahmen: {saison_vorproduktion: {monate: [7, 8, 9, 10, 11, 12], ziel_tage: 40}}
+  - id: vorproduktion_aufstocken
+    name: Vorproduktion und Teilzeit aufstocken
+    kurz: Vorproduktion + Aufstocken
+    beschreibung: Beides zusammen. Die Vorproduktion baut vorher einen Vorrat auf, das Aufstocken der Teilzeitstelle
+      fängt ab, was in der Spitze trotzdem fehlt
+    massnahmen: {saison_vorproduktion: {monate: [7, 8, 9, 10, 11, 12], ziel_tage: 40},
+                 aushilfe: {mitarbeiter: 0.5, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.0}}
   - id: bestand_absenken
     name: Bestand an Nachfrage anpassen
     kurz: Bestand absenken
