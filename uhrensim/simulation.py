@@ -349,7 +349,7 @@ class Simulation:
         """Tägliche Montage. Kostenmodell 'personal': die Stammbelegschaft kostet jeden Arbeitstag, auch wenn mangels
         Teilen oder Nachfrage weniger montiert wird (Fixkosten). 'stueck': Montagekosten je montierter Uhr.
 
-        Maßnahme Aushilfe (Idee P. Maywald): Liegt die Montage mehr als 'ausloeser_tage' Tagesbedarf hinter dem Plan
+        Maßnahme Aushilfe: Liegt die Montage mehr als 'ausloeser_tage' Tagesbedarf hinter dem Plan
         und sind Teile da, kommt eine Aushilfe (Zeitarbeit mit Aufschlag) für mindestens 'mindest_tage' Arbeitstage
         und bleibt, bis die Stammbelegschaft den Rückstand wieder allein schafft.
         """
@@ -403,7 +403,7 @@ class Simulation:
                     n = min(soll, moeglich)
                     if n < soll:
                         fehlend = [k for k, b in self.bestand.items() if b < soll]
-                        # Stillstand mit Kundenwirkung (Entscheidung N. Scharly): nur wenn Bestellungen warten oder der
+                        # Stillstand mit Kundenwirkung: nur wenn Bestellungen warten oder der
                         # normale Fertigwarenvorrat unterschritten ist. Fehlt ein Teil, während genug fertige Uhren
                         # da sind (z. B. beim Vorproduzieren), merkt das kein Kunde: eigenes Ereignis, zählt nicht.
                         normal = (float(mo["fertigwaren_ziel_tage"]) * self.basis_rate
@@ -510,7 +510,7 @@ class Simulation:
         return t + rest
 
     def _reserve_ende(self, q: Bezugsquelle, menge: float, fertigung: float) -> float:
-        """Fertigungsende bei einer Reservequelle (Idee B. Hufgard): Sie fertigt erst nach dem Hochlauf und nur mit
+        """Fertigungsende bei einer Reservequelle: Sie fertigt erst nach dem Hochlauf und nur mit
         begrenzter Wochenkapazität. Aufträge laufen nacheinander durch die Kapazität."""
         ms = self.p["massnahmen"]
         kap_tag = float(ms.get("notfall_kapazitaet_stk_woche", 0) or 0) / 7.0

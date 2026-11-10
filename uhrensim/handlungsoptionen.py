@@ -193,11 +193,11 @@ KRITERIEN: dict[str, tuple[str, str, int]] = {
     "lieferzeit_p95": ("Lieferzeit (95 %)", "Tage", -1),
     "kapital_gebunden_eur": ("Gebundenes Kapital", "€", -1),   # optional, Standard aus (Liquidität)
 }
-# Montagestillstand ist kein Zielkriterium mehr (Entscheidung N. Scharly): Seine Folgen stecken schon in
+# Montagestillstand ist kein Zielkriterium mehr : Seine Folgen stecken schon in
 # Lieferfähigkeit und Kosten, als eigenes Kriterium würde er doppelt zählen. Er bleibt als Kennzahl sichtbar.
 
 # Relevanzschwellen der Rangfolge: Unterschiede darunter gelten als gleichwertig (Rauschen oder praktisch ohne
-# Bedeutung) und entscheiden die Rangfolge nicht. Entscheidung N. Scharly nach Prüfung der Gewichtung.
+# Bedeutung) und entscheiden die Rangfolge nicht.
 RELEVANZ = {"beta": 0.005, "kosten_pro_uhr": 1.0, "co2e_pro_uhr_kg": 0.005, "lieferzeit_p95": 0.5,
             "kapital_gebunden_eur": 5000.0}
 # Reihenfolge, nach der Gleichstände aufgelöst werden, wenn alle gewählten Kriterien gleichwertig sind
@@ -387,7 +387,7 @@ def wirkt(zeile: pd.Series | dict[str, Any]) -> bool:
 
 # --------------------------------------------------------------------------- Break-even p*
 def break_even(detail: pd.DataFrame, basis: str = "S0") -> pd.DataFrame:
-    """Break-even-Wahrscheinlichkeit p* je (Szenario, Option), Entscheidungsregel aus dem Gruppenposter.
+    """Break-even-Wahrscheinlichkeit p* je (Szenario, Option), Entscheidungsregel p · vermiedener Schaden > Mehrkosten.
 
     Eine Vorsorge-Option kostet im Normalbetrieb M (Mehrkosten je Jahr gegenüber "Ohne Maßnahme" in S0) und spart
     im Störungsjahr E (Kosten "Ohne Maßnahme" minus Kosten mit Option im Szenario, inkl. Verspätungskosten).

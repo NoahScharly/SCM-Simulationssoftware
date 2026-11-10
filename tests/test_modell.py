@@ -236,7 +236,7 @@ def test_kunden_zufaellig_nach_einwohnern_und_laufzeit_nach_entfernung():
 
 # --------------------------------------------------------------------------- Zusammenführung der Gruppenkonzepte
 def test_personalkosten_fallen_auch_ohne_montage_an():
-    """Fixkosten (Idee P. Maywald): Ohne Nachfrage wird nichts montiert, die Belegschaft kostet trotzdem."""
+    """Fixkosten: Ohne Nachfrage wird nichts montiert, die Belegschaft kostet trotzdem."""
     m = lade_modell(None, {"nachfrage": {"uhren_pro_jahr": 1000}})
     e = simuliere(m, 0)
     personal = e.log[e.log.ereignis == "personal"]
@@ -257,7 +257,7 @@ def test_aushilfe_nur_bei_rueckstand():
 
 
 def test_reservequelle_hochlauf_und_kapazitaet():
-    """Sellita (Idee B. Hufgard): erst nach dem Hochlauf, höchstens die Wochenkapazität."""
+    """Sellita: erst nach dem Hochlauf, höchstens die Wochenkapazität."""
     ms = {"sellita_notfall": True, "notfall_hochlauf_tage": 14, "notfall_kapazitaet_stk_woche": 150}
     e = simuliere(lade_modell(szenario_pfad("S1"), {"massnahmen": ms}), 0)
     wechsel = e.log[(e.log.ereignis == "lieferantenwechsel") & (e.log.zustand_neu == "sellita_lcf")].zeit.min()
@@ -270,7 +270,7 @@ def test_reservequelle_hochlauf_und_kapazitaet():
 
 @pytest.mark.parametrize("sid", ["S0", "S1", "S2", "S3", "S4", "S5"])
 def test_stresstest_mengenbilanz_alle_szenarien(sid):
-    """Stresstest (Idee P. Maywald): auch bei Extremwerten kein Absturz, kein negativer Bestand, keine Ware aus dem
+    """Stresstest: auch bei Extremwerten kein Absturz, kein negativer Bestand, keine Ware aus dem
     Nichts. Je Komponente gilt: Anfangsbestand + Wareneingang - Verbrauch = Endbestand."""
     from uhrensim.handlungsoptionen import lade_optionen
     for opt in lade_optionen():
@@ -289,7 +289,7 @@ def test_stresstest_mengenbilanz_alle_szenarien(sid):
 
 
 def test_tippfehler_in_konfiguration_bricht_ab():
-    """Strenge Feldnamen (Idee P. Maywald)."""
+    """Strenge Feldnamen."""
     with pytest.raises(KonfigurationsFehler, match="vermutlich 'uhren_pro_jahr'"):
         lade_modell(None, {"nachfrage": {"uhren_pro_jahre": 5000}})
     with pytest.raises(KonfigurationsFehler, match="unbekannte Felder"):
@@ -298,7 +298,7 @@ def test_tippfehler_in_konfiguration_bricht_ab():
 
 
 def test_konfig_hash_im_protokoll():
-    """Reproduzierbarkeit (Idee B. Hufgard): gleicher Hash und Seed -> gleiches Protokoll, andere Konfig -> anderer Hash."""
+    """Reproduzierbarkeit: gleicher Hash und Seed -> gleiches Protokoll, andere Konfig -> anderer Hash."""
     a, b = simuliere(lade_modell(szenario_pfad("S1")), 0), simuliere(lade_modell(szenario_pfad("S1")), 0)
     c = lade_modell(szenario_pfad("S2"))
     start = a.log[a.log.ereignis == "laufstart"]
@@ -307,14 +307,14 @@ def test_konfig_hash_im_protokoll():
 
 
 def test_co2_letzte_meile_getrennt():
-    """Inbound und Zustellung getrennt (Idee F. Lautenbach)."""
+    """Inbound und Zustellung getrennt."""
     k = kennzahlen(simuliere(lade_modell(), 0))
     assert k["co2e_inbound_g"] + k["co2e_letzte_meile_g"] == pytest.approx(k["co2e_pro_uhr_kg"] * 1000)
 
 
 
 def test_armband_komplett_aus_brasilien_ohne_schliesse():
-    """Entscheidung N. Scharly: Schließe kommt mit dem Armband aus Estancia Velha, Italien ist entfernt."""
+    """Schließe kommt mit dem Armband aus Estancia Velha, Italien ist entfernt."""
     m = lade_modell()
     assert "schliesse" not in m.komponenten
     assert [q.lieferant for q in m.quellen["armband"]] == ["estancia_leder"]

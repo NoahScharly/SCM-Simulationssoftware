@@ -26,27 +26,25 @@ pytest -q                         # Verifikationstests
 
 Python 3.11 oder neuer.
 
-## Version 2: Erweiterungen aus den Gruppenpostern
+## Version 2: Erweiterungen
 
-Grundkonzept, Netz und Daten stammen aus dem Poster von N. Scharly. Aus den Postern und Simulationskonzepten der
-übrigen Gruppenmitglieder (B = F. Lautenbach, C = P. Maywald, D = B. Hufgard) wurde die Logik übernommen und nur
-dort eine Zahl, wo sie belegt ist:
+Version 2 erweitert das Grundmodell um die folgenden Punkte. Übernommen wurde dabei nur dort eine Zahl, wo sie belegt ist:
 
-| Erweiterung | Idee aus | Wo |
-|---|---|---|
-| Break-even-Wahrscheinlichkeit p* je Handlungsoption: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). Die Software fragt keine Eintrittswahrscheinlichkeit ab, sondern zeigt, ab welcher sich die Vorsorge lohnt | Poster B (Entscheidungsregel p · vermiedener Schaden > Mehrkosten) | `handlungsoptionen.break_even`, Oberfläche Abschnitt 1 und 2 |
-| Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Poster B (Szenarien mit Band) | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
-| Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | Poster B (SPOF-Liste) | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
-| Szenario S5 Nachfrageeinbruch -30 % für 60 Tage nach einem Imageschaden, Bandbreite -15/-30/-50 %: testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen; Handlungsoptionen Bestand an Nachfrage anpassen und Kurzarbeit | Poster C (Nachfrageschock, Skandalstufen) | `config/scenarios/s5_nachfrageeinbruch.yaml`, `massnahmen.bestand_anpassen`, `massnahmen.kurzarbeit` |
-| Montagepersonal als Fixkosten: Stellen × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage, Stellen auf halbe Stellen aufgerundet (4,5 bei 5.000 Uhren). Erst dadurch kostet ein Nachfrageeinbruch spürbar | Konzept C (Lohnkosten, 140 h je Monat) | `kosten.montage_kostenmodell`, `simulation._montage` |
-| Handlungsoption Aushilfe: liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt Zeitarbeit dazu | Konzept C (Aushilfe bei Rückstand) | `massnahmen.aushilfe`, Optionen in S4 |
-| Stresstest: alle Szenarien × alle Optionen × 500 und 25.000 Uhren, Mengenbilanz je Komponente geht auf | Konzept C (Stresstest, Mengenbilanz) | `tests/test_modell.py` |
-| Reservequelle realistisch: Sellita fertigt erst nach 14 Tagen Hochlauf, höchstens 150 Stück je Woche, und der Notfallplan kostet 4.000 € im Jahr Bereitschaft, auch ohne Ausfall | Konzept D (Reserve mit Hochlauf, Kapazität, Freigabekosten) | `massnahmen.notfall_*`, `simulation._reserve_ende` |
-| Zufälliger Startbestand je Replikation: sonst trifft eine Störung bei Losgrößen von 100 bis 200 Tagen immer dieselbe Stelle im Bestellzyklus oder gar keine Sendung | Konzept D (fester Starttag fällt zwischen die Lose) | `simulation.Simulation.__init__` |
-| Lagerhaltungskostensatz 15 % p. a. (8 % Zins + 7 % Versicherung, Schwund, Veralterung) | Konzepte C und D (beide 15 %) | `kosten.kapitalzins_pa`, `kosten.lagerrisiko_pa` |
-| Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | Konzept C (Datenklassen statt loser Wörterbücher) | `data.pruefe_schluessel` |
-| Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | Konzept D (Reproduzierbarkeit) | `data.konfig_hash`, `Simulation.lauf` |
-| CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | Konzept B (getrennte Minimierung) | `evaluation.kennzahlen` |
+| Erweiterung | Wo |
+|---|---|
+| Break-even-Wahrscheinlichkeit p* je Handlungsoption: p* = Mehrkosten im Normalbetrieb ÷ (Mehrkosten + Ersparnis im Störungsjahr). Die Software fragt keine Eintrittswahrscheinlichkeit ab, sondern zeigt, ab welcher sich die Vorsorge lohnt | `handlungsoptionen.break_even`, Oberfläche Abschnitt 1 und 2 |
+| Bandbreite je Szenario: die Stärke der Störung wird für mehrere Werte durchgerechnet, die Oberfläche zeigt, ob die Empfehlung kippt | Block `sensitivitaet` in jeder Szenariodatei, `handlungsoptionen.bandbreite`, Abschnitt 2 |
+| Single Points of Failure: Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen | `netzanalyse.single_points_of_failure`, Oberfläche unter der Datenbasis |
+| Szenario S5 Nachfrageeinbruch -30 % für 60 Tage nach einem Imageschaden, Bandbreite -15/-30/-50 %: testet Überbestand, Kapitalbindung und ungenutztes Personal statt Fehlmengen; Handlungsoptionen Bestand an Nachfrage anpassen und Kurzarbeit | `config/scenarios/s5_nachfrageeinbruch.yaml`, `massnahmen.bestand_anpassen`, `massnahmen.kurzarbeit` |
+| Montagepersonal als Fixkosten: Stellen × 1.680 h × 49,50 €/h (Destatis 2026), fällig auch ohne Montage, Stellen auf halbe Stellen aufgerundet (4,5 bei 5.000 Uhren). Erst dadurch kostet ein Nachfrageeinbruch spürbar | `kosten.montage_kostenmodell`, `simulation._montage` |
+| Handlungsoption Aushilfe: liegt die Montage mehr als 5 Tagesbedarfe hinter dem Plan und sind Teile da, kommt Zeitarbeit dazu | `massnahmen.aushilfe`, Optionen in S4 |
+| Stresstest: alle Szenarien × alle Optionen × 500 und 25.000 Uhren, Mengenbilanz je Komponente geht auf | `tests/test_modell.py` |
+| Reservequelle realistisch: Sellita fertigt erst nach 14 Tagen Hochlauf, höchstens 150 Stück je Woche, und der Notfallplan kostet 4.000 € im Jahr Bereitschaft, auch ohne Ausfall | `massnahmen.notfall_*`, `simulation._reserve_ende` |
+| Zufälliger Startbestand je Replikation: sonst trifft eine Störung bei Losgrößen von 100 bis 200 Tagen immer dieselbe Stelle im Bestellzyklus oder gar keine Sendung | `simulation.Simulation.__init__` |
+| Lagerhaltungskostensatz 15 % p. a. (8 % Zins + 7 % Versicherung, Schwund, Veralterung) | `kosten.kapitalzins_pa`, `kosten.lagerrisiko_pa` |
+| Strenge Feldnamen: Tippfehler in Szenario oder Eingabe bricht das Laden mit Vorschlag ab | `data.pruefe_schluessel` |
+| Konfigurations-Hash, Version und Seed im Ereignis `laufstart` jedes Protokolls | `data.konfig_hash`, `Simulation.lauf` |
+| CO2e getrennt nach Beschaffung (Inbound) und Zustellung (letzte Meile) | `evaluation.kennzahlen` |
 
 Außerdem: Unterschiede unterhalb einer Relevanzschwelle (Kosten 1 €/Uhr, Lieferfähigkeit 0,5 Prozentpunkte, CO2e
 5 g/Uhr, Lieferzeit 0,5 Tage) gelten als gleichwertig und entscheiden die Rangfolge nicht. Bei Gleichstand
@@ -212,8 +210,8 @@ bindet. Beispiel: +1.000 Uhrwerke binden rund 70.000 € mehr und kosten bei 10 
 
 | Datei / Modul | Kennzeichen | Bemerkung |
 |---|---|---|
-| `config/*` | E | Daten und Quellen selbst recherchiert (Poster N. Scharly), Annahmen mit [A] markiert |
-| `uhrensim/*.py`, `app/app.py`, `tests/*` | G | Architektur und Fachlogik selbst erarbeitet, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI, siehe `KI_NACHWEIS.md` |
+| `config/*` | E | Daten und Quellen von der Gruppe recherchiert, Annahmen mit [A] markiert |
+| `uhrensim/*.py`, `app/app.py`, `tests/*` | G | Architektur und Fachlogik von der Gruppe erarbeitet, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI, siehe `KI_NACHWEIS.md` |
 | SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | F | Fremdbibliotheken, siehe `requirements.txt` |
 
 ## Kunden und Distribution

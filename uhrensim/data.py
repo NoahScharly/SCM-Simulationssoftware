@@ -119,7 +119,7 @@ STOERUNG_FELDER = {"typ", "ziel", "start_tag", "dauer_tage", "faktor", "monate",
 
 
 def pruefe_schluessel(basis: Any, neu: Any, pfad: str = "") -> None:
-    """Strenge Prüfung der Feldnamen (Idee P. Maywald: Datenklassen statt loser Wörterbücher). Ein Tippfehler in
+    """Strenge Prüfung der Feldnamen (Datenklassen statt loser Wörterbücher). Ein Tippfehler in
     einer Szenariodatei oder Eingabe bricht das Laden sofort mit Meldung ab, statt still ignoriert zu werden.
 
     Geprüft wird gegen base.yaml. Leere Wörterbücher dort (z. B. monatsfaktoren, puffer_extra) sind frei
@@ -391,14 +391,14 @@ def szenario_dateien(konfig_ordner: str | Path = KONFIG_STANDARD) -> list[Path]:
 def lagerhaltungssatz(p: dict) -> float:
     """Lagerhaltungskostensatz p. a. = kalkulatorischer Zins + Versicherung, Schwund und Veralterung.
 
-    Gruppenkonsens 15 % (B. Hufgard und P. Maywald): 8 % Zins + 7 % Lagerrisiko, übliche Spanne 15 bis 25 %.
+    15 %: 8 % Zins + 7 % Lagerrisiko, übliche Spanne 15 bis 25 %.
     """
     k = p["kosten"]
     return float(k["kapitalzins_pa"]) + float(k.get("lagerrisiko_pa", 0.0) or 0.0)
 
 
 def konfig_hash(ordner: Path, param: dict, szenario: dict) -> str:
-    """Fingerabdruck eines Laufs (Idee B. Hufgard): Stammdaten-Dateien, zusammengeführte Parameter und Szenario.
+    """Fingerabdruck eines Laufs: Stammdaten-Dateien, zusammengeführte Parameter und Szenario.
 
     Gleicher Hash + gleiche Softwareversion + gleicher Seed = identisches Ereignisprotokoll. Der Hash steht im
     Ereignis 'laufstart' jedes Protokolls, damit ein Ergebnis seiner Konfiguration zugeordnet werden kann.

@@ -15,9 +15,9 @@ nachfrage:
 
 montage:
   kapazitaet_pro_tag: auto      # auto = aus Jahresmenge: Mitarbeiter × Uhren je Mitarbeiter; oder feste Zahl
-  uhren_pro_mitarbeiter_tag: 5  # Festlegung N. Scharly: Einschalen, Zeiger, Armband, Endkontrolle mit zugekauften
+  uhren_pro_mitarbeiter_tag: 5  # Einschalen, Zeiger, Armband, Endkontrolle mit zugekauften
                                 # Werken, ca. 5 Uhren je Uhrmacher und Tag; Sensitivität 2/3/5/7
-  stellen_raster: 0.5           # Stellen werden auf halbe Stellen aufgerundet (Teilzeit), Entscheidung N. Scharly:
+  stellen_raster: 0.5           # Stellen werden auf halbe Stellen aufgerundet (Teilzeit):
                                 # 5.000 Uhren brauchen 4,04 Stellen, besetzt 4,5 statt 5 volle; 1.0 = nur Vollzeit
   arbeitstage_pro_woche: 5
   gutquote: 0.99                # fest: 1 % Ausschuss, ohne Zufall (Bruchteile werden übertragen) [A]
@@ -52,14 +52,13 @@ kosten:
   transport_fix_eur_sendung: {see: 250, bahn: 90, binnen: 90, lkw: 60, luft: 180}   # [A]
   umschlag_eur_t: 40            # je Umschlag [A]
   kapitalzins_pa: 0.08          # kalkulatorischer Zins [A]
-  lagerrisiko_pa: 0.07          # Versicherung, Schwund, Veralterung; zusammen 15 % Lagerhaltungskostensatz wie bei
-                                # B. Hufgard und P. Maywald (übliche Spanne 15 bis 25 %, Logistik-Journal) [A]
+  lagerrisiko_pa: 0.07          # Versicherung, Schwund, Veralterung; zusammen 15 % Lagerhaltungskostensatz
+                                # (übliche Spanne 15 bis 25 %, Logistik-Journal) [A]
   lager_eur_stueck_tag: 0.002   # Lagerplatz je Komponente [A]
   montage_kostenmodell: personal   # personal = Fixkosten der Stammbelegschaft je Arbeitstag (auch bei Leerlauf);
                                 # stueck = montage_eur_uhr je montierter Uhr (alter Stand, nur zum Vergleich)
-  lohnkosten_eur_h: 49.50       # Arbeitskosten je Stunde Verarbeitendes Gewerbe (Destatis 2026, übernommen aus dem
-                                # Poster P. Maywald)
-  stunden_ma_jahr: 1680         # 140 Arbeitsstunden je Person und Monat (P. Maywald) [A]
+  lohnkosten_eur_h: 49.50       # Arbeitskosten je Stunde Verarbeitendes Gewerbe (Destatis 2026)
+  stunden_ma_jahr: 1680         # 140 Arbeitsstunden je Person und Monat [A]
                                 # -> rund 83.000 € je Mitarbeiter und Jahr
   montage_eur_uhr: 25           # nur bei montage_kostenmodell: stueck [A]
   paket_eur_uhr: 6              # [A]
@@ -87,8 +86,7 @@ massnahmen:
   notfall_hochlauf_tage: 14     # Reserve fertigt erst nach dem Hochlauf (Material, Fertigungsslot) [A]
   notfall_kapazitaet_stk_woche: 150   # Sellita teilt einem Kleinkunden nur ein Kontingent zu, rund 1,5-facher
                                       # Wochenbedarf bei 5.000 Uhren/Jahr [A]
-  notfall_bereitschaft_eur_jahr: 4000 # Qualifizierung, Musterfreigabe, Rahmenvertrag; fällt auch ohne Ausfall an
-                                      # (Wert und Idee aus dem Konzept B. Hufgard) [A]
+  notfall_bereitschaft_eur_jahr: 4000 # Qualifizierung, Musterfreigabe, Rahmenvertrag; fällt auch ohne Ausfall an [A]
   luftfracht_notfall: false     # Eilbezug per Luftfracht bei drohendem Fehlteil
   luft_ausloeser_tage: 8        # Reichweite, ab der Luftfracht ausgelöst wird; muss über der Luft-WBZ liegen
                                 # (2 Tage Eilfertigung + Lkw + Flug + Zoll + Umschlag = rund 6 bis 7 Tage)
@@ -100,7 +98,7 @@ massnahmen:
   luft_eilzuschlag: 0.25        # Aufschlag auf den Stückpreis für Eilfertigung und Priorisierung [A]
   ausweichroute: false          # gesperrte Abschnitte umfahren (Bahn statt Binnenschiff, Bremerhaven statt Hamburg);
                                 # ohne diese Maßnahme wartet die Ware, bis der reguläre Weg wieder frei ist
-  aushilfe: {}                  # Aushilfe bei Montagerückstand (Idee P. Maywald), z. B.
+  aushilfe: {}                  # Aushilfe bei Montagerückstand, z. B.
                                 # {mitarbeiter: 1, ausloeser_tage: 5, mindest_tage: 10, aufschlag: 0.3}
   # Teilzeit aufstocken = Aushilfe-Mechanik mit eigener Teilzeitkraft: {mitarbeiter: 0.5, aufschlag: 0, ...}
   saison_bestand: {}            # Saisonbestand: z. B. {monate: [8, 9, 10, 11], extra_tage: 20} hebt den Meldebestand

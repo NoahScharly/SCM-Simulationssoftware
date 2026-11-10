@@ -1,4 +1,4 @@
-"""Tests der Erweiterungen aus den Gruppenpostern: p*, SPOF, Bandbreite, Szenario S5."""
+"""Tests der Erweiterungen von Version 2: p*, SPOF, Bandbreite, Szenario S5."""
 
 import math
 

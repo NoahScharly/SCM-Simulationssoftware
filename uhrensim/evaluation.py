@@ -160,7 +160,7 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
     tf = t[(t.tag >= W) & (t.tag < H)] if not t.empty else t
     k = p["kosten"]
     kosten["kapitalbindung"] = float(tf.bestandswert_eur.sum() * lagerhaltungssatz(p) / 365.0) if not tf.empty else 0.0
-    # Bereitschaftskosten einer Reservequelle (Qualifizierung, Musterfreigabe, Rahmenvertrag; Idee B. Hufgard):
+    # Bereitschaftskosten einer Reservequelle (Qualifizierung, Musterfreigabe, Rahmenvertrag):
     # fallen jedes Jahr an, auch wenn der Notfallplan nie ausgelöst wird
     bereit = float(p["massnahmen"].get("notfall_bereitschaft_eur_jahr", 0.0) or 0.0)
     kosten["bereitschaft"] = bereit * (H - W) / 365.0 if p["massnahmen"].get("sellita_notfall") else 0.0
@@ -196,7 +196,7 @@ def kennzahlen(erg: Ergebnis) -> dict[str, float]:
         "kosten_gesamt": kosten_gesamt, "kosten_pro_uhr": kosten_gesamt / n if zugestellt else math.nan,
         "co2e_pro_uhr_kg": (inbound_g + letzte_meile_g) / n / 1000.0 if zugestellt else math.nan,
         "co2e_inbound_g": inbound_g / n if zugestellt else math.nan,
-        # Getrennt ausgewiesen (Idee F. Lautenbach): Zustellung zum Kunden gegen Beschaffung, weil die letzte Meile
+        # Getrennt ausgewiesen: Zustellung zum Kunden gegen Beschaffung, weil die letzte Meile
         # je Uhr ein Vielfaches des Inbound verursacht und nur über Paketdienst und Verpackung beeinflussbar ist
         "co2e_letzte_meile_g": letzte_meile_g / n if zugestellt else math.nan,
         "reichweite_tage": reichweite, "fehlteil_tage": fehlteil_tage, "luftfracht_sendungen": luft,

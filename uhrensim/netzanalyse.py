@@ -1,7 +1,7 @@
 """Netzanalyse: Single Points of Failure (Modul netzanalyse).
 
 
-Single Point of Failure (SPOF, Idee Gruppenposter):
+Single Point of Failure (SPOF):
     Ein Element des regulären Lieferwegs (Lieferant, Vorlieferant, Hafen, Strecke) ist ein SPOF, wenn es auf
     JEDEM möglichen Weg der Komponente nach Heilbronn liegt, also auch dann, wenn alle Handlungsoptionen
     (Ausweichroute, Luftfracht, Ersatzlieferant, Bezugsoption) genutzt werden. Fällt es aus, gibt es keinen Ersatz.
