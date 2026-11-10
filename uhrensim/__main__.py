@@ -1,6 +1,6 @@
 """Kommandozeile: Szenariovergleich ohne Oberfläche, Ergebnisse als CSV.
 
-Kennzeichnung: G (Architektur und Fachlogik N. Scharly, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI), siehe KI_NACHWEIS.md.
+
 
 Beispiele:
     python -m uhrensim                         # alle Szenarien, Replikationen aus base.yaml
