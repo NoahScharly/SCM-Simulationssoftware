@@ -1,3 +1,4 @@
+# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Handlungsoptionen je Szenario automatisch vergleichen und eine Empfehlung ableiten (Modul handlungsoptionen).
 
 

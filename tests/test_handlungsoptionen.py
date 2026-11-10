@@ -1,3 +1,4 @@
+# Urheberschaft: Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Tests für den automatischen Vergleich der Handlungsoptionen.
 
 

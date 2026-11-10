@@ -1,3 +1,4 @@
+# Urheberschaft: Noah Scharly (N); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Diagramme und animierte Karte (Plotly). Wird von der Streamlit-Oberfläche genutzt.
 
 

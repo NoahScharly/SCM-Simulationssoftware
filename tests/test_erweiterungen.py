@@ -1,3 +1,4 @@
+# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Tests der Erweiterungen von Version 2: p*, SPOF, Bandbreite, Szenario S5."""
 
 import math

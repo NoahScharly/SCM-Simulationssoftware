@@ -1,3 +1,4 @@
+# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Kommandozeile: Szenariovergleich ohne Oberfläche, Ergebnisse als CSV.
 
 

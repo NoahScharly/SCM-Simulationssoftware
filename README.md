@@ -208,11 +208,27 @@ bindet. Beispiel: +1.000 Uhrwerke binden rund 70.000 € mehr und kosten bei 10 
 
 ## Kennzeichnung der Urheberschaft (Aufgabenstellung 6.2)
 
-| Datei / Modul | Kennzeichen | Bemerkung |
+Gruppe: Ferdinand Lautenbach (F), Noah Scharly (N), Philipp Maywald (P), Benedict Hufgard (B).
+G = gemeinsam erarbeitet (Zusammenführung der Einzelteile, Datenbasis). Der gesamte Code ist KI-gestützt
+(Claude) entstanden, siehe `KI_NACHWEIS.md`. Jede Datei nennt in der ersten Zeile ihre Verantwortlichen.
+Die Commits liefen gesammelt über ein Konto und sagen deshalb nichts über die Urheberschaft.
+
+| Datei / Modul | Verantwortlich | Inhalt |
 |---|---|---|
-| `config/*` | E | Daten und Quellen von der Gruppe recherchiert, Annahmen mit [A] markiert |
-| `uhrensim/*.py`, `app/app.py`, `tests/*` | G | Architektur und Fachlogik von der Gruppe erarbeitet, Code teilweise selbst, teilweise mit Claude Opus 5.5 umgesetzt, Fehlerbehebung mit KI, siehe `KI_NACHWEIS.md` |
-| SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | F | Fremdbibliotheken, siehe `requirements.txt` |
+| `uhrensim/visualization.py` | N | animierte Karte, Bestandsansicht, Diagramme, Tabellen |
+| `uhrensim/domain.py` | N | Domänenmodell (Knoten, Kante, Route, Bezugsquelle, Störung, Modell) |
+| `uhrensim/handlungsoptionen.py` | F | Optionsvergleich, Rangfolge mit Relevanzschwellen, Empfehlung, Break-even p*, Bandbreite |
+| `uhrensim/evaluation.py` | F | Kennzahlen, Resilienz, CO2e getrennt nach Beschaffung und letzter Meile, Pareto |
+| `uhrensim/netzanalyse.py` | F | Single Points of Failure |
+| `tests/test_erweiterungen.py` | F | Tests zu p*, SPOF, Bandbreite, S5 |
+| `uhrensim/simulation.py` | B und P | geteilt, Abschnitte im Code markiert: B Beschaffung, Transport, Reservequelle, Zufallsströme, Startbestand, Lauf; P Nachfrage, Versand, Montage, Personal, Aushilfe, Kurzarbeit, Tagesabschluss |
+| `uhrensim/optimization.py` | P | Rastersuche über Maßnahmen-Kombinationen |
+| `tests/test_modell.py` | P | Verifikation, Stresstest mit Mengenbilanz |
+| `tests/test_handlungsoptionen.py` | P | Tests des Optionsvergleichs |
+| `uhrensim/data.py` | B | Laden, Feldnamen- und Plausibilitätsprüfung, Konfigurations-Hash |
+| `app/app.py`, `uhrensim/experiment.py`, `uhrensim/__main__.py`, `uhrensim/__init__.py` | G | Oberfläche, Experimente, Kommandozeile |
+| `config/*` | G | Datenbasis, Annahmen mit [A] markiert |
+| SimPy, NumPy, pandas, Plotly, Streamlit, PyYAML | Fremd | Fremdbibliotheken, siehe `requirements.txt` |
 
 ## Kunden und Distribution
 

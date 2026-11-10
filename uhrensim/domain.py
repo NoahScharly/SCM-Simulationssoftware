@@ -1,3 +1,4 @@
+# Urheberschaft: Noah Scharly (N); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Fachliche Objekte des Modells (Domänenmodell aus der Vorlesung).
 
 

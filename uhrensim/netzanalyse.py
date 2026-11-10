@@ -1,3 +1,4 @@
+# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Netzanalyse: Single Points of Failure (Modul netzanalyse).
 
 

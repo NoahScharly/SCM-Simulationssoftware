@@ -1,3 +1,4 @@
+# Urheberschaft: Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
 """Simulationsbasierte Optimierung über diskrete Alternativen (Modul optimization).
 
 

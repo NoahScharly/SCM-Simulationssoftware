@@ -1,3 +1,6 @@
+# Urheberschaft: geteilt zwischen Benedict Hufgard (B) und Philipp Maywald (P); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Zuordnung je Abschnitt über die Markierungen '# ---- Urheberschaft dieses Abschnitts'.
+# Ohne Markierung bis zum ersten Abschnitt (Importe, Zufallsströme, Startbestand, Init): Benedict Hufgard (B)
 """Ereignisdiskrete Simulation der Supply Chain mit SimPy (Modul simulation).
 
 Prozesse
@@ -121,6 +124,7 @@ class Simulation:
         self.fg = float(math.ceil(self._fg_ziel(0.0)))
         self.fg_wip = 0.0
 
+    # ---- Urheberschaft dieses Abschnitts: Philipp Maywald (P) (Zeitlogik, Störungsstatus, Nachfragefaktor, Preise und Zoll)
     # ================================================================ Zufall
     def _dreieck(self, strom: str, abc: list[float]) -> float:
         a, b, c = abc
@@ -199,6 +203,7 @@ class Simulation:
                 satz = s.wert
         return satz
 
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Bestellpolitik, Ereignisprotokoll)
     # ================================================================ Politik
     def _bestellpolitik(self, komp: str) -> Bestellpolitik:
         q = self.m.primaerquelle(komp)
@@ -262,6 +267,7 @@ class Simulation:
             "kosten_eur": kosten, "kostenart": kategorie, "co2e_g": co2e_g,
         })
 
+    # ---- Urheberschaft dieses Abschnitts: Philipp Maywald (P) (Nachfrage, Versand, Personalkosten, Montage, Aushilfe, Kurzarbeit, Saison, Bestandsanpassung)
     # ================================================================ Nachfrage und Versand
     def _nachfrage(self):
         tag, akkumuliert = 0, 0.0
@@ -465,6 +471,7 @@ class Simulation:
             return 1.0
         return self._erkannter_faktor(float(ba.get("reaktion_tage", 7)))
 
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Nachschub, Lieferanten, Reservequelle, Routen, Transport, Luftfracht, Notfallplan, Störungen)
     def _pruefe_nachschub(self) -> None:
         f = self._anpassungsfaktor()
         for k, pol in self.politik.items():
@@ -770,6 +777,7 @@ class Simulation:
             yield self.env.timeout(s.ende - self.env.now)
             self._log("stoerung_ende", s.ziel or s.typ, "stoerung", s.ziel, alt=s.typ)
 
+    # ---- Urheberschaft dieses Abschnitts: Philipp Maywald (P) (Tagesabschluss, Bestandswerte je Tag)
     def _tagesabschluss(self):
         yield self.env.timeout(0.999)
         while self.env.now < self.H:
@@ -786,6 +794,7 @@ class Simulation:
             self.tage.append(zeile)
             yield self.env.timeout(1.0)
 
+    # ---- Urheberschaft dieses Abschnitts: Benedict Hufgard (B) (Simulationslauf, Laufstart mit Konfigurations-Hash)
     # ================================================================ Lauf
     def lauf(self) -> Ergebnis:
         from . import __version__
