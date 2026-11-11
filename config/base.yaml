@@ -212,7 +212,13 @@ sensitivitaet:                  # One-at-a-time: python -m uhrensim --sensitivit
   montage.uhren_pro_mitarbeiter_tag: [2, 3, 5, 7]
   transport.zoll_tage: [[0.5, 1, 2], [1, 2, 4]]
   emissionen.verpackungsfaktor: [1.2, 1.5, 1.8]
-  massnahmen.luft_eilzuschlag: [0.0, 0.25, 0.5]     # wirkt nur mit Notfallplan Luftfracht (Szenario S1)
-  kosten.transport_eur_tkm.luft: [0.6, 3.0]         # Spotrate Linie (BAI 2026) vs. Express-Kleinsendung [A]
+  # Ein Eintrag als {werte, mit}: "mit" sind feste Einstellungen für alle Werte, z. B. eine Maßnahme, ohne die der
+  # Parameter nicht wirkt
+  massnahmen.luft_eilzuschlag:                      # wirkt nur mit Notfallplan Luftfracht, deshalb eingeschaltet
+    werte: [0.0, 0.25, 0.5]
+    mit: {massnahmen: {luftfracht_notfall: true}}
+  kosten.transport_eur_tkm.luft:                    # Spotrate Linie (BAI 2026) vs. Express-Kleinsendung [A]
+    werte: [0.6, 3.0]
+    mit: {massnahmen: {luftfracht_notfall: true}}
 
 stoerungen: []                  # werden von Szenarien gefüllt

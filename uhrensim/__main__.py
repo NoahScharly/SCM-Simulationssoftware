@@ -19,7 +19,7 @@ from pathlib import Path
 
 import pandas as pd
 
-from .data import lade_modell
+from .data import KonfigurationsFehler, lade_modell, tief_zusammenfuehren
 from .experiment import sensitivitaet, szenario_pfad, vergleiche
 from .optimization import szenario_optimierung
 from .visualization import kennzahlentabelle
@@ -45,7 +45,10 @@ def main() -> None:
     for w in lade_modell(None, overrides).warnungen:
         print("WARNUNG:", w)
 
-    pfade = [szenario_pfad(s) for s in args.szenarien] if args.szenarien else None
+    try:
+        pfade = [szenario_pfad(s) for s in args.szenarien] if args.szenarien else None
+    except KeyError as fehler:
+        raise KonfigurationsFehler(fehler.args[0]) from None
     ziel = Path(args.ausgabe)
     ziel.mkdir(exist_ok=True)
     pd.set_option("display.width", 200)
@@ -85,8 +88,12 @@ def main() -> None:
     if args.sensitivitaet:
         basis = lade_modell(None, overrides)
         sz = pfade[0] if pfade else None
-        teile = [sensitivitaet(sz, pfad, werte, args.replikationen)
-                 for pfad, werte in (basis.param.get("sensitivitaet") or {}).items()]
+        teile = []
+        for pfad, eintrag in (basis.param.get("sensitivitaet") or {}).items():
+            werte, mit = (eintrag["werte"], eintrag.get("mit") or {}) if isinstance(eintrag, dict) else (eintrag, {})
+            teil = sensitivitaet(sz, pfad, werte, args.replikationen, basis=tief_zusammenfuehren(overrides, mit))
+            teil["mit"] = ", ".join(f"{k}={v}" for d in mit.values() for k, v in d.items()) if mit else ""
+            teile.append(teil)
         df = pd.concat(teile, ignore_index=True)
         df.to_csv(ziel / "sensitivitaet.csv", index=False)
         print(df.round(3).to_string(index=False))
@@ -101,4 +108,7 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KonfigurationsFehler as fehler:
+        raise SystemExit(f"Ungültige Eingabe: {fehler}")

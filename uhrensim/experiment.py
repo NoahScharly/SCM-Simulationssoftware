@@ -126,16 +126,20 @@ def sensitivitaet(
     werte: list[Any],
     replikationen: int | None = None,
     im_szenario: bool = False,
+    basis: dict | None = None,
 ) -> pd.DataFrame:
-    """Ein Parameter je Lauf (One-at-a-time). pfad zeigt in base.yaml oder, mit im_szenario, ins Szenario."""
+    """Ein Parameter je Lauf (One-at-a-time). pfad zeigt in base.yaml oder, mit im_szenario, ins Szenario.
+
+    basis: feste Overrides für alle Werte (z. B. Jahresmenge oder eine Maßnahme, ohne die der Parameter nicht wirkt).
+    """
     zeilen = []
     for w in werte:
         if im_szenario:
             with open(szenario, encoding="utf-8") as f:
                 sz = _setze_pfad(yaml.safe_load(f), pfad, w)
-            e = fuehre_aus(sz, None, replikationen)
+            e = fuehre_aus(sz, basis, replikationen)
         else:
-            e = fuehre_aus(szenario, _setze_pfad({}, pfad, w), replikationen)
+            e = fuehre_aus(szenario, _setze_pfad(basis or {}, pfad, w), replikationen)
         z = e["zusammenfassung"]
         zeilen.append({"parameter": pfad, "wert": w,
                        **{kz: z.loc[kz, "mittel"] for kz in ("beta", "kosten_pro_uhr", "co2e_pro_uhr_kg",
