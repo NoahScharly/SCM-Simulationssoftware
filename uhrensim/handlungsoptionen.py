@@ -184,6 +184,7 @@ def vergleiche_optionen(
                 continue
             d = (e["laeufe"][kz] - ref["laeufe"][kz]).dropna()   # gepaart: gleiche Replikationsnummern
             zeile[f"delta_{kz}"] = float(d.mean()) if not d.empty else math.nan
+        zeile |= laeufe_spalten(e)
         zeilen.append(zeile)
     return {"detail": pd.DataFrame(zeilen), "ergebnisse": ergebnisse, "optionen": optionen}
 
@@ -200,8 +201,11 @@ KRITERIEN: dict[str, tuple[str, str, int]] = {
 # Montagestillstand ist kein Zielkriterium mehr : Seine Folgen stecken schon in
 # Lieferfähigkeit und Kosten, als eigenes Kriterium würde er doppelt zählen. Er bleibt als Kennzahl sichtbar.
 
-# Relevanzschwellen der Rangfolge: Unterschiede darunter gelten als gleichwertig (Rauschen oder praktisch ohne
-# Bedeutung) und entscheiden die Rangfolge nicht.
+# Ob ein Unterschied zur besten Option zählt, entscheidet ein gepaarter Test: Liegt die 0 außerhalb des
+# 95-%-Konfidenzintervalls der Differenzen je Replikation (gleiche Zufallszahlen), ist der Unterschied gesichert
+# und zählt, sonst gelten die Optionen als gleichwertig. Die Relevanzschwellen unten gelten nur als Rückfall, wenn
+# keine Werte je Replikation vorliegen (z. B. robuste Option über Szenariomittel).
+LAEUFE = "_laeufe_"     # Spaltenpräfix: Werte je Replikation für den gepaarten Test
 RELEVANZ = {"beta": 0.005, "kosten_pro_uhr": 1.0, "co2e_pro_uhr_kg": 0.005, "lieferzeit_p95": 0.5,
             "kapital_gebunden_eur": 5000.0}
 # Reihenfolge, nach der Gleichstände aufgelöst werden, wenn alle gewählten Kriterien gleichwertig sind
@@ -210,6 +214,24 @@ GLEICHSTAND_FOLGE = ["kosten_pro_uhr", "beta", "co2e_pro_uhr_kg", "lieferzeit_p9
 
 def richtung(kz: str) -> int:
     return KRITERIEN[kz][2] if kz in KRITERIEN else RICHTUNG.get(kz, -1)
+
+
+def laeufe_spalten(e: dict[str, Any]) -> dict[str, dict[int, float]]:
+    """Werte je Replikation der Zielkriterien eines Laufs, als Spalten für die Rangfolge."""
+    return {f"{LAEUFE}{kz}": e["laeufe"][kz].to_dict() for kz in KRITERIEN if kz in e["laeufe"]}
+
+
+def unterschied_gesichert(werte: dict[int, float], beste: dict[int, float]) -> bool | None:
+    """Gepaarter Test: True, wenn das 95-%-KI der Differenz zur besten Option die 0 ausschließt.
+
+    None, wenn zu wenige gemeinsame Replikationen vorliegen (dann gilt die Relevanzschwelle)."""
+    from .experiment import t95
+    d = pd.Series([werte[r] - beste[r] for r in werte if r in beste], dtype=float)
+    d = d.replace([math.inf, -math.inf], math.nan).dropna()
+    if len(d) < 2:
+        return None
+    halbbreite = t95(len(d) - 1) * float(d.std(ddof=1)) / math.sqrt(len(d))
+    return abs(float(d.mean())) > halbbreite + 1e-12
 
 
 def roc_gewichte(n: int) -> list[float]:
@@ -229,7 +251,7 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         andere Spalte zu prüfen (robust: schlechtestes Szenario statt Mittelwert).
     Stufe 2 (Priorisierung): die Reihenfolge der Kriterien ergibt ROC-Gewichte. Jedes Kriterium wird über die
         zulässigen Optionen auf 0 (bester Wert) bis 1 (schlechtester Wert) normiert, der gewichtete Abstand zum
-        Besten ist die Punktzahl (kleiner = besser).
+        Besten ist die Punktzahl (kleiner = besser). Ein Abstand zählt nur, wenn er im gepaarten Test gesichert ist.
     Unzulässige Optionen stehen dahinter, sortiert nach ihrem relativen Abstand zu den Anforderungen.
     """
     spalten = spalten or {}
@@ -256,11 +278,18 @@ def rangiere(df: pd.DataFrame, anforderungen: dict[str, float], prioritaet: list
         bx = basis[kz].astype(float)
         bester, schlechtester = (bx.max(), bx.min()) if richtung(kz) > 0 else (bx.min(), bx.max())
         schwelle = RELEVANZ.get(kz, SCHWELLEN.get(kz, 0.0))
-        # Wer weniger als die Relevanzschwelle vom Besten entfernt ist, gilt als gleich gut (0). Sonst Abstand zum
-        # Besten relativ zur Spanne der zulässigen Optionen (mindestens die Schwelle).
+        # Wessen Unterschied zum Besten statistisch nicht gesichert ist (gepaarter Test), gilt als gleich gut (0).
+        # Ohne Werte je Replikation entscheidet die Relevanzschwelle. Sonst Abstand zum Besten relativ zur Spanne
+        # der zulässigen Optionen (mindestens die Schwelle).
         abst = (x - bester).abs()
+        zaehlt = abst >= schwelle
+        sp = f"{LAEUFE}{kz}"
+        if sp in out and out[sp].map(lambda v: isinstance(v, dict)).all():
+            ref = out.at[bx.idxmax() if richtung(kz) > 0 else bx.idxmin(), sp]
+            test = [unterschied_gesichert(w, ref) for w in out[sp]]
+            zaehlt = pd.Series([z if t is None else t for t, z in zip(test, zaehlt)], index=out.index)
         spanne = max(abs(schlechtester - bester), schwelle)
-        norm = (abst / spanne).where(abst >= schwelle, 0.0) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
+        norm = (abst / spanne).where(zaehlt, 0.0) if spanne > 1e-12 else pd.Series(0.0, index=out.index)
         out[f"norm_{kz}"] = norm
         punkte += w * norm
     out["punkte"] = punkte.round(9)
@@ -500,6 +529,7 @@ def bandbreite(
             zeile = {"szenario": e["szenario_id"], "option": opt["id"], "wert": w}
             for kz in z.index:
                 zeile[kz] = float(z.loc[kz, "mittel"])
+            zeile |= laeufe_spalten(e)
             zeilen.append(zeile)
             i += 1
             if fortschritt:

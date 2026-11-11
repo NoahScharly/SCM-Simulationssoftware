@@ -655,10 +655,9 @@ with tab_detail:
     st.markdown("Alle Optionen wurden automatisch mit denselben Zufallszahlen simuliert, Vergleichsmaßstab ist "
                 "„Ohne Maßnahme“ im selben Szenario. Rangfolge: **Stufe 1** Mindestanforderungen "
                 f"({anf_text()}), **Stufe 2** Priorisierung ({prio_text()}). Punkte = gewichteter Abstand zur jeweils "
-                "besten zulässigen Option, 0 = überall die beste. Unterschiede unter der Relevanzschwelle "
-                f"(Kosten {de(RELEVANZ['kosten_pro_uhr'])} €/Uhr, Lieferfähigkeit {de(RELEVANZ['beta'] * 100, 1)} Pp, "
-                f"CO2e {de(RELEVANZ['co2e_pro_uhr_kg'] * 1000)} g/Uhr, Lieferzeit {de(RELEVANZ['lieferzeit_p95'], 1)} Tage) "
-                "gelten als gleichwertig. Bei Gleichstand (**=**) entscheiden die Kosten, dann die übrigen Kriterien.")
+                "besten zulässigen Option, 0 = überall die beste. Ein Unterschied zählt nur, wenn er statistisch gesichert "
+                "ist (gepaarter Test über die Replikationen mit denselben Zufallszahlen, 95-%-Konfidenzintervall der "
+                "Differenz schließt die 0 aus); sonst gelten die Optionen in diesem Kriterium als gleichwertig. Bei Gleichstand (**=**) entscheiden die Kosten, dann die übrigen Kriterien.")
     tab_opt = []
     for r in rang.itertuples():
         vor, nach = vor_und_nachteile(rang.loc[r.Index])
@@ -841,5 +840,5 @@ with tab_ueberblick:
                    + ("" if len(mit_option) == len(sz_ids) else
                       f" Diese Option wird nur in {', '.join(mit_option)} gerechnet."))
         st.plotly_chart(viz.boxplot_vergleich({s: erg_alle[(s, o_s)] for s in mit_option}, kz), width="stretch")
-        st.download_button("Alle Ergebnisse (Szenario × Option) als CSV", detail.to_csv(index=False).encode("utf-8"),
+        st.download_button("Alle Ergebnisse (Szenario × Option) als CSV", detail.drop(columns=[c for c in detail if c.startswith("_")]).to_csv(index=False).encode("utf-8"),
                            "szenarien_optionen.csv", "text/csv")

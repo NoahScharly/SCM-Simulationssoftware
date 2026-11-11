@@ -48,6 +48,20 @@ def test_rauschen_entscheidet_nicht():
     assert r.iloc[0].option == "keine"
 
 
+def test_gepaarter_test_entscheidet_statt_schwelle():
+    """Nur CO2e priorisiert, Ersatz-Uhrwerk 4,9 g besser (unter der alten Schwelle von 5 g), Puffer 14 € billiger.
+    Gesicherter Unterschied (kleine Streuung der Differenzen): Ersatz-Uhrwerk gewinnt. Nicht gesichert (Differenz
+    schwankt um die 0): gleichwertig, die Kosten entscheiden."""
+    puffer = {r: 0.0594 + 0.002 * ((-1) ** r) for r in range(10)}
+    gesichert = {r: v - 0.0049 + 0.0002 * ((-1) ** r) for r, v in puffer.items()}
+    rauschen = {r: v - 0.0049 + 0.03 * ((-1) ** r) for r, v in puffer.items()}
+    for ersatz, sieger in ((gesichert, "ersatz"), (rauschen, "puffer")):
+        d = pd.DataFrame([{"option": o, "beta": 1.0, "kosten_pro_uhr": k, "lieferzeit_p95": 2.1,
+                           "co2e_pro_uhr_kg": sum(w.values()) / len(w), "_laeufe_co2e_pro_uhr_kg": w}
+                          for o, k, w in (("puffer", 247.18, puffer), ("ersatz", 261.21, ersatz))])
+        assert rangiere(d, {"beta": 0.95, "lieferzeit_p95": 3}, ["co2e_pro_uhr_kg"]).iloc[0].option == sieger
+
+
 def test_spof(modell):
     spof = single_points_of_failure(modell, lade_optionen())
     spof = spof[spof.komponente == "uhrwerk"].set_index("element").combine_first(

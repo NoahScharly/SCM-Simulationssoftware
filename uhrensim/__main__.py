@@ -71,7 +71,8 @@ def main() -> None:
         v = vergleiche_optionen(pfade or szenario_dateien(), overrides=overrides,
                                 replikationen=args.replikationen or 5,
                                 fortschritt=lambda i, n: print(f"Lauf {i}/{n}", end="\r"))
-        v["detail"].to_csv(ziel / "handlungsoptionen.csv", index=False)
+        v["detail"].drop(columns=[c for c in v["detail"] if c.startswith("_")]).to_csv(
+            ziel / "handlungsoptionen.csv", index=False)
         print(f"\nEmpfehlung je Szenario (Anforderungen {anf}, Priorität {prio}):")
         for sid, r in empfehlung_je_szenario(v["detail"], anf, prio).items():
             b = r.iloc[0]

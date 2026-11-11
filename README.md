@@ -138,7 +138,7 @@ python -m uhrensim --sensitivitaet -s S1  # One-at-a-time-Sensitivität aus base
 pytest -q
 ```
 
-64 Tests prüfen unter anderem Konfiguration, Mengenbilanz, Handrechnung, Reproduzierbarkeit, Störungen,
+65 Tests prüfen unter anderem Konfiguration, Mengenbilanz, Handrechnung, Reproduzierbarkeit, Störungen,
 Notfallpläne, Entscheidungslogik und einen Stresstest über alle Szenarien und Optionen. Laufzeit rund 2 Minuten.
 
 ### 3.4 Aus Python nutzen
@@ -224,8 +224,11 @@ Korrekturvorschlag ab.
   Störungsjahr). Zeigt, ab welcher Eintrittswahrscheinlichkeit sich eine Vorsorge lohnt.
 - **Bandbreite:** Jedes Szenario wird mit unterschiedlich starker Störung gerechnet; die Oberfläche zeigt, ob die
   Empfehlung kippt.
-- **Relevanzschwellen:** Unterschiede unter 1 €/Uhr, 0,5 Prozentpunkten Lieferfähigkeit, 5 g CO2e/Uhr oder
-  0,5 Tagen Lieferzeit gelten als gleichwertig. Bei Gleichstand entscheiden die Kosten, nie die Listenreihenfolge.
+- **Gesicherte Unterschiede:** Ein Unterschied zur besten Option zählt in der Rangfolge nur, wenn ein gepaarter
+  Test über die Replikationen (gleiche Zufallszahlen) ihn sichert: Das 95-%-Konfidenzintervall der Differenz
+  schließt die 0 aus. Sonst gelten die Optionen in diesem Kriterium als gleichwertig. Ohne Werte je Replikation
+  (robuste Option) gelten als Rückfall Relevanzschwellen von 1 €/Uhr, 0,5 Prozentpunkten Lieferfähigkeit,
+  5 g CO2e/Uhr und 0,5 Tagen Lieferzeit. Bei Gleichstand entscheiden die Kosten, nie die Listenreihenfolge.
 - **Montagestillstand** ist nur Kennzahl, kein Zielkriterium, weil seine Folgen schon in Lieferfähigkeit und
   Kosten stecken. Er zählt nur mit Kundenwirkung.
 - **Single Points of Failure:** Elemente ohne Ausweichweg, auch mit allen Handlungsoptionen.
@@ -280,7 +283,7 @@ liefen gesammelt über ein Konto und sagen deshalb nichts über die Urheberschaf
 | `handlungsoptionen.py` (markiert) | Zielkriterien, Relevanzschwellen, zweistufige Rangfolge mit ROC-Gewichten, Empfehlung je Szenario und Profil, robuste Option, Vor- und Nachteile, Break-even p*, Bandbreite |
 | `evaluation.py` | Kennzahlen aus dem Ereignisprotokoll, Kostenaufteilung, CO2e getrennt nach Beschaffung und letzter Meile, Resilienz, Pareto-Front |
 | `netzanalyse.py` | Single Points of Failure |
-| `test_erweiterungen.py` (markiert) | Tests zu p*, Rauschen unter der Relevanzschwelle und SPOF |
+| `test_erweiterungen.py` (markiert) | Tests zu p*, Rauschen unter der Relevanzschwelle, gepaartem Test in der Rangfolge und SPOF |
 
 ### Philipp Maywald (P)
 
