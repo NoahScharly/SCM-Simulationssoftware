@@ -1,4 +1,4 @@
-# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude)
 """Monte-Carlo-Experimente, Szenariovergleich und Sensitivitätsanalyse.
 
 

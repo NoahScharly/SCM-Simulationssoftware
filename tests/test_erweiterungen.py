@@ -1,4 +1,4 @@
-# Urheberschaft: Ferdinand Lautenbach (F), einzelner Test Philipp Maywald (P), markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Ferdinand Lautenbach (F), einzelner Test Philipp Maywald (P), markiert; KI-gestützt (Claude)
 """Tests der Erweiterungen von Version 2: p*, SPOF, Bandbreite, Szenario S5."""
 
 import math

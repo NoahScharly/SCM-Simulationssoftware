@@ -1,5 +1,5 @@
 # Urheberschaft: geteilt zwischen Ferdinand Lautenbach (F) und Philipp Maywald (P), je Abschnitt markiert;
-# Ohne Markierung bis zum ersten Abschnitt (Importe, Konstanten, Entscheidungsregel laden): Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Ohne Markierung bis zum ersten Abschnitt (Importe, Konstanten, Entscheidungsregel laden): Ferdinand Lautenbach (F); KI-gestützt (Claude)
 """Handlungsoptionen je Szenario automatisch vergleichen und eine Empfehlung ableiten (Modul handlungsoptionen).
 
 

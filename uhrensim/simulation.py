@@ -1,4 +1,4 @@
-# Urheberschaft: geteilt zwischen Benedict Hufgard (B), Philipp Maywald (P) und Noah Scharly (N); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: geteilt zwischen Benedict Hufgard (B), Philipp Maywald (P) und Noah Scharly (N); KI-gestützt (Claude)
 # Zuordnung je Abschnitt über die Markierungen '# ---- Urheberschaft dieses Abschnitts'.
 # Ohne Markierung bis zum ersten Abschnitt (Importe, Zufallsströme, Startbestand, Init): Benedict Hufgard (B)
 """Ereignisdiskrete Simulation der Supply Chain mit SimPy (Modul simulation).

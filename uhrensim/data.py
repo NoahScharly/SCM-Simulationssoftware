@@ -1,4 +1,4 @@
-# Urheberschaft: Benedict Hufgard (B); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Benedict Hufgard (B); KI-gestützt (Claude)
 """Laden, Zusammenführen und Prüfen der Konfiguration (Modul data).
 
 

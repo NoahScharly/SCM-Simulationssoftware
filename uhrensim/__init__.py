@@ -1,4 +1,4 @@
-# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude)
 """uhrensim: ereignisdiskrete Simulation der Uhren-Supply-Chain mit Montage in Heilbronn.
 
 

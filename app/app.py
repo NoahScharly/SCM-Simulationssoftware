@@ -1,4 +1,4 @@
-# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: gemeinsam: Ferdinand Lautenbach, Noah Scharly, Philipp Maywald, Benedict Hufgard (G); KI-gestützt (Claude)
 """Streamlit-Oberfläche als Entscheidungsunterstützung (Modul ui).
 
 Ablauf: 1 Normalbetrieb und Störungen wählen, 2 Simulation rechnet je Szenario alle Handlungsoptionen,

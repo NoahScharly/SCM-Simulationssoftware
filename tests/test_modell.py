@@ -1,4 +1,4 @@
-# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N) und Benedict Hufgard (B), je Test markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N) und Benedict Hufgard (B), je Test markiert; KI-gestützt (Claude)
 """Verifikation: Konfiguration, Mengenbilanz, deterministischer Modus, Reproduzierbarkeit.
 
 Start: pytest -q

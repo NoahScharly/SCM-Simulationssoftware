@@ -1,4 +1,4 @@
-# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N), je Test markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N), je Test markiert; KI-gestützt (Claude)
 """Tests für den automatischen Vergleich der Handlungsoptionen.
 
 

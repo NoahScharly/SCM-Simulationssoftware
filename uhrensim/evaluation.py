@@ -1,4 +1,4 @@
-# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude), siehe KI_NACHWEIS.md
+# Urheberschaft: Ferdinand Lautenbach (F); KI-gestützt (Claude)
 """Kennzahlen aus dem Ereignisprotokoll und Mehrzielbewertung (Modul evaluation).
 
 
