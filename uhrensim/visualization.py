@@ -3,7 +3,7 @@
 
 
 Alle Funktionen lesen nur aus Ergebnis-Objekten bzw. Kennzahlentabellen: eine Datenquelle
-für Karte, Diagramme und Kennzahlen (Folie 10).
+für Karte, Diagramme und Kennzahlen.
 """
 
 from __future__ import annotations
