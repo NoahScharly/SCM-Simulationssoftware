@@ -4,7 +4,7 @@
 
 | System | Version | Zeitraum | Zugang |
 |---|---|---|---|
-| Claude (Anthropic) | Claude Opus 5.5 | Oktober bis November 2026 | claude.ai |
+| Claude (Anthropic) | Claude Opus 5.5 | seit 1. November 2026 | claude.ai |
 | Claude (Anthropic) | Claude Sonnet 5.5 | seit 1. November 2026 | claude.ai |
 
 Weitere KI-Systeme wurden nicht verwendet.
