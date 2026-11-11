@@ -48,7 +48,7 @@ def zufallsstroeme(seed: int, replikation: int) -> dict[str, np.random.Generator
 
 @dataclass
 class Bestellpolitik:
-    """(s, Q)-Regel einer Komponente, analytisch vorbelegt (Folie 4, Schritt 2)."""
+    """(s, Q)-Regel einer Komponente, analytisch vorbelegt."""
 
     komponente: str
     bedarf_tag: float

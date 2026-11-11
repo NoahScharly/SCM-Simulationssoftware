@@ -1,5 +1,5 @@
 # Urheberschaft: Philipp Maywald (P), einzelne Tests Noah Scharly (N) und Benedict Hufgard (B), je Test markiert; KI-gestützt (Claude), siehe KI_NACHWEIS.md
-"""Verifikation (Folie 11): Konfiguration, Mengenbilanz, deterministischer Modus, Reproduzierbarkeit.
+"""Verifikation: Konfiguration, Mengenbilanz, deterministischer Modus, Reproduzierbarkeit.
 
 Start: pytest -q
 """

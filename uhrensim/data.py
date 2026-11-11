@@ -271,7 +271,7 @@ def _montage_auslegen(m: Modell) -> None:
 
 
 def _pruefe_plausibilitaet(m: Modell) -> None:
-    """Plausibilitätsregeln aus Folie 2: harte Grenzen werfen Fehler, weiche erzeugen Warnungen."""
+    """Plausibilitätsregeln: harte Grenzen werfen Fehler, weiche erzeugen Warnungen."""
     g = m.param["grenzen"]
     menge = float(m.param["nachfrage"]["uhren_pro_jahr"])
     _montage_auslegen(m)

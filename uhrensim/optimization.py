@@ -2,7 +2,7 @@
 """Simulationsbasierte Optimierung über diskrete Alternativen (Modul optimization).
 
 
-Rastersuche (Folie 5, Schritt 6): Jede Kombination von Maßnahmen wird auf jedem Szenario
+Rastersuche: Jede Kombination von Maßnahmen wird auf jedem Szenario
 mit denselben Zufallszahlen simuliert. Daraus entstehen zwei Empfehlungen:
 
 - Optimum je Szenario: die beste Kombination, wenn man wüsste, welche Störung eintritt.

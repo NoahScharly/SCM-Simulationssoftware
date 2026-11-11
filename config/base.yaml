@@ -201,13 +201,13 @@ bewertung:
   gewichte: {kosten_pro_uhr: 0.4, co2e_pro_uhr_kg: 0.3, lieferzeit_p95: 0.3}
   rangfolge: [beta, co2e_pro_uhr_kg, kosten_pro_uhr]
 
-grenzen:                        # Plausibilitätsregeln (Folie 2)
+grenzen:                        # Plausibilitätsregeln
   uhren_pro_jahr: [0, 25000]
   kapazitaet_pro_tag: [1, 150]
   arbeitstage_pro_jahr: 250
   wbz_max_tage: 180
 
-sensitivitaet:                  # One-at-a-time (Folie 11): python -m uhrensim --sensitivitaet
+sensitivitaet:                  # One-at-a-time: python -m uhrensim --sensitivitaet
   kosten.verspaetung_eur_auftrag: [20, 50, 100]
   montage.uhren_pro_mitarbeiter_tag: [2, 3, 5, 7]
   transport.zoll_tage: [[0.5, 1, 2], [1, 2, 4]]
