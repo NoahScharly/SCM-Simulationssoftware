@@ -1,7 +1,6 @@
 # Simulationssoftware SCM
 
-Ereignisdiskrete Simulation (SimPy) der globalen Supply Chain einer High-End Cars-Automatikuhr (fiktive
-Lizenzedition, 800 bis 1.200 €) mit Montage in Heilbronn. Die Software simuliert Normalbetrieb und Störungen,
+Ereignisdiskrete Simulation (SimPy) der globalen Supply Chain einer High-End Cars-Automatikuhr (800€) mit Montage in Heilbronn. Die Software simuliert Normalbetrieb und Störungen,
 rechnet für jede Störung mehrere Handlungsoptionen durch und leitet daraus eine nachvollziehbare Empfehlung ab.
 
 Portfolioprüfung Logistik und Supply Chain Management, DHBW Heilbronn, Gruppe 04 „Die Logistiker“:
