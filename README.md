@@ -306,7 +306,7 @@ Abschnitt bzw. Test mit `Urheberschaft dieses Abschnitts` oder `Urheberschaft di
 | `domain.py` | Domänenmodell, Grundlage aller Teile |
 | `experiment.py`, `__main__.py`, `__init__.py` | Replikationen, Konfidenzintervalle, Szenariovergleich, Sensitivität, Kommandozeile |
 | `config/` | Datenbasis, Parameter und Szenarien, Annahmen mit [A] markiert |
-| `README.md`, | Dokumentation |
+| `README.md` | Dokumentation |
 
 **Fremdbibliotheken:** SimPy, NumPy, pandas, NetworkX, Plotly, Streamlit, streamlit-sortables, PyYAML, pytest
 (siehe `requirements.txt`).
