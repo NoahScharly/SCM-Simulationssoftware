@@ -1,6 +1,6 @@
-# Simulationsmodell Supply Chain: High-End Cars-Uhr
+# Simulationssoftware SCM
 
-Ereignisdiskrete Simulation (SimPy) der globalen Lieferkette einer High-End Cars-Automatikuhr (fiktive
+Ereignisdiskrete Simulation (SimPy) der globalen Supply Chain einer High-End Cars-Automatikuhr (fiktive
 Lizenzedition, 800 bis 1.200 €) mit Montage in Heilbronn. Die Software simuliert Normalbetrieb und Störungen,
 rechnet für jede Störung mehrere Handlungsoptionen durch und leitet daraus eine nachvollziehbare Empfehlung ab.
 
@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ## 2. Dateistruktur
 
 ```
-SCM-Software-v2/
+Simulationssoftware-SCM/
 ├── app/
 │   └── app.py                 Streamlit-Oberfläche (Entscheidungsunterstützung)
 ├── config/                    Datenbasis: alles, was das Modell rechnet, steht hier, nicht im Code
@@ -297,6 +297,7 @@ liefen gesammelt über ein Konto und sagen deshalb nichts über die Urheberschaf
 |---|---|
 | `data.py` | Laden und Zusammenführen der Konfiguration, strenge Feldnamen, Referenz- und Plausibilitätsprüfung, Wiederbeschaffungszeiten, Montageauslegung, Lagerhaltungskostensatz, Konfigurations-Hash |
 | `simulation.py` (markiert, inkl. Dateianfang) | Zufallsströme, zufälliger Startbestand, Bestellpolitik (s, Q), automatische Nachbestellung, Fertigung, Reservequelle mit Hochlauf, Kapazität und Bereitschaft, Transportprozess, Störungen, Simulationslauf |
+| `test_modell.py` (markiert) | Tests zu Hochlauf und Wochenkapazität der Reservequelle und zum Konfigurations-Hash im Protokoll |
 
 ### Gemeinsam (G)
 
