@@ -42,7 +42,7 @@ pip install -r requirements.txt
 ## 2. Dateistruktur
 
 ```
-Simulationssoftware-SCM/
+SCM-Simulationssoftware/
 ├── app/
 │   └── app.py                 Streamlit-Oberfläche (Entscheidungsunterstützung)
 ├── config/                    Datenbasis: alles, was das Modell rechnet, steht hier, nicht im Code
