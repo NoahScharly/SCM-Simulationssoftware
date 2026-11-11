@@ -73,7 +73,6 @@ SCM-Simulationssoftware/
 ├── .streamlit/config.toml     Farbschema der Oberfläche
 ├── requirements.txt           benötigte Bibliotheken
 ├── pytest.ini                 Testeinstellungen
-├── KI_NACHWEIS.md             Nachweis der KI-Nutzung je Person
 └── README.md
 ```
 
@@ -255,11 +254,8 @@ Korrekturvorschlag ab.
 
 ## 6. Zuordnung der persönlichen Beiträge
 
-Der gesamte Code ist KI-gestützt (Claude, Anthropic) entstanden; Art der Nutzung je Person siehe
-`KI_NACHWEIS.md`. Jede Datei nennt in ihrer ersten Zeile die Verantwortlichen. In geteilten Dateien ist jeder
-Abschnitt bzw. Test mit `Urheberschaft dieses Abschnitts` oder `Urheberschaft dieses Tests` markiert. Die Commits
-liefen gesammelt über ein Konto und sagen deshalb nichts über die Urheberschaft.
-
+Jede Datei nennt in ihrer ersten Zeile die Verantwortlichen. In geteilten Dateien ist jeder
+Abschnitt bzw. Test mit `Urheberschaft dieses Abschnitts` oder `Urheberschaft dieses Tests` markiert.
 | Kürzel | Person | Schwerpunkt |
 |:-:|---|---|
 | **N** | Noah Scharly | Visualisierung, Routen und Umleitung, Lieferantenausfall und Notfallpläne |
@@ -310,7 +306,7 @@ liefen gesammelt über ein Konto und sagen deshalb nichts über die Urheberschaf
 | `domain.py` | Domänenmodell, Grundlage aller Teile |
 | `experiment.py`, `__main__.py`, `__init__.py` | Replikationen, Konfidenzintervalle, Szenariovergleich, Sensitivität, Kommandozeile |
 | `config/` | Datenbasis, Parameter und Szenarien, Annahmen mit [A] markiert |
-| `README.md`, `KI_NACHWEIS.md` | Dokumentation |
+| `README.md`, | Dokumentation |
 
 **Fremdbibliotheken:** SimPy, NumPy, pandas, NetworkX, Plotly, Streamlit, streamlit-sortables, PyYAML, pytest
 (siehe `requirements.txt`).
